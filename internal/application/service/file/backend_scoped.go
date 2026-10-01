@@ -5,14 +5,9 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
-	secutils "github.com/magicyuan876/yuheng/internal/utils"
 )
 
 // backendScopedFileService makes the storage instance part of every newly
@@ -78,23 +73,8 @@ func (s *backendScopedFileService) GetFileURL(ctx context.Context, path string) 
 	if err != nil {
 		return "", err
 	}
-	scoped := s.wrap(p)
 	if result == p {
-		return scoped, nil
-	}
-	// Local storage may return an app-level presigned URL. Re-sign it with
-	// the scoped path so the proxy resolves the exact local instance instead
-	// of falling back to another backend of the same provider.
-	if u, parseErr := url.Parse(result); parseErr == nil && strings.HasSuffix(u.Path, "/api/v1/files/presigned") && u.Query().Get("file_path") == p {
-		basePath := strings.TrimSuffix(u.Path, "/api/v1/files/presigned")
-		baseURL := u.Scheme + "://" + u.Host + basePath
-		ttl := time.Duration(0)
-		if expires, convErr := strconv.ParseInt(u.Query().Get("expires"), 10, 64); convErr == nil {
-			ttl = time.Until(time.Unix(expires, 0))
-		}
-		if signed, signErr := secutils.SignFileURL(baseURL, scoped, secutils.ParseTenantIDFromStoragePath(scoped), ttl); signErr == nil {
-			return signed, nil
-		}
+		return s.wrap(p), nil
 	}
 	return result, nil
 }

@@ -42,7 +42,11 @@ type ResourceRegistration struct {
 // ResourceCatalog maps public resource references to internal storage
 // locations and manages their access capabilities.
 type ResourceCatalog interface {
-	Register(ctx context.Context, tenantID uint64, physicalPath string, meta ResourceRegistration) (string, error)
+	// Register records the object at physicalPath on backend backendID and
+	// returns its resource:// reference. Registering the same location twice
+	// returns the existing reference.
+	Register(ctx context.Context, tenantID uint64, backendID, physicalPath string,
+		meta ResourceRegistration) (string, error)
 	Resolve(ctx context.Context, reference string) (*types.StoredResource, error)
 	ResolvePath(ctx context.Context, value string) (string, *types.StoredResource, error)
 	Bind(ctx context.Context, reference, ownerType, ownerID, relation string) error

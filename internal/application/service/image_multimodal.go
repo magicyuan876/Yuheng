@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -91,17 +90,9 @@ type ImageMultimodalService struct {
 	ollamaService  *ollama.OllamaService
 	taskEnqueuer   interfaces.TaskEnqueuer
 	redisClient    *redis.Client
-	// fileSvc is the globally configured default FileService used as a fallback
-	// when the tenant-scoped storage config cannot produce a usable service
-	// (e.g. images were saved using the global S3_* env vars while the
-	// tenant's StorageEngineConfig.S3 is empty). Mirrors the write-side
-	// fallback in knowledgeService.resolveFileService.
-	fileSvc         interfaces.FileService
-	storageResolver interfaces.StorageBackendResolver
-	// resourceCatalog resolves resource:// references to their owning storage
-	// backend so multimodal reads target the resource's real backend instead of
-	// the knowledge base's currently configured one.
-	resourceCatalog interfaces.ResourceCatalog
+	// files reads the image: its resource row names the backend that holds
+	// it, which need not be the knowledge base's current binding.
+	files interfaces.FileStore
 
 	// spanTracker records this image's subspan under the parent attempt's
 	// multimodal stage. nil-safe — falls back to no-op via tracker().
@@ -119,26 +110,22 @@ func NewImageMultimodalService(
 	ollamaService *ollama.OllamaService,
 	taskEnqueuer interfaces.TaskEnqueuer,
 	redisClient *redis.Client,
-	fileSvc interfaces.FileService,
-	storageResolver interfaces.StorageBackendResolver,
-	resourceCatalog interfaces.ResourceCatalog,
+	files interfaces.FileStore,
 	spanTracker SpanTracker,
 ) interfaces.TaskHandler {
 	return &ImageMultimodalService{
-		chunkService:    chunkService,
-		modelService:    modelService,
-		kbService:       kbService,
-		knowledgeRepo:   knowledgeRepo,
-		tenantRepo:      tenantRepo,
-		retrieveEngine:  retrieveEngine,
-		ownership:       ownership,
-		ollamaService:   ollamaService,
-		taskEnqueuer:    taskEnqueuer,
-		redisClient:     redisClient,
-		fileSvc:         fileSvc,
-		storageResolver: storageResolver,
-		resourceCatalog: resourceCatalog,
-		spanTracker:     spanTracker,
+		chunkService:   chunkService,
+		modelService:   modelService,
+		kbService:      kbService,
+		knowledgeRepo:  knowledgeRepo,
+		tenantRepo:     tenantRepo,
+		retrieveEngine: retrieveEngine,
+		ownership:      ownership,
+		ollamaService:  ollamaService,
+		taskEnqueuer:   taskEnqueuer,
+		redisClient:    redisClient,
+		files:          files,
+		spanTracker:    spanTracker,
 	}
 }
 
@@ -565,76 +552,16 @@ func (s *ImageMultimodalService) resolveVLM(ctx context.Context, kbID, knowledge
 	return model, vlmCfg, err
 }
 
-// resolveFileServiceForPayload resolves tenant/KB scoped file service for reading provider:// URLs.
-// Falls back to the globally configured default FileService when the tenant's
-// StorageEngineConfig does not carry a usable configuration for the URL's provider.
-// This mirrors the write-side fallback in knowledgeService.resolveFileService
-// and is required because images can be saved using global STORAGE_TYPE/S3_*
-// env vars while tenant.StorageEngineConfig.S3 is left empty (issue #1282).
-func (s *ImageMultimodalService) resolveFileServiceForPayload(ctx context.Context, payload types.ImageMultimodalPayload) interfaces.FileService {
-	tenant, err := s.tenantRepo.GetTenantByID(ctx, payload.TenantID)
-	if err != nil || tenant == nil {
-		logger.Warnf(ctx, "[ImageMultimodal] GetTenantByID failed: tenant=%d err=%v", payload.TenantID, err)
-		return s.fileSvc
-	}
-
-	backendID, _, _ := types.ParseStorageBackendPath(payload.ImageURL)
-	provider := types.ParseProviderScheme(payload.ImageURL)
-	// A resource:// reference carries no provider/backend in the URL itself; the
-	// authoritative backend lives on the stored resource record. Using the KB's
-	// currently configured backend here would break reads when the resource was
-	// stored on a different backend (multi-backend / post-migration).
-	if _, isResourceRef := types.ParseResourcePath(payload.ImageURL); isResourceRef && s.resourceCatalog != nil {
-		if resource, resErr := s.resourceCatalog.Resolve(ctx, payload.ImageURL); resErr != nil {
-			logger.Warnf(ctx, "[ImageMultimodal] resolve resource reference failed: url=%s err=%v", payload.ImageURL, resErr)
-		} else if resource != nil {
-			backendID = resource.StorageBackendID
-			provider = strings.ToLower(strings.TrimSpace(resource.Provider))
-		}
-	}
-	if provider == "" {
-		kb, kbErr := s.kbService.GetKnowledgeBaseByIDOnly(ctx, payload.KnowledgeBaseID)
-		if kbErr != nil {
-			logger.Warnf(ctx, "[ImageMultimodal] GetKnowledgeBaseByIDOnly failed: kb=%s err=%v", payload.KnowledgeBaseID, kbErr)
-		} else if kb != nil {
-			provider = strings.ToLower(strings.TrimSpace(kb.GetStorageProvider()))
-			if backendID == "" && kb.StorageBackendID != nil {
-				backendID = *kb.StorageBackendID
-			}
-		}
-	}
-
-	if s.storageResolver == nil {
-		return s.fileSvc
-	}
-
-	baseDir := strings.TrimSpace(os.Getenv("LOCAL_STORAGE_BASE_DIR"))
-	logger.Infof(ctx, "[ImageMultimodal] resolving file service: tenant=%d provider=%q LOCAL_STORAGE_BASE_DIR=%q imageURL=%s",
-		payload.TenantID, provider, baseDir, payload.ImageURL)
-	fileSvc, _, svcErr := s.storageResolver.ResolveFileService(ctx, tenant, backendID, provider, baseDir)
-	if svcErr != nil {
-		logger.Warnf(ctx, "[ImageMultimodal] resolve file service failed (falling back to default): tenant=%d provider=%s err=%v",
-			payload.TenantID, provider, svcErr)
-		return s.fileSvc
-	}
-	return fileSvc
-}
-
 // readImageBytes loads the image bytes for a multimodal payload.
-//   - For provider:// URLs (local://, s3://) it reads via
-//     the resolved FileService and NEVER falls back to HTTP — handing a
-//     provider:// URL to the HTTP downloader is what caused issue #1282.
-//   - For plain http(s):// URLs it uses the SSRF-safe downloader.
+//   - A resource:// reference is read through the file store and NEVER
+//     falls back to HTTP — handing a storage reference to the HTTP
+//     downloader is what caused issue #1282.
+//   - A plain http(s):// URL uses the SSRF-safe downloader.
 func (s *ImageMultimodalService) readImageBytes(ctx context.Context, payload types.ImageMultimodalPayload) ([]byte, error) {
-	_, isResourceRef := types.ParseResourcePath(payload.ImageURL)
-	if isResourceRef || types.ParseProviderScheme(payload.ImageURL) != "" {
-		fileSvc := s.resolveFileServiceForPayload(ctx, payload)
-		if fileSvc == nil {
-			return nil, fmt.Errorf("no file service available for %s", payload.ImageURL)
-		}
-		reader, err := fileSvc.GetFile(ctx, payload.ImageURL)
+	if _, isResourceRef := types.ParseResourcePath(payload.ImageURL); isResourceRef {
+		reader, _, err := s.files.Open(ctx, payload.ImageURL)
 		if err != nil {
-			return nil, fmt.Errorf("file service get %s: %w", payload.ImageURL, err)
+			return nil, fmt.Errorf("open %s: %w", payload.ImageURL, err)
 		}
 		defer reader.Close()
 		data, err := io.ReadAll(reader)

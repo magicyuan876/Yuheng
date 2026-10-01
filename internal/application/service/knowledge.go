@@ -59,6 +59,9 @@ type knowledgeService struct {
 	tagService      interfaces.KnowledgeTagService
 	fileSvc         interfaces.FileService
 	storageResolver interfaces.StorageBackendResolver
+	// files resolves every stored reference through its resource row; it is
+	// the only way this service reads a file.
+	files           interfaces.FileStore
 	resourceCatalog interfaces.ResourceCatalog
 	modelService    interfaces.ModelService
 	task            interfaces.TaskEnqueuer
@@ -105,6 +108,7 @@ func NewKnowledgeService(
 	tagService interfaces.KnowledgeTagService,
 	fileSvc interfaces.FileService,
 	storageResolver interfaces.StorageBackendResolver,
+	files interfaces.FileStore,
 	resourceCatalog interfaces.ResourceCatalog,
 	modelService interfaces.ModelService,
 	task interfaces.TaskEnqueuer,
@@ -135,6 +139,7 @@ func NewKnowledgeService(
 		tagService:      tagService,
 		fileSvc:         fileSvc,
 		storageResolver: storageResolver,
+		files:           files,
 		resourceCatalog: resourceCatalog,
 		modelService:    modelService,
 		task:            task,
@@ -701,9 +706,7 @@ func (s *knowledgeService) GetKnowledgeFile(ctx context.Context, id string) (io.
 		return io.NopCloser(strings.NewReader(content)), filename, nil
 	}
 
-	// Resolve KB-level file service with FilePath fallback protection
-	kb, _ := s.kbService.GetKnowledgeBaseByID(ctx, knowledge.KnowledgeBaseID)
-	file, err := s.resolveFileServiceForPath(ctx, kb, knowledge.FilePath).GetFile(ctx, knowledge.FilePath)
+	file, _, err := s.files.Open(ctx, knowledge.FilePath)
 	if err != nil {
 		return nil, "", err
 	}

@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/magicyuan876/yuheng/internal/docs/model"
 	"github.com/magicyuan876/yuheng/internal/logger"
+	"github.com/magicyuan876/yuheng/internal/types"
 )
 
 // Cleanup: the two jobs that delete things nobody asked to keep.
@@ -287,19 +289,14 @@ func (s *PageService) failStaleExports(ctx context.Context, opts SweepOptions) i
 
 // releaseExport deletes one archive and then its row, in that order and for
 // the same reason releaseOrphan does: a row without its object is retried by
-// the next sweep, an object without its row is lost.
+// the next sweep, an object without its row is lost. The archive is found
+// through its own resource row, so neither a rebound nor a deleted space
+// keeps it from being released.
 func (s *PageService) releaseExport(ctx context.Context, job *model.ExportJob) error {
-	if job.ResultPath != "" {
-		space, err := s.d.Repos.Spaces.Get(ctx, job.TenantID, job.SpaceID)
-		if err == nil {
-			if _, files, err := s.storageFor(ctx, space); err == nil && files != nil {
-				if err := files.DeleteFile(ctx, job.ResultPath); err != nil {
-					return err
-				}
-			}
+	if job.ResultPath != "" && s.d.Storage != nil {
+		if err := s.d.Storage.Delete(ctx, job.ResultPath); err != nil && !errors.Is(err, types.ErrResourceNotFound) {
+			return err
 		}
-		// A space that has since been deleted took its storage with it; the
-		// row is still ours to clean up, so this is not an error.
 	}
 	return s.d.Repos.Exports.Delete(ctx, job.TenantID, job.ID)
 }

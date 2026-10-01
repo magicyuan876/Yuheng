@@ -142,7 +142,7 @@ var knownOptionalDependencies = map[string]string{
 	"docs.Params.Audit":                "asserted via Module.Degraded",
 	"docs.Params.KnowledgeBases":       "asserted via Module.Degraded",
 	"docs.Params.StorageBackends":      "asserted via Module.Degraded",
-	"docs.Params.StorageResolver":      "asserted via Module.Degraded",
+	"docs.Params.Files":                "asserted via Module.Degraded",
 	"docs.Params.Tenants":              "asserted via Module.Degraded",
 	"docs.Params.Favourites":           "asserted via Module.Degraded",
 	"docs.Params.KnowledgeBaseService": "asserted via Module.Degraded",

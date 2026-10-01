@@ -1,10 +1,8 @@
 // Package storageurl converts internal storage references into HTTP(S) URLs an
 // external client can load directly.
 //
-// Yuheng persists files behind two internal reference forms: the stable
-// `resource://<handle>` application identity and provider paths
-// (`local://…`, `s3://…`, `storage://<backend-id>/s3://…`). Neither is
-// fetchable by a browser or a third-party app, which must otherwise call the
+// Yuheng persists files behind `resource://<handle>` references, which no
+// browser or third-party app can fetch: they must otherwise call the
 // authenticated `/files` proxy for every image.
 //
 // This package is the single implementation of the "give me a loadable link"
@@ -18,9 +16,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/magicyuan876/yuheng/internal/logger"
-	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 )
 
 // Pattern matches every internal storage reference form: `resource://` handles,
@@ -43,12 +41,12 @@ func IsHTTPURL(s string) bool {
 		len(s) >= 8 && strings.EqualFold(s[:8], "https://")
 }
 
-// Resolver maps one storage reference to the FileService that owns it. A
-// reference carries its own provider scheme and optional storage backend id, so
-// a single answer may span several backends.
+// Resolver turns one storage reference into a URL an external client can
+// fetch. interfaces.FileStore satisfies it: each reference is resolved through
+// its own resource row, so a single answer may span several backends.
 type Resolver interface {
-	// ResolveFileService returns nil when no backend can serve ref.
-	ResolveFileService(ref string) interfaces.FileService
+	// URL returns ok=false when no fetchable URL can exist for ref.
+	URL(ctx context.Context, ref string, ttl time.Duration) (string, bool, error)
 }
 
 // Rewriter replaces storage references with loadable HTTP URLs.
@@ -114,10 +112,8 @@ func (w *Rewriter) Ref(ctx context.Context, ref string) string {
 	return w.String(ctx, ref)
 }
 
-// ref resolves one reference. The lock is held across resolve because Resolver
-// implementations (FileServiceResolver in particular) keep an unsynchronised
-// per-provider cache, and because it collapses a concurrent duplicate into one
-// signature instead of two.
+// ref resolves one reference. The lock is held across resolve because it
+// collapses a concurrent duplicate into one access grant instead of two.
 func (w *Rewriter) ref(ctx context.Context, ref string) string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -130,24 +126,19 @@ func (w *Rewriter) ref(ctx context.Context, ref string) string {
 }
 
 func (w *Rewriter) resolve(ctx context.Context, ref string) string {
-	fileSvc := w.resolver.ResolveFileService(ref)
-	if fileSvc == nil {
-		logger.Warnf(ctx, "[%s] storage URL rewrite: no file service for src=%s", w.logPrefix, ref)
-		return ref
-	}
-	httpURL, err := fileSvc.GetFileURL(ctx, ref)
+	httpURL, ok, err := w.resolver.URL(ctx, ref, 0)
 	if err != nil {
 		logger.Warnf(ctx, "[%s] storage URL rewrite failed: src=%s err=%v", w.logPrefix, ref, err)
 		return ref
 	}
-	// A non-http(s) result cannot be fetched by the client — this covers both an
-	// unchanged no-op and a resource:// alias left as an internal storage://
-	// path (APP_EXTERNAL_URL unset / nginx not proxying /r/).
-	if !IsHTTPURL(httpURL) {
+	// A non-http(s) result cannot be fetched by the client. No URL at all is
+	// the usual case for local storage without APP_EXTERNAL_URL, the most
+	// common cause of "image broken in my app" reports.
+	if !ok || !IsHTTPURL(httpURL) {
 		logger.Warnf(ctx,
-			"[%s] storage URL rewrite no-op (resolved to non-HTTP URL %q; for local/private storage set "+
-				"APP_EXTERNAL_URL and ensure nginx proxies /r/): src=%s",
-			w.logPrefix, httpURL, ref)
+			"[%s] storage URL rewrite no-op (no public URL; for local storage set "+
+				"APP_EXTERNAL_URL and ensure the reverse proxy forwards /r/): src=%s",
+			w.logPrefix, ref)
 		return ref
 	}
 	logger.Infof(ctx, "[%s] storage URL rewrite: src=%s", w.logPrefix, ref)

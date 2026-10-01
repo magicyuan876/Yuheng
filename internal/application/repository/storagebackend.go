@@ -36,6 +36,22 @@ func (r *storageBackendRepository) GetByID(ctx context.Context, tenantID uint64,
 	return &backend, nil
 }
 
+// Find resolves a backend by id alone, whichever workspace owns it. Only the
+// storage runtime uses it: a stored resource names the backend it was written
+// to, and reading it back must not depend on who is asking — a borrower of a
+// shared knowledge base reads the owner's files through the owner's backend.
+// Callers authorize the reference before it gets here.
+func (r *storageBackendRepository) Find(ctx context.Context, id string) (*types.StorageBackend, error) {
+	var backend types.StorageBackend
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&backend).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &backend, nil
+}
+
 // List returns the backends visible to a tenant: its own plus every
 // platform-shared one. Object keys are already namespaced per tenant
 // (prefix/{tenantID}/{knowledgeID}/uuid.ext), so two workspaces sharing one

@@ -9,6 +9,9 @@ import (
 type StorageBackendRepository interface {
 	Create(ctx context.Context, backend *types.StorageBackend) error
 	GetByID(ctx context.Context, tenantID uint64, id string) (*types.StorageBackend, error)
+	// Find resolves a backend by id regardless of the owning workspace; see
+	// FileStore, its only caller.
+	Find(ctx context.Context, id string) (*types.StorageBackend, error)
 	List(ctx context.Context, tenantID uint64) ([]*types.StorageBackend, error)
 	Update(ctx context.Context, backend *types.StorageBackend) error
 	Delete(ctx context.Context, tenantID uint64, id string) error

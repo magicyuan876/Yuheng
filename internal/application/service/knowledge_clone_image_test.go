@@ -72,7 +72,7 @@ func mustImageInfoJSON(t *testing.T, imgs []types.ImageInfo) string {
 
 func TestCloneChunkImageInfo_Empty(t *testing.T) {
 	svc := &countingFileService{}
-	out, copied, err := cloneChunkImageInfo(context.Background(), svc, "", 1, "kb-1", map[string]string{})
+	out, copied, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, "", 1, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestCloneChunkImageInfo_RewritesURLAndMatchedOriginal(t *testing.T) {
 	src := mustImageInfoJSON(t, []types.ImageInfo{
 		{URL: "local://1/k0/a.png", OriginalURL: "local://1/k0/a.png", Caption: "cap"},
 	})
-	out, copied, err := cloneChunkImageInfo(context.Background(), svc, src, 7, "k-dst", map[string]string{})
+	out, copied, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, src, 7, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -125,7 +125,8 @@ func TestRewriteContentImageURLs_ParentTextChunk(t *testing.T) {
 		{URL: "local://1/k0/a.png", OriginalURL: "local://1/k0/a.png"},
 	})
 	urlCache := map[string]string{}
-	if _, _, err := cloneChunkImageInfo(context.Background(), svc, childImageInfo, 7, "k-dst", urlCache); err != nil {
+	_, _, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, childImageInfo, 7, urlCache)
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -156,7 +157,7 @@ func TestCloneChunkImageInfo_PreservesUnmatchedOriginalURL(t *testing.T) {
 	src := mustImageInfoJSON(t, []types.ImageInfo{
 		{URL: "local://1/k0/a.png", OriginalURL: "https://external.example.com/a.png"},
 	})
-	out, _, err := cloneChunkImageInfo(context.Background(), svc, src, 1, "k-dst", map[string]string{})
+	out, _, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, src, 1, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -176,7 +177,7 @@ func TestCloneChunkImageInfo_DedupsIdenticalURLs(t *testing.T) {
 		{URL: "local://1/k0/same.png"},
 		{URL: "local://1/k0/other.png"},
 	})
-	_, copied, err := cloneChunkImageInfo(context.Background(), svc, src, 1, "k-dst", map[string]string{})
+	_, copied, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, src, 1, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -192,10 +193,10 @@ func TestCloneChunkImageInfo_DedupsAcrossCallsViaSharedCache(t *testing.T) {
 	svc := &countingFileService{}
 	cache := map[string]string{}
 	src := mustImageInfoJSON(t, []types.ImageInfo{{URL: "local://1/k0/shared.png"}})
-	if _, _, err := cloneChunkImageInfo(context.Background(), svc, src, 1, "k-dst", cache); err != nil {
+	if _, _, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, src, 1, cache); err != nil {
 		t.Fatalf("first call error: %v", err)
 	}
-	if _, copied, err := cloneChunkImageInfo(context.Background(), svc, src, 1, "k-dst", cache); err != nil {
+	if _, copied, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, src, 1, cache); err != nil {
 		t.Fatalf("second call error: %v", err)
 	} else if len(copied) != 0 {
 		t.Fatalf("second call should reuse cache (0 new copies), got %v", copied)
@@ -207,7 +208,8 @@ func TestCloneChunkImageInfo_DedupsAcrossCallsViaSharedCache(t *testing.T) {
 
 func TestCloneChunkImageInfo_ParseFailureAbortsClone(t *testing.T) {
 	svc := &countingFileService{}
-	_, _, err := cloneChunkImageInfo(context.Background(), svc, "{not valid json", 1, "k-dst", map[string]string{})
+	_, _, err := cloneChunkImageInfo(
+		context.Background(), storeOver(svc), svc, "{not valid json", 1, map[string]string{})
 	if err == nil {
 		t.Fatal("expected error on invalid image_info JSON, got nil")
 	}
@@ -222,7 +224,7 @@ func TestCloneChunkImageInfo_CopyFailureReturnsPartialForCleanup(t *testing.T) {
 		{URL: "local://1/k0/good.png"},
 		{URL: "local://1/k0/bad.png"},
 	})
-	_, copied, err := cloneChunkImageInfo(context.Background(), svc, src, 1, "k-dst", map[string]string{})
+	_, copied, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, src, 1, map[string]string{})
 	if err == nil {
 		t.Fatal("expected error when an image copy fails")
 	}
@@ -235,7 +237,7 @@ func TestCloneChunkImageInfo_CopyFailureReturnsPartialForCleanup(t *testing.T) {
 func TestCloneChunkImageInfo_SkipsEmptyURL(t *testing.T) {
 	svc := &countingFileService{}
 	src := mustImageInfoJSON(t, []types.ImageInfo{{URL: "", Caption: "no-image"}})
-	out, copied, err := cloneChunkImageInfo(context.Background(), svc, src, 1, "k-dst", map[string]string{})
+	out, copied, err := cloneChunkImageInfo(context.Background(), storeOver(svc), svc, src, 1, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

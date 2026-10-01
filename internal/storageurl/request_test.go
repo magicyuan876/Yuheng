@@ -10,16 +10,16 @@ import (
 )
 
 func publicRewriter(url string) *Rewriter {
-	return NewRewriter(stubResolver(url), "TEST")
+	return NewRewriter(fixedURL(url), "TEST")
 }
 
 func TestNewRequestRewriter_HandleModeIsDisabled(t *testing.T) {
-	w := NewRequestRewriter(context.Background(), ModeHandle, &stubFileService{}, nil)
+	w := NewRequestRewriter(ModeHandle, &stubResolver{})
 	assert.False(t, w.Enabled(), "the default mode must not resolve anything")
 }
 
 func TestNewRequestRewriter_PublicModeIsEnabled(t *testing.T) {
-	w := NewRequestRewriter(context.Background(), ModePublic, &stubFileService{}, nil)
+	w := NewRequestRewriter(ModePublic, &stubResolver{})
 	require.True(t, w.Enabled())
 	assert.Equal(t, "https://cdn.example.com/resource://xifDo7NTSL300Lp1goVutw",
 		w.Ref(context.Background(), "resource://xifDo7NTSL300Lp1goVutw"))

@@ -36,7 +36,7 @@ func TestSearchKnowledge_PublicResourceURLs(t *testing.T) {
 	r.Use(middleware.ErrorHandler())
 	h := &Handler{
 		sessionService: &stubSearchSessionService{},
-		fileService:    &stubResourceFileService{},
+		files:          &stubResourceStore{},
 	}
 	r.POST("/knowledge-search", h.SearchKnowledge)
 
@@ -57,7 +57,7 @@ func TestSearchKnowledge_InvalidResourceURLMode(t *testing.T) {
 	r.Use(middleware.ErrorHandler())
 	h := &Handler{
 		sessionService: &stubSearchSessionService{},
-		fileService:    &stubResourceFileService{},
+		files:          &stubResourceStore{},
 	}
 	r.POST("/knowledge-search", h.SearchKnowledge)
 
@@ -77,7 +77,7 @@ func TestSearchKnowledge_DefaultKeepsHandles(t *testing.T) {
 	r.Use(middleware.ErrorHandler())
 	h := &Handler{
 		sessionService: &stubSearchSessionService{},
-		fileService:    &stubResourceFileService{},
+		files:          &stubResourceStore{},
 	}
 	r.POST("/knowledge-search", h.SearchKnowledge)
 

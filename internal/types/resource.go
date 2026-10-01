@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -17,6 +18,11 @@ const (
 	ResourceLifecyclePersistent = "persistent"
 	ResourceLifecycleTemporary  = "temporary"
 )
+
+// ErrResourceNotFound is returned when a resource:// reference names no live
+// resource: it never existed, or its object has already been deleted. Callers
+// that release objects treat it as "already done".
+var ErrResourceNotFound = errors.New("resource not found")
 
 // StoredResource is the stable application identity of one stored object. PhysicalPath
 // is deliberately internal: API responses, persisted rich text and LLM prompts

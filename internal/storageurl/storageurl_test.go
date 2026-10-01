@@ -3,65 +3,36 @@ package storageurl
 import (
 	"context"
 	"errors"
-	"io"
-	"mime/multipart"
 	"testing"
+	"time"
 
-	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// stubFileService implements interfaces.FileService; only GetFileURL matters here.
-type stubFileService struct {
-	getFileURL func(ctx context.Context, filePath string) (string, error)
-	calls      int
+// stubResolver is a Resolver whose answer the test decides. With no url
+// function it signs every reference onto a fixed CDN host.
+type stubResolver struct {
+	url   func(ref string) (string, bool, error)
+	calls int
 }
 
-func (s *stubFileService) CheckConnectivity(context.Context) error { return nil }
-
-func (s *stubFileService) SaveFile(context.Context, *multipart.FileHeader, uint64, string) (string, error) {
-	return "", nil
-}
-
-func (s *stubFileService) SaveBytes(context.Context, []byte, uint64, string, bool) (string, error) {
-	return "", nil
-}
-
-func (s *stubFileService) GetFile(context.Context, string) (io.ReadCloser, error) { return nil, nil }
-
-func (s *stubFileService) GetFileURL(ctx context.Context, filePath string) (string, error) {
+func (s *stubResolver) URL(_ context.Context, ref string, _ time.Duration) (string, bool, error) {
 	s.calls++
-	if s.getFileURL != nil {
-		return s.getFileURL(ctx, filePath)
+	if s.url != nil {
+		return s.url(ref)
 	}
-	return "https://cdn.example.com/" + filePath, nil
+	return "https://cdn.example.com/" + ref, true, nil
 }
 
-func (s *stubFileService) DeleteFile(context.Context, string) error { return nil }
-
-func (s *stubFileService) CopyFile(context.Context, string, uint64, string) (string, error) {
-	return "", nil
-}
-
-// fixedResolver returns the same FileService for every reference.
-type fixedResolver struct{ svc interfaces.FileService }
-
-func (r fixedResolver) ResolveFileService(string) interfaces.FileService { return r.svc }
-
-func stubResolver(url string) Resolver {
-	return fixedResolver{svc: &stubFileService{
-		getFileURL: func(context.Context, string) (string, error) { return url, nil },
-	}}
+// fixedURL resolves every reference to the same URL.
+func fixedURL(url string) *stubResolver {
+	return &stubResolver{url: func(string) (string, bool, error) { return url, true, nil }}
 }
 
 func TestRewriter_RewritesEveryReferenceForm(t *testing.T) {
-	svc := &stubFileService{
-		getFileURL: func(context.Context, string) (string, error) {
-			return "https://cdn.example.com/signed.png", nil
-		},
-	}
-	w := NewRewriter(fixedResolver{svc: svc}, "TEST")
+	svc := fixedURL("https://cdn.example.com/signed.png")
+	w := NewRewriter(svc, "TEST")
 
 	in := "handle ![a](resource://xifDo7NTSL300Lp1goVutw) " +
 		"legacy ![b](s3://bucket/10000/exports/b.png) " +
@@ -76,7 +47,7 @@ func TestRewriter_RewritesEveryReferenceForm(t *testing.T) {
 
 // An already-public URL in the answer must be left alone.
 func TestRewriter_LeavesHTTPURLsAlone(t *testing.T) {
-	w := NewRewriter(stubResolver("https://cdn.example.com/x.png"), "TEST")
+	w := NewRewriter(fixedURL("https://cdn.example.com/x.png"), "TEST")
 	in := "![a](https://example.com/a.png) and ![b](http://example.com/b.png)"
 	assert.Equal(t, in, w.String(context.Background(), in))
 }
@@ -84,23 +55,23 @@ func TestRewriter_LeavesHTTPURLsAlone(t *testing.T) {
 // Emitting an unfetchable URL is worse than leaving the handle: the client can
 // still fall back to the authenticated /files proxy for a handle.
 func TestRewriter_NonHTTPResultIsNoOp(t *testing.T) {
-	w := NewRewriter(stubResolver("storage://7cb970a6/s3://bucket/10000/exports/a.png"), "TEST")
+	w := NewRewriter(fixedURL("storage://7cb970a6/s3://bucket/10000/exports/a.png"), "TEST")
 	in := "![img](resource://xifDo7NTSL300Lp1goVutw)"
 	assert.Equal(t, in, w.String(context.Background(), in))
 }
 
 func TestRewriter_ResolveFailureIsNoOp(t *testing.T) {
-	w := NewRewriter(fixedResolver{svc: &stubFileService{
-		getFileURL: func(context.Context, string) (string, error) {
-			return "", errors.New("backend unreachable")
-		},
+	w := NewRewriter(&stubResolver{url: func(string) (string, bool, error) {
+		return "", false, errors.New("backend unreachable")
 	}}, "TEST")
 	in := "![img](resource://xifDo7NTSL300Lp1goVutw)"
 	assert.Equal(t, in, w.String(context.Background(), in))
 }
 
-func TestRewriter_UnknownBackendIsNoOp(t *testing.T) {
-	w := NewRewriter(fixedResolver{svc: nil}, "TEST")
+// No public URL can exist for local storage without APP_EXTERNAL_URL; the
+// handle must survive so the client falls back to the proxy.
+func TestRewriter_NoPublicURLIsNoOp(t *testing.T) {
+	w := NewRewriter(&stubResolver{url: func(string) (string, bool, error) { return "", false, nil }}, "TEST")
 	in := "![img](resource://xifDo7NTSL300Lp1goVutw)"
 	assert.Equal(t, in, w.String(context.Background(), in))
 }
@@ -108,7 +79,7 @@ func TestRewriter_UnknownBackendIsNoOp(t *testing.T) {
 // Uppercase schemes are valid per RFC 3986 §3.1 (e.g. an OBS_PROXY_DOMAIN
 // configured as HTTPS://…) and must be substituted, not dropped.
 func TestRewriter_UppercaseSchemeIsSubstituted(t *testing.T) {
-	w := NewRewriter(stubResolver("HTTPS://cdn.example.com/x.png"), "TEST")
+	w := NewRewriter(fixedURL("HTTPS://cdn.example.com/x.png"), "TEST")
 	out := w.String(context.Background(), "![img](resource://xifDo7NTSL300Lp1goVutw)")
 	assert.Contains(t, out, "HTTPS://cdn.example.com/x.png")
 	assert.NotContains(t, out, "resource://")
@@ -117,8 +88,8 @@ func TestRewriter_UppercaseSchemeIsSubstituted(t *testing.T) {
 // Each resource:// resolution writes an access-grant row, so a repeated image
 // must be resolved once per request.
 func TestRewriter_MemoisesRepeatedReferences(t *testing.T) {
-	svc := &stubFileService{}
-	w := NewRewriter(fixedResolver{svc: svc}, "TEST")
+	svc := &stubResolver{}
+	w := NewRewriter(svc, "TEST")
 	ctx := context.Background()
 
 	ref := "resource://xifDo7NTSL300Lp1goVutw"
@@ -141,7 +112,7 @@ func TestRewriter_DisabledWithoutResolver(t *testing.T) {
 // Ref handles a bare reference such as MessageImage.URL, and must not touch a
 // value that is not a reference at all.
 func TestRewriter_Ref(t *testing.T) {
-	w := NewRewriter(stubResolver("https://cdn.example.com/x.png"), "TEST")
+	w := NewRewriter(fixedURL("https://cdn.example.com/x.png"), "TEST")
 	ctx := context.Background()
 
 	assert.Equal(t, "https://cdn.example.com/x.png",

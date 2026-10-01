@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/magicyuan876/yuheng/internal/docs/service"
 	"github.com/magicyuan876/yuheng/internal/types"
@@ -87,12 +88,35 @@ func (m *memStore) CopyFile(context.Context, string, uint64, string) (string, er
 	return "", fmt.Errorf("not needed here")
 }
 
-type memResolver struct{ store *memStore }
+// memStorage is the docs Storage over one in-memory backend.
+type memStorage struct{ store *memStore }
 
-func (r memResolver) ResolveFileService(context.Context, *types.Tenant, string, string,
-	string,
-) (interfaces.FileService, string, error) {
-	return r.store, "mem", nil
+func (r memStorage) Writer(context.Context, string) (interfaces.FileService, error) {
+	return r.store, nil
+}
+
+func (r memStorage) ForTenantDefault(context.Context, uint64) (interfaces.FileService, error) {
+	return r.store, nil
+}
+
+func (r memStorage) Open(ctx context.Context, ref string) (io.ReadCloser, *types.StoredResource, error) {
+	body, err := r.store.GetFile(ctx, ref)
+	if err != nil {
+		return nil, nil, err
+	}
+	return body, &types.StoredResource{PhysicalPath: ref}, nil
+}
+
+func (r memStorage) URL(ctx context.Context, ref string, _ time.Duration) (string, bool, error) {
+	url, err := r.store.GetFileURL(ctx, ref)
+	if err != nil {
+		return "", false, nil
+	}
+	return url, true, nil
+}
+
+func (r memStorage) Delete(ctx context.Context, ref string) error {
+	return r.store.DeleteFile(ctx, ref)
 }
 
 type memTenants struct{ used int64 }
@@ -112,7 +136,7 @@ func attachRouter(t *testing.T, signed bool) (http.Handler, *memStore, string, s
 	store := newMemStore()
 	store.signed = signed
 	r, _ := newSpaceRouter(t, func(d *service.Deps) {
-		d.Storage = memResolver{store: store}
+		d.Storage = memStorage{store: store}
 		d.Tenants = &memTenants{}
 	})
 	sp := call(t, r, "alice", http.MethodPost, "/docs/spaces", map[string]any{"name": "Handbook"})

@@ -64,13 +64,8 @@ func (s *knowledgeService) cloneKnowledge(
 	// object is tracked for cleanup if the clone fails downstream.
 	var copiedFilePaths []string
 	if src.FilePath != "" {
-		srcKB, kbErr := s.kbService.GetKnowledgeBaseByID(ctx, src.KnowledgeBaseID)
-		if kbErr != nil {
-			return fmt.Errorf("clone knowledge: failed to load source knowledge base: %w", kbErr)
-		}
-		srcSvc := s.resolveFileServiceForPath(ctx, srcKB, src.FilePath)
 		dstSvc := s.resolveFileService(ctx, targetKB)
-		newPath, copyErr := copyOwnedObject(ctx, srcSvc, dstSvc, src.FilePath, targetKB.TenantID, dst.ID)
+		newPath, copyErr := copyOwnedObject(ctx, s.files, dstSvc, src.FilePath, targetKB.TenantID)
 		if copyErr != nil {
 			return fmt.Errorf("clone knowledge file copy failed: %w", copyErr)
 		}
@@ -3307,14 +3302,14 @@ func (s *knowledgeService) convert(
 		// local storage with the shared docreader volume configured, pass the
 		// in-container path and let ffmpeg read the file in place.
 		if IsVideoType(fileType) {
-			if sharedPath := s.docreaderSharedFilePath(ctx, payload.FilePath); sharedPath != "" {
+			if sharedPath, ok := s.files.LocalPath(ctx, payload.FilePath); ok {
 				req.FilePath = sharedPath
 				logger.Infof(ctx, "[convert] video via shared volume path: %s", sharedPath)
 			}
 		}
 
 		if req.FilePath == "" {
-			fileReader, err := s.resolveFileServiceForPath(ctx, kb, payload.FilePath).GetFile(ctx, payload.FilePath)
+			fileReader, _, err := s.files.Open(ctx, payload.FilePath)
 			if err != nil {
 				s.failStage(ctx, knowledge.ID, types.StageDocReader,
 					werrors.ErrCodeDocReaderParseFailed, "failed to get file", err)

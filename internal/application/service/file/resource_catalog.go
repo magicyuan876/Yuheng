@@ -69,7 +69,7 @@ func (s *resourceCatalogFileService) register(
 	contentHash string,
 ) (string, error) {
 	kind, mimeType := resourceKind(name)
-	ref, err := s.catalog.Register(ctx, tenantID, physical, interfaces.ResourceRegistration{
+	ref, err := s.catalog.Register(ctx, tenantID, "", physical, interfaces.ResourceRegistration{
 		Kind:         kind,
 		MimeType:     mimeType,
 		OriginalName: filepath.Base(name),

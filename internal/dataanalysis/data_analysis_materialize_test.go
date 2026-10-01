@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,48 +13,32 @@ import (
 	"github.com/magicyuan876/yuheng/internal/types"
 )
 
-// fakeFileService implements interfaces.FileService just enough to drive
-// materializeKnowledgeFile. Every method we don't care about simply errors
-// out so accidental usage is loud.
-type fakeFileService struct {
+// fakeFileReader implements FileReader just enough to drive
+// materializeKnowledgeFile: it serves the readers registered per reference.
+type fakeFileReader struct {
 	readers map[string]func() (io.ReadCloser, error)
 }
 
-func (f *fakeFileService) CheckConnectivity(ctx context.Context) error { return nil }
-func (f *fakeFileService) SaveFile(ctx context.Context, _ *multipart.FileHeader, _ uint64, _ string) (string, error) {
-	return "", errors.New("not implemented in fake")
-}
-
-func (f *fakeFileService) SaveBytes(ctx context.Context, _ []byte, _ uint64, _ string, _ bool) (string, error) {
-	return "", errors.New("not implemented in fake")
-}
-
-func (f *fakeFileService) GetFile(ctx context.Context, filePath string) (io.ReadCloser, error) {
-	fn, ok := f.readers[filePath]
+func (f *fakeFileReader) Open(_ context.Context, ref string) (io.ReadCloser, *types.StoredResource, error) {
+	fn, ok := f.readers[ref]
 	if !ok {
-		return nil, errors.New("unknown path: " + filePath)
+		return nil, nil, errors.New("unknown reference: " + ref)
 	}
-	return fn()
-}
-
-func (f *fakeFileService) GetFileURL(ctx context.Context, filePath string) (string, error) {
-	// Return a URL that DuckDB would NOT be able to open on its own; the
-	// production code must *not* pass this through to DuckDB.
-	return "local://" + strings.TrimPrefix(filePath, "/"), nil
-}
-func (f *fakeFileService) DeleteFile(ctx context.Context, _ string) error { return nil }
-func (f *fakeFileService) CopyFile(ctx context.Context, _ string, _ uint64, _ string) (string, error) {
-	return "", nil
+	reader, err := fn()
+	if err != nil {
+		return nil, nil, err
+	}
+	return reader, &types.StoredResource{}, nil
 }
 
 // TestMaterializeKnowledgeFile_HandlesLocalScheme is the regression guard
 // for the dev-mode failure where DuckDB was handed a local:// URL it can't
-// resolve. The tool must pull bytes via FileService.GetFile and hand DuckDB
+// resolve. The tool must pull bytes through FileStore.Open and hand DuckDB
 // a concrete filesystem path with the right extension.
 func TestMaterializeKnowledgeFile_HandlesLocalScheme(t *testing.T) {
 	payload := []byte("col1,col2\n1,2\n3,4\n")
 
-	fs := &fakeFileService{
+	fs := &fakeFileReader{
 		readers: map[string]func() (io.ReadCloser, error){
 			"tenants/42/data.csv": func() (io.ReadCloser, error) {
 				return io.NopCloser(bytes.NewReader(payload)), nil
@@ -64,8 +47,8 @@ func TestMaterializeKnowledgeFile_HandlesLocalScheme(t *testing.T) {
 	}
 
 	tool := &DataAnalysisTool{
-		fileService: fs,
-		sessionID:   "test-materialize",
+		files:     fs,
+		sessionID: "test-materialize",
 	}
 
 	k := &types.Knowledge{
@@ -108,7 +91,7 @@ func TestMaterializeKnowledgeFile_HandlesLocalScheme(t *testing.T) {
 }
 
 func TestMaterializeKnowledgeFile_PropagatesGetFileError(t *testing.T) {
-	fs := &fakeFileService{
+	fs := &fakeFileReader{
 		readers: map[string]func() (io.ReadCloser, error){
 			"bad/path": func() (io.ReadCloser, error) {
 				return nil, errors.New("boom")
@@ -116,7 +99,7 @@ func TestMaterializeKnowledgeFile_PropagatesGetFileError(t *testing.T) {
 		},
 	}
 
-	tool := &DataAnalysisTool{fileService: fs, sessionID: "test-error"}
+	tool := &DataAnalysisTool{files: fs, sessionID: "test-error"}
 
 	_, cleanup, err := tool.materializeKnowledgeFile(
 		context.Background(),
@@ -143,14 +126,14 @@ func TestMaterializeKnowledgeFile_PreservesExtension(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.fileType, func(t *testing.T) {
-			fs := &fakeFileService{
+			fs := &fakeFileReader{
 				readers: map[string]func() (io.ReadCloser, error){
 					"p": func() (io.ReadCloser, error) {
 						return io.NopCloser(bytes.NewReader([]byte("x"))), nil
 					},
 				},
 			}
-			tool := &DataAnalysisTool{fileService: fs, sessionID: "ext"}
+			tool := &DataAnalysisTool{files: fs, sessionID: "ext"}
 			path, cleanup, err := tool.materializeKnowledgeFile(
 				context.Background(),
 				&types.Knowledge{ID: "k", FileType: c.fileType, FilePath: "p"},

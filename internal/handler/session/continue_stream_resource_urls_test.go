@@ -86,7 +86,7 @@ func newContinueStreamRouter(t *testing.T) *gin.Engine {
 		sessionService: &stubSessionService{},
 		messageService: &stubMessageServiceForStream{},
 		streamManager:  &stubStreamManager{events: completedAnswerStream()},
-		fileService:    &stubResourceFileService{},
+		files:          &stubResourceStore{},
 	}
 	r.GET("/sessions/continue-stream/:session_id", h.ContinueStream)
 	return r

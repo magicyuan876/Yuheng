@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
-	"path"
 	"sort"
 	"strings"
 	"time"
@@ -337,57 +335,6 @@ func (s *knowledgeService) prepareVideoTimeline(
 		return nil, false, nil
 	}
 	return windows, true, nil
-}
-
-// docreaderSharedFilePath maps a stored file reference to the absolute path
-// the docreader container sees on the shared storage volume. Returns "" when
-// path handoff is unavailable: the file is not on local storage, or
-// DOCREADER_SHARED_DATA_DIR is unset (e.g. dev mode where the app runs on
-// the host while the docreader runs in a container with no shared mount).
-// Both containers must mount the storage volume at the same path.
-//
-// Handled reference shapes, all resolving to a local:// relative path:
-//   - resource://<handle>          (stable resource registry — the physical
-//     path is looked up in the catalog and must be a local-provider object)
-//   - storage://<backendID>/local://<rel>  (multi-backend prefix)
-//   - local://<rel>                (plain local storage)
-func (s *knowledgeService) docreaderSharedFilePath(ctx context.Context, storagePath string) string {
-	sharedBase := strings.TrimSpace(os.Getenv("DOCREADER_SHARED_DATA_DIR"))
-	if sharedBase == "" {
-		return ""
-	}
-
-	if _, isResource := types.ParseResourcePath(storagePath); isResource {
-		if s.resourceCatalog == nil {
-			return ""
-		}
-		resource, err := s.resourceCatalog.Resolve(ctx, storagePath)
-		if err != nil || resource == nil {
-			logger.Warnf(ctx, "[Video] resolve resource reference for shared path failed: %s err=%v",
-				storagePath, err)
-			return ""
-		}
-		if !strings.EqualFold(strings.TrimSpace(resource.Provider), "local") {
-			return ""
-		}
-		storagePath = resource.PhysicalPath
-	}
-
-	if _, providerPath, ok := types.ParseStorageBackendPath(storagePath); ok {
-		storagePath = providerPath
-	}
-
-	rel, ok := strings.CutPrefix(storagePath, "local://")
-	if !ok || rel == "" {
-		return ""
-	}
-	// path.Clean on a rooted copy strips any ../ escape attempts before the
-	// relative part is re-anchored under the shared base.
-	cleaned := strings.TrimPrefix(path.Clean("/"+rel), "/")
-	if cleaned == "" || cleaned == "." {
-		return ""
-	}
-	return path.Join(sharedBase, cleaned)
 }
 
 // videoWindowTargetChars derives the transcript window size from the KB's

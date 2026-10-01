@@ -13,8 +13,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/magicyuan876/yuheng/internal/docs/acl"
@@ -61,11 +63,20 @@ type Tokens interface {
 	ValidateToken(ctx context.Context, token string) (*types.User, uint64, error)
 }
 
-// Storage resolves the FileService an attachment's bytes are written to and
-// read back from. interfaces.StorageBackendResolver satisfies it.
+// Storage is where attachment, import and export bytes are written and read
+// back. interfaces.FileStore satisfies it.
+//
+// Writing and reading are separate on purpose. New bytes go to the space's
+// bound backend; a stored reference is read and deleted through its own
+// resource row, which remembers the backend it was written to. A space can
+// therefore be rebound, or the workspace default changed, without breaking a
+// single existing attachment.
 type Storage interface {
-	ResolveFileService(ctx context.Context, tenant *types.Tenant, backendID, provider,
-		localBaseDir string) (interfaces.FileService, string, error)
+	Writer(ctx context.Context, backendID string) (interfaces.FileService, error)
+	ForTenantDefault(ctx context.Context, tenantID uint64) (interfaces.FileService, error)
+	Open(ctx context.Context, ref string) (io.ReadCloser, *types.StoredResource, error)
+	URL(ctx context.Context, ref string, ttl time.Duration) (string, bool, error)
+	Delete(ctx context.Context, ref string) error
 }
 
 // Tenants supplies the workspace storage accounting attachments are charged

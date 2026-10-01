@@ -42,11 +42,11 @@ type Params struct {
 	// rejected with a clear message.
 	KnowledgeBases  interfaces.KnowledgeBaseRepository  `optional:"true"`
 	StorageBackends interfaces.StorageBackendRepository `optional:"true"`
-	// StorageResolver and Tenants are what attachments need: where to put the
+	// Files and Tenants are what attachments need: where to put and find the
 	// bytes, and whose storage quota to charge. Without them the module still
 	// boots and uploading is refused with a clear message.
-	StorageResolver interfaces.StorageBackendResolver `optional:"true"`
-	Tenants         interfaces.TenantRepository       `optional:"true"`
+	Files   interfaces.FileStore        `optional:"true"`
+	Tenants interfaces.TenantRepository `optional:"true"`
 	// Favourites is Yuheng's own starred-resources service, reused for pages
 	// and spaces rather than reimplemented. Optional for the same reason as
 	// the rest: without it, starring is simply unavailable.
@@ -154,8 +154,8 @@ func NewModule(p Params) *Module {
 		PublicSharing:          cfg.PublicSharing,
 		DefaultSpaceQuotaBytes: cfg.DefaultSpaceQuotaBytes,
 	}
-	if p.StorageResolver != nil {
-		deps.Storage = p.StorageResolver
+	if p.Files != nil {
+		deps.Storage = p.Files
 	}
 	if p.Tenants != nil {
 		deps.Tenants = p.Tenants
@@ -230,7 +230,7 @@ func (p Params) degraded() []string {
 	note("Audit", p.Audit == nil)
 	note("KnowledgeBases", p.KnowledgeBases == nil)
 	note("StorageBackends", p.StorageBackends == nil)
-	note("StorageResolver", p.StorageResolver == nil)
+	note("Files", p.Files == nil)
 	note("Tenants", p.Tenants == nil)
 	note("Favourites", p.Favourites == nil)
 	note("KnowledgeBaseService", p.KnowledgeBaseService == nil)

@@ -419,13 +419,12 @@ type DataTableSummaryService struct {
 	modelService         interfaces.ModelService
 	knowledgeBaseService interfaces.KnowledgeBaseService
 	knowledgeService     interfaces.KnowledgeService
-	fileService          interfaces.FileService
+	files                interfaces.FileStore
 	chunkService         interfaces.ChunkService
 	tenantService        interfaces.TenantService
 	retrieveEngine       interfaces.RetrieveEngineRegistry
 	ownership            retriever.TenantStoreOwnership
 	sqlDB                *sql.DB
-	storageResolver      interfaces.StorageBackendResolver
 }
 
 // NewDataTableSummaryService creates a new DataTableSummaryService
@@ -433,25 +432,23 @@ func NewDataTableSummaryService(
 	modelService interfaces.ModelService,
 	knowledgeBaseService interfaces.KnowledgeBaseService,
 	knowledgeService interfaces.KnowledgeService,
-	fileService interfaces.FileService,
+	files interfaces.FileStore,
 	chunkService interfaces.ChunkService,
 	tenantService interfaces.TenantService,
 	retrieveEngine interfaces.RetrieveEngineRegistry,
 	ownership retriever.TenantStoreOwnership,
 	sqlDB *sql.DB,
-	storageResolver interfaces.StorageBackendResolver,
 ) interfaces.TaskHandler {
 	return &DataTableSummaryService{
 		modelService:         modelService,
 		knowledgeBaseService: knowledgeBaseService,
 		knowledgeService:     knowledgeService,
-		fileService:          fileService,
+		files:                files,
 		chunkService:         chunkService,
 		tenantService:        tenantService,
 		retrieveEngine:       retrieveEngine,
 		ownership:            ownership,
 		sqlDB:                sqlDB,
-		storageResolver:      storageResolver,
 	}
 }
 
@@ -575,50 +572,12 @@ func (s *DataTableSummaryService) prepareResources(ctx context.Context, payload 
 	}, nil
 }
 
-// resolveFileServiceForKnowledge resolves a provider-specific file service for the current knowledge file.
-// It falls back to the global service when tenant storage config is unavailable.
-func (s *DataTableSummaryService) resolveFileServiceForKnowledge(ctx context.Context, resources *extractionResources) interfaces.FileService {
-	if resources == nil || resources.knowledge == nil {
-		return s.fileService
-	}
-	if resources.tenant == nil {
-		return s.fileService
-	}
-
-	provider := types.InferStorageFromFilePath(resources.knowledge.FilePath)
-	if provider == "" && resources.tenant.StorageEngineConfig != nil {
-		provider = strings.ToLower(strings.TrimSpace(resources.tenant.StorageEngineConfig.DefaultProvider))
-	}
-
-	baseDir := strings.TrimSpace(os.Getenv("LOCAL_STORAGE_BASE_DIR"))
-	backendID, _, _ := types.ParseStorageBackendPath(resources.knowledge.FilePath)
-	if backendID == "" && resources.knowledgeBase != nil && resources.knowledgeBase.StorageBackendID != nil {
-		backendID = strings.TrimSpace(*resources.knowledgeBase.StorageBackendID)
-	}
-
-	// New-model workspaces resolve via DefaultStorageBackendID even when no
-	// legacy StorageEngineConfig / provider is present, so gate on the resolver
-	// and a usable backendID/provider rather than requiring a non-empty provider.
-	if s.storageResolver == nil || (backendID == "" && provider == "") {
-		return s.fileService
-	}
-
-	resolvedSvc, resolvedProvider, err := s.storageResolver.ResolveFileService(ctx, resources.tenant, backendID, provider, baseDir)
-	if err != nil {
-		logger.Warnf(ctx, "[TableSummary] Failed to resolve file service for provider=%s, fallback to default: %v", provider, err)
-		return s.fileService
-	}
-	logger.Infof(ctx, "[TableSummary] Resolved file service for knowledge=%s provider=%s", resources.knowledge.ID, resolvedProvider)
-	return resolvedSvc
-}
-
 // processTableData 处理表格数据：加载 -> 分析 -> 生成摘要 -> 创建chunks
 // 思路：将数据处理的核心流程集中在一起，保持逻辑连贯性
 func (s *DataTableSummaryService) processTableData(ctx context.Context, resources *extractionResources) ([]*types.Chunk, error) {
 	// 创建DuckDB会话并加载数据
 	sessionID := fmt.Sprintf("table_summary_%s", resources.knowledge.ID)
-	fileSvc := s.resolveFileServiceForKnowledge(ctx, resources)
-	duckdbTool := dataanalysis.NewDataAnalysisTool(s.knowledgeBaseService, s.knowledgeService, s.tenantService, fileSvc, s.sqlDB, sessionID, s.storageResolver)
+	duckdbTool := dataanalysis.NewDataAnalysisTool(s.knowledgeService, s.files, s.sqlDB, sessionID)
 	defer duckdbTool.Cleanup(ctx)
 
 	// 使用knowledge.ID作为表名，根据文件类型自动加载数据

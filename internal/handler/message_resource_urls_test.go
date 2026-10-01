@@ -3,11 +3,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"mime/multipart"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -18,24 +18,18 @@ import (
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 )
 
-// stubResourceFileService resolves any storage reference to one fixed public URL.
-type stubResourceFileService struct {
-	interfaces.FileService
+// stubResourceStore resolves every well-formed resource reference to one fixed
+// public URL and, like the real store, refuses anything else.
+type stubResourceStore struct {
+	interfaces.FileStore
 	url string
 }
 
-func (s *stubResourceFileService) GetFileURL(context.Context, string) (string, error) {
-	return s.url, nil
-}
-
-func (s *stubResourceFileService) SaveFile(
-	context.Context, *multipart.FileHeader, uint64, string,
-) (string, error) {
-	return "", nil
-}
-
-func (s *stubResourceFileService) GetFile(context.Context, string) (io.ReadCloser, error) {
-	return nil, nil
+func (s *stubResourceStore) URL(_ context.Context, ref string, _ time.Duration) (string, bool, error) {
+	if _, ok := types.ParseResourcePath(ref); !ok {
+		return "", false, errors.New("not a resource reference")
+	}
+	return s.url, true, nil
 }
 
 const testResourceHandle = "resource://xifDo7NTSL300Lp1goVutw"
@@ -51,7 +45,7 @@ func newResourceURLTestRouter(t *testing.T, messages []*types.Message) *gin.Engi
 				return messages, nil
 			},
 		},
-		FileService: &stubResourceFileService{url: "https://cdn.example.com/signed.png"},
+		Files: &stubResourceStore{url: "https://cdn.example.com/signed.png"},
 	}
 	r.GET("/messages/:session_id/load", h.LoadMessages)
 	return r

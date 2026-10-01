@@ -21,6 +21,7 @@ type catalogStub struct {
 func (c *catalogStub) Register(
 	_ context.Context,
 	tenantID uint64,
+	_ string,
 	physicalPath string,
 	meta interfaces.ResourceRegistration,
 ) (string, error) {

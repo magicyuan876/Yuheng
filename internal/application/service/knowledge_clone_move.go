@@ -25,26 +25,28 @@ import (
 )
 
 // copyOwnedObject copies srcPath into a NEW object owned by the destination
-// tenant, returning the new provider:// (resource) path.
+// tenant, returning the new resource:// reference.
 //
 // Extracted/embedded chunk images MUST land in the tenant's exports/ namespace,
 // because GET /knowledge-bases/:id/files only serves objects that pass
-// ValidateKBScopedStoragePath (i.e. {tenant}/exports/...). CopyFile writes to
+// IsKBExportsPath (i.e. {tenant}/exports/...). CopyFile writes to
 // the knowledge-scoped upload layout ({tenant}/{knowledgeID}/...) used for raw
 // source files, which the KB proxy rejects — so a clone that used CopyFile
 // produced images that could no longer be rendered. Instead, read the source
 // bytes and re-save them via SaveBytes, exactly mirroring how the original
 // images were persisted during ingestion (see image_resolver.saveReferencedImage),
 // so the copy is a genuine independent object in the servable namespace.
+//
+// The source is read through the file store, so it is found on whichever
+// backend holds it; only the copy lands on the destination writer's backend.
 func copyOwnedObject(
 	ctx context.Context,
-	srcSvc, dstSvc interfaces.FileService,
+	files interfaces.FileStore,
+	dstSvc interfaces.FileService,
 	srcPath string,
 	tenantID uint64,
-	knowledgeID string,
 ) (string, error) {
-	_ = knowledgeID // exports objects are tenant-scoped, not knowledge-scoped
-	rc, err := srcSvc.GetFile(ctx, srcPath)
+	rc, _, err := files.Open(ctx, srcPath)
 	if err != nil {
 		return "", fmt.Errorf("read source image %q: %w", srcPath, err)
 	}
@@ -95,7 +97,7 @@ func isImageExt(ext string) bool {
 }
 
 // cloneChunkImageInfo parses a chunk's image_info JSON, copies every referenced
-// object into a NEW object owned by (tenantID, knowledgeID), and returns the
+// object into a NEW object in tenantID's exports namespace, and returns the
 // re-serialized image_info plus the list of newly-created object URLs (for
 // rollback on failure). urlCache dedups identical source objects across chunks
 // so the same source image is copied at most once per clone AND accumulates the
@@ -109,10 +111,10 @@ func isImageExt(ext string) bool {
 // too; an OriginalURL from a different/external source is preserved.
 func cloneChunkImageInfo(
 	ctx context.Context,
+	files interfaces.FileStore,
 	dstSvc interfaces.FileService,
 	srcImageInfo string,
 	tenantID uint64,
-	knowledgeID string,
 	urlCache map[string]string,
 ) (newImageInfo string, copiedURLs []string, err error) {
 	if srcImageInfo == "" {
@@ -132,7 +134,7 @@ func cloneChunkImageInfo(
 
 		newURL, cached := urlCache[img.URL]
 		if !cached {
-			newURL, err = copyOwnedObject(ctx, dstSvc, dstSvc, img.URL, tenantID, knowledgeID)
+			newURL, err = copyOwnedObject(ctx, files, dstSvc, img.URL, tenantID)
 			if err != nil {
 				return "", copiedURLs, fmt.Errorf("failed to copy chunk image %q: %w", img.URL, err)
 			}
@@ -351,7 +353,7 @@ func (s *knowledgeService) CloneChunk(ctx context.Context, src, dst *types.Knowl
 			// child chunks, so a parent text chunk's ![](url) reference cannot be
 			// rewritten until its child image chunk has been processed).
 			newImageInfo, copied, copyErr := cloneChunkImageInfo(
-				ctx, dstSvc, sourceChunk.ImageInfo, dst.TenantID, dst.ID, urlCache)
+				ctx, s.files, dstSvc, sourceChunk.ImageInfo, dst.TenantID, urlCache)
 			if copyErr != nil {
 				err = fmt.Errorf("clone chunk image copy failed: %w", copyErr)
 				return err
@@ -812,7 +814,7 @@ func (s *knowledgeService) cloneFAQKnowledgeBase(
 			// Deep-copy extracted images into objects owned by the destination
 			// FAQ knowledge so deleting the source never breaks this clone.
 			newImageInfo, copied, copyErr := cloneChunkImageInfo(
-				ctx, dstSvc, srcChunk.ImageInfo, dstKB.TenantID, dstKnowledge.ID, imageURLCache)
+				ctx, s.files, dstSvc, srcChunk.ImageInfo, dstKB.TenantID, imageURLCache)
 			if copyErr != nil {
 				logger.Errorf(ctx, "Failed to copy FAQ chunk images: %v", copyErr)
 				handleError(progress, copyErr, "Failed to copy FAQ entry images")

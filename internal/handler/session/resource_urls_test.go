@@ -2,11 +2,11 @@ package session
 
 import (
 	"context"
-	"io"
-	"mime/multipart"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -20,28 +20,22 @@ import (
 
 const testResourceHandle = "resource://xifDo7NTSL300Lp1goVutw"
 
-// stubResourceFileService resolves any storage reference to one fixed public URL.
-type stubResourceFileService struct {
-	interfaces.FileService
+// stubResourceStore resolves every well-formed resource reference to one fixed
+// public URL and, like the real store, refuses anything else — a reference
+// truncated mid-stream included.
+type stubResourceStore struct {
+	interfaces.FileStore
 }
 
-func (s *stubResourceFileService) GetFileURL(context.Context, string) (string, error) {
-	return "https://cdn.example.com/signed.png", nil
-}
-
-func (s *stubResourceFileService) SaveFile(
-	context.Context, *multipart.FileHeader, uint64, string,
-) (string, error) {
-	return "", nil
-}
-
-func (s *stubResourceFileService) GetFile(context.Context, string) (io.ReadCloser, error) {
-	return nil, nil
+func (s *stubResourceStore) URL(_ context.Context, ref string, _ time.Duration) (string, bool, error) {
+	if _, ok := types.ParseResourcePath(ref); !ok {
+		return "", false, errors.New("not a resource reference")
+	}
+	return "https://cdn.example.com/signed.png", true, nil
 }
 
 func publicStreamRewriter() *storageurl.StreamRewriter {
-	return storageurl.NewStreamRewriter(storageurl.NewRequestRewriter(
-		context.Background(), storageurl.ModePublic, &stubResourceFileService{}, nil))
+	return storageurl.NewStreamRewriter(storageurl.NewRequestRewriter(storageurl.ModePublic, &stubResourceStore{}))
 }
 
 func newTestGinContext(t *testing.T, query string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -55,7 +49,7 @@ func newTestGinContext(t *testing.T, query string) (*gin.Context, *httptest.Resp
 
 // The default mode must leave the stream byte-identical and unbuffered.
 func TestResolveStreamRewriter_DefaultIsDisabled(t *testing.T) {
-	h := &Handler{fileService: &stubResourceFileService{}}
+	h := &Handler{files: &stubResourceStore{}}
 	c, _ := newTestGinContext(t, "")
 
 	rewriter, err := h.resolveStreamRewriter(c)
@@ -64,7 +58,7 @@ func TestResolveStreamRewriter_DefaultIsDisabled(t *testing.T) {
 }
 
 func TestResolveStreamRewriter_RejectsInvalidValue(t *testing.T) {
-	h := &Handler{fileService: &stubResourceFileService{}}
+	h := &Handler{files: &stubResourceStore{}}
 	c, _ := newTestGinContext(t, "?resource_urls=signed")
 
 	_, err := h.resolveStreamRewriter(c)

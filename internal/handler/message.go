@@ -22,31 +22,20 @@ import (
 // It provides endpoints for loading and managing message history
 type MessageHandler struct {
 	MessageService interfaces.MessageService // Service that implements message business logic
-	// FileService and StorageResolver back the optional `resource_urls=public`
-	// mode, which returns loadable HTTP URLs instead of internal
-	// `resource://` handles. Both may be nil, in which case only the default
-	// handle mode is available.
-	FileService     interfaces.FileService
-	StorageResolver interfaces.StorageBackendResolver
+	// Files backs the optional `resource_urls=public` mode, which returns
+	// loadable HTTP URLs instead of internal `resource://` handles. When nil
+	// only the default handle mode is available.
+	Files interfaces.FileStore
 }
 
 // NewMessageHandler creates a new message handler instance with the required service
 // Parameters:
 //   - messageService: Service that implements message business logic
-//   - fileService: Storage access used to sign public resource URLs
-//   - storageResolver: Resolves per-tenant storage backends for those URLs
+//   - files: Storage runtime used to mint public resource URLs
 //
 // Returns a pointer to a new MessageHandler
-func NewMessageHandler(
-	messageService interfaces.MessageService,
-	fileService interfaces.FileService,
-	storageResolver interfaces.StorageBackendResolver,
-) *MessageHandler {
-	return &MessageHandler{
-		MessageService:  messageService,
-		FileService:     fileService,
-		StorageResolver: storageResolver,
-	}
+func NewMessageHandler(messageService interfaces.MessageService, files interfaces.FileStore) *MessageHandler {
+	return &MessageHandler{MessageService: messageService, Files: files}
 }
 
 // resolveResourceRewriter builds the storage-reference rewriter for one response
@@ -62,7 +51,7 @@ func (h *MessageHandler) resolveResourceRewriter(c *gin.Context) (*storageurl.Re
 		}
 		return nil, errors.NewBadRequestError(err.Error())
 	}
-	return storageurl.NewRequestRewriter(ctx, mode, h.FileService, h.StorageResolver), nil
+	return storageurl.NewRequestRewriter(mode, h.Files), nil
 }
 
 // LoadMessages godoc

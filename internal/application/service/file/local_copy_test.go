@@ -44,7 +44,7 @@ func readLocal(t *testing.T, svc interface {
 // deletion of the source object (the C1/C2 regression this PR fixes).
 func TestLocalCopyFile_IndependentCopy(t *testing.T) {
 	base := t.TempDir()
-	svc := NewLocalFileService(base, "")
+	svc := NewLocalFileService(base)
 
 	content := []byte("hello deep copy")
 	srcPath := seedLocalObject(t, base, 0, "doc.txt", content)
@@ -70,7 +70,7 @@ func TestLocalCopyFile_IndependentCopy(t *testing.T) {
 // scheme to the local service is rejected with ErrCrossBackendCopy.
 func TestLocalCopyFile_CrossBackend(t *testing.T) {
 	base := t.TempDir()
-	svc := NewLocalFileService(base, "")
+	svc := NewLocalFileService(base)
 
 	_, err := svc.CopyFile(context.Background(), "s3://bucket/10/exports/a.png", 7, "k")
 	require.Error(t, err)
@@ -82,7 +82,7 @@ func TestLocalCopyFile_CrossBackend(t *testing.T) {
 // GetFile/DeleteFile rejects a traversal source path.
 func TestLocalCopyFile_TraversalRejected(t *testing.T) {
 	base := t.TempDir()
-	svc := NewLocalFileService(base, "")
+	svc := NewLocalFileService(base)
 
 	_, err := svc.CopyFile(context.Background(), localScheme+"../../etc/passwd", 7, "k")
 	require.Error(t, err)

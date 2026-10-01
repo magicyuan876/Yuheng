@@ -22,13 +22,14 @@ func newResourceCatalogForTest(t *testing.T) (interfaces.ResourceCatalog, *gorm.
 func TestResourceCatalogRegisterResolveAndDeduplicate(t *testing.T) {
 	catalog, _ := newResourceCatalogForTest(t)
 	ctx := context.Background()
-	physical := "storage://backend-a/local://7/exports/a.png"
+	physical := "local://7/exports/a.png"
 
-	ref, err := catalog.Register(ctx, 7, physical, interfaces.ResourceRegistration{Kind: "image", OriginalName: "a.png"})
+	ref, err := catalog.Register(ctx, 7, "backend-a", physical,
+		interfaces.ResourceRegistration{Kind: "image", OriginalName: "a.png"})
 	require.NoError(t, err)
 	require.Regexp(t, `^resource://[0-9A-Za-z_-]{22}$`, ref)
 
-	again, err := catalog.Register(ctx, 7, physical, interfaces.ResourceRegistration{})
+	again, err := catalog.Register(ctx, 7, "backend-a", physical, interfaces.ResourceRegistration{})
 	require.NoError(t, err)
 	require.Equal(t, ref, again)
 
@@ -46,6 +47,7 @@ func TestResourceCatalogBindingAndAccessGrant(t *testing.T) {
 	ref, err := catalog.Register(
 		ctx,
 		9,
+		"backend-a",
 		"local://9/exports/report.pdf",
 		interfaces.ResourceRegistration{OriginalName: "report.pdf"},
 	)
@@ -71,7 +73,7 @@ func TestResourceCatalogReusesLiveAccessGrant(t *testing.T) {
 	t.Setenv("SYSTEM_AES_KEY", "yuheng-test-aes-key-32bytes!!!")
 	catalog, db := newResourceCatalogForTest(t)
 	ctx := context.Background()
-	ref, err := catalog.Register(ctx, 9, "local://9/exports/a.png", interfaces.ResourceRegistration{})
+	ref, err := catalog.Register(ctx, 9, "backend-a", "local://9/exports/a.png", interfaces.ResourceRegistration{})
 	require.NoError(t, err)
 
 	first, err := catalog.CreateAccessGrant(ctx, ref, time.Hour)
@@ -94,9 +96,9 @@ func TestResourceCatalogGrantsArePerResource(t *testing.T) {
 	t.Setenv("SYSTEM_AES_KEY", "yuheng-test-aes-key-32bytes!!!")
 	catalog, _ := newResourceCatalogForTest(t)
 	ctx := context.Background()
-	first, err := catalog.Register(ctx, 9, "local://9/exports/a.png", interfaces.ResourceRegistration{})
+	first, err := catalog.Register(ctx, 9, "backend-a", "local://9/exports/a.png", interfaces.ResourceRegistration{})
 	require.NoError(t, err)
-	second, err := catalog.Register(ctx, 9, "local://9/exports/b.png", interfaces.ResourceRegistration{})
+	second, err := catalog.Register(ctx, 9, "backend-a", "local://9/exports/b.png", interfaces.ResourceRegistration{})
 	require.NoError(t, err)
 
 	firstToken, err := catalog.CreateAccessGrant(ctx, first, time.Hour)
@@ -112,7 +114,7 @@ func TestResourceCatalogDoesNotReviveRevokedGrant(t *testing.T) {
 	t.Setenv("SYSTEM_AES_KEY", "yuheng-test-aes-key-32bytes!!!")
 	catalog, db := newResourceCatalogForTest(t)
 	ctx := context.Background()
-	ref, err := catalog.Register(ctx, 9, "local://9/exports/a.png", interfaces.ResourceRegistration{})
+	ref, err := catalog.Register(ctx, 9, "backend-a", "local://9/exports/a.png", interfaces.ResourceRegistration{})
 	require.NoError(t, err)
 
 	revoked, err := catalog.CreateAccessGrant(ctx, ref, time.Hour)
@@ -138,7 +140,7 @@ func TestResourceCatalogWithoutSigningKeyMintsFreshGrants(t *testing.T) {
 	t.Setenv("SYSTEM_AES_KEY", "")
 	catalog, _ := newResourceCatalogForTest(t)
 	ctx := context.Background()
-	ref, err := catalog.Register(ctx, 9, "local://9/exports/a.png", interfaces.ResourceRegistration{})
+	ref, err := catalog.Register(ctx, 9, "backend-a", "local://9/exports/a.png", interfaces.ResourceRegistration{})
 	require.NoError(t, err)
 
 	first, err := catalog.CreateAccessGrant(ctx, ref, time.Hour)
@@ -150,6 +152,7 @@ func TestResourceCatalogWithoutSigningKeyMintsFreshGrants(t *testing.T) {
 
 func TestResourceCatalogRejectsUnsupportedPhysicalPath(t *testing.T) {
 	catalog, _ := newResourceCatalogForTest(t)
-	_, err := catalog.Register(context.Background(), 7, "https://example.com/a.png", interfaces.ResourceRegistration{})
+	_, err := catalog.Register(context.Background(), 7, "backend-a", "https://example.com/a.png",
+		interfaces.ResourceRegistration{})
 	require.ErrorContains(t, err, "unsupported provider")
 }

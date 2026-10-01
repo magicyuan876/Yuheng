@@ -26,6 +26,10 @@ func (f *fakeStorageBackendRepo) GetByID(context.Context, uint64, string) (*type
 	return nil, nil
 }
 
+func (f *fakeStorageBackendRepo) Find(context.Context, string) (*types.StorageBackend, error) {
+	return nil, nil
+}
+
 func (f *fakeStorageBackendRepo) List(context.Context, uint64) ([]*types.StorageBackend, error) {
 	return f.backends, nil
 }

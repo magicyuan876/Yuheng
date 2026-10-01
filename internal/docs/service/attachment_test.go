@@ -106,13 +106,36 @@ func (m *memFiles) count() int {
 	return len(m.objects)
 }
 
-// fakeStorage always resolves to one backend.
+// fakeStorage writes every space to one backend and, like the real file
+// store, reads a reference back from wherever it was written.
 type fakeStorage struct{ files *memFiles }
 
-func (f fakeStorage) ResolveFileService(context.Context, *types.Tenant, string, string,
-	string,
-) (interfaces.FileService, string, error) {
-	return f.files, "mem", nil
+func (f fakeStorage) Writer(context.Context, string) (interfaces.FileService, error) {
+	return f.files, nil
+}
+
+func (f fakeStorage) ForTenantDefault(context.Context, uint64) (interfaces.FileService, error) {
+	return f.files, nil
+}
+
+func (f fakeStorage) Open(ctx context.Context, ref string) (io.ReadCloser, *types.StoredResource, error) {
+	body, err := f.files.GetFile(ctx, ref)
+	if err != nil {
+		return nil, nil, err
+	}
+	return body, &types.StoredResource{PhysicalPath: ref}, nil
+}
+
+func (f fakeStorage) URL(ctx context.Context, ref string, _ time.Duration) (string, bool, error) {
+	url, err := f.files.GetFileURL(ctx, ref)
+	if err != nil {
+		return "", false, nil
+	}
+	return url, true, nil
+}
+
+func (f fakeStorage) Delete(ctx context.Context, ref string) error {
+	return f.files.DeleteFile(ctx, ref)
 }
 
 // fakeTenants is the workspace storage ledger.

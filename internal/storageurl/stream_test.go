@@ -123,7 +123,7 @@ func TestHoldbackCutoff(t *testing.T) {
 // A reference split across two deltas must be held back and rewritten once
 // complete, never emitted as a broken fragment.
 func TestStreamRewriter_HoldsSplitReference(t *testing.T) {
-	sr := NewStreamRewriter(NewRewriter(stubResolver("https://cdn.example.com/x.png"), "TEST"))
+	sr := NewStreamRewriter(NewRewriter(fixedURL("https://cdn.example.com/x.png"), "TEST"))
 	ctx := context.Background()
 
 	first := sr.Push(ctx, "answer-1", "here it is: ![img](resource://xifDo7", false, nil)
@@ -139,7 +139,7 @@ func TestStreamRewriter_HoldsSplitReference(t *testing.T) {
 // Streams are keyed independently so interleaved events do not corrupt each
 // other's holdback buffers.
 func TestStreamRewriter_KeysAreIndependent(t *testing.T) {
-	sr := NewStreamRewriter(NewRewriter(stubResolver("https://cdn.example.com/x.png"), "TEST"))
+	sr := NewStreamRewriter(NewRewriter(fixedURL("https://cdn.example.com/x.png"), "TEST"))
 	ctx := context.Background()
 
 	assert.Empty(t, sr.Push(ctx, "a", "![x](resource://aaaa", false, nil))
@@ -152,7 +152,7 @@ func TestStreamRewriter_KeysAreIndependent(t *testing.T) {
 
 // A stream that ends without a terminal chunk must not silently drop the tail.
 func TestStreamRewriter_FlushAllReleasesHeldTail(t *testing.T) {
-	sr := NewStreamRewriter(NewRewriter(stubResolver("https://cdn.example.com/x.png"), "TEST"))
+	sr := NewStreamRewriter(NewRewriter(fixedURL("https://cdn.example.com/x.png"), "TEST"))
 	ctx := context.Background()
 
 	meta := map[string]interface{}{"event_id": "answer-1", "is_fallback": true}
@@ -171,7 +171,7 @@ func TestStreamRewriter_FlushAllReleasesHeldTail(t *testing.T) {
 // Text that merely looks like an unfinished image must not stall the stream:
 // prose can contain a literal "](", and a URL never runs this long.
 func TestStreamRewriter_LongUnclosedImageIsNotHeld(t *testing.T) {
-	sr := NewStreamRewriter(NewRewriter(stubResolver("https://cdn.example.com/x.png"), "TEST"))
+	sr := NewStreamRewriter(NewRewriter(fixedURL("https://cdn.example.com/x.png"), "TEST"))
 	chunk := "![never closed](" + strings.Repeat("x", maxIncompleteImageBytes)
 	assert.Equal(t, chunk, sr.Push(context.Background(), "answer-1", chunk, false, nil))
 }
@@ -179,7 +179,7 @@ func TestStreamRewriter_LongUnclosedImageIsNotHeld(t *testing.T) {
 // Holdback must be bounded so a stream that never terminates a reference cannot
 // buffer the whole answer, and the byte-based release must not split a rune.
 func TestStreamRewriter_HoldbackIsBounded(t *testing.T) {
-	sr := NewStreamRewriter(NewRewriter(stubResolver("https://cdn.example.com/x.png"), "TEST"))
+	sr := NewStreamRewriter(NewRewriter(fixedURL("https://cdn.example.com/x.png"), "TEST"))
 	ctx := context.Background()
 
 	var emitted strings.Builder
@@ -205,7 +205,7 @@ func TestStreamRewriter_DisabledIsPassThrough(t *testing.T) {
 // Two goroutines pushing different streams share one resolver, so resolution
 // must be serialised — this fails under -race if it is not.
 func TestStreamRewriter_ConcurrentPushIsSafe(t *testing.T) {
-	sr := NewStreamRewriter(NewRewriter(stubResolver("https://cdn.example.com/x.png"), "TEST"))
+	sr := NewStreamRewriter(NewRewriter(fixedURL("https://cdn.example.com/x.png"), "TEST"))
 	ctx := context.Background()
 
 	var wg sync.WaitGroup

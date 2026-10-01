@@ -42,20 +42,39 @@ func resourceLocationHash(path string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// resourceLocationKey is what the location hash is computed over. A location
+// is the pair (backend, driver path): two local backends with different path
+// prefixes may well hand out the same relative path, and they are still two
+// different files.
+func resourceLocationKey(backendID, physicalPath string) string {
+	if backendID == "" {
+		return physicalPath
+	}
+	return backendID + "\x00" + physicalPath
+}
+
 func (s *resourceCatalog) Register(
 	ctx context.Context,
 	tenantID uint64,
+	backendID string,
 	physicalPath string,
 	meta interfaces.ResourceRegistration,
 ) (string, error) {
 	physicalPath = strings.TrimSpace(physicalPath)
+	backendID = strings.TrimSpace(backendID)
 	if tenantID == 0 || physicalPath == "" {
 		return "", fmt.Errorf("resource registration requires tenant and physical path")
 	}
 	if _, ok := types.ParseResourcePath(physicalPath); ok {
 		return physicalPath, nil
 	}
-	locationHash := resourceLocationHash(physicalPath)
+	providerPath := physicalPath
+	if backendID == "" {
+		if scopedID, inner, scoped := types.ParseStorageBackendPath(physicalPath); scoped {
+			backendID, providerPath = scopedID, inner
+		}
+	}
+	locationHash := resourceLocationHash(resourceLocationKey(backendID, physicalPath))
 	existing, err := s.repo.GetByTenantLocation(ctx, tenantID, locationHash)
 	if err != nil {
 		return "", err
@@ -64,11 +83,6 @@ func (s *resourceCatalog) Register(
 		return types.BuildResourcePath(existing.Handle), nil
 	}
 
-	backendID, inner, scoped := types.ParseStorageBackendPath(physicalPath)
-	providerPath := physicalPath
-	if scoped {
-		providerPath = inner
-	}
 	provider := types.ParseProviderScheme(providerPath)
 	if provider == "" {
 		return "", fmt.Errorf("resource physical path has unsupported provider scheme")
@@ -119,7 +133,7 @@ func (s *resourceCatalog) Resolve(ctx context.Context, reference string) (*types
 		return nil, err
 	}
 	if resource == nil {
-		return nil, fmt.Errorf("resource not found")
+		return nil, types.ErrResourceNotFound
 	}
 	return resource, nil
 }
@@ -311,7 +325,7 @@ func (s *resourceCatalog) ResolveAccessGrant(ctx context.Context, token string) 
 		return nil, err
 	}
 	if resource == nil {
-		return nil, fmt.Errorf("resource not found")
+		return nil, types.ErrResourceNotFound
 	}
 	return resource, nil
 }

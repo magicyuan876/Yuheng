@@ -61,7 +61,6 @@ import (
 	"github.com/magicyuan876/yuheng/internal/tracing/langfuse"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
-	secutils "github.com/magicyuan876/yuheng/internal/utils"
 )
 
 // BuildContainer constructs the dependency injection container
@@ -228,6 +227,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	}))
 	must(container.Provide(service.NewVectorStoreService))
 	must(container.Provide(service.NewStorageBackendServiceWithResources))
+	must(container.Provide(service.NewFileStore))
 	must(container.Provide(func(s *service.StorageBackendService) interfaces.StorageBackendService { return s }))
 	must(container.Provide(func(s *service.StorageBackendService) interfaces.StorageBackendResolver { return s }))
 
@@ -345,10 +345,9 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(handler.NewMessageFeedbackHandler))
 	logger.Debugf(ctx, "[Container] HTTP handlers registered")
 
-	// Wire the chat package's local image resolver so multimodal chat can read
-	// local:// images that live under a tenant's configured storage PathPrefix
-	// (which is not encoded in the local:// URL).
-	must(container.Invoke(registerChatLocalImageResolver))
+	// Wire the chat package's stored-image resolver so multimodal chat can
+	// inline images held on any storage backend.
+	must(container.Invoke(registerChatStoredImageResolver))
 
 	// Extensions. The core provides a default for what an extension may add, then
 	// lets registered hooks add providers and decorate those defaults. This has to
@@ -376,52 +375,15 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	return container
 }
 
-// registerChatLocalImageResolver wires the chat package's LocalImageResolver
-// hook. Stored local:// URLs are relative to the resolved storage base dir and
-// do NOT encode the owning tenant's configured PathPrefix, so resolving them to
-// disk bytes requires rebuilding the FileService from that tenant's storage
-// config. The owning tenant is parsed from the URL's first path segment, which
-// correctly handles cross-tenant shared resources (e.g. shared KB images).
-func registerChatLocalImageResolver(
-	tenantRepo interfaces.TenantRepository,
-	storageResolver interfaces.StorageBackendResolver,
-	resourceCatalog interfaces.ResourceCatalog,
-) {
-	chat.LocalImageResolver = func(storageURL string) ([]byte, bool) {
+// registerChatStoredImageResolver wires the chat package's StoredImageResolver
+// hook, which multimodal chat uses to inline stored images as bytes. The
+// reference's resource row says which backend holds the image, so images from
+// a shared knowledge base or on a user-registered backend resolve the same way
+// as the caller's own.
+func registerChatStoredImageResolver(files interfaces.FileStore) {
+	chat.StoredImageResolver = func(ref string) ([]byte, bool) {
 		ctx := context.Background()
-		physicalPath, resource, err := resourceCatalog.ResolvePath(ctx, storageURL)
-		if err != nil {
-			return nil, false
-		}
-		tenantID := secutils.ParseTenantIDFromStoragePath(physicalPath)
-		if resource != nil {
-			tenantID = resource.TenantID
-		}
-		if tenantID == 0 {
-			return nil, false
-		}
-		tenant, err := tenantRepo.GetTenantByID(ctx, tenantID)
-		if err != nil || tenant == nil {
-			return nil, false
-		}
-		baseDir := strings.TrimSpace(os.Getenv("LOCAL_STORAGE_BASE_DIR"))
-		backendID, inner, scoped := types.ParseStorageBackendPath(physicalPath)
-		if resource != nil && resource.StorageBackendID != "" {
-			backendID = resource.StorageBackendID
-		}
-		providerPath := physicalPath
-		if scoped {
-			providerPath = inner
-		}
-		provider := types.ParseProviderScheme(providerPath)
-		if provider == "" {
-			provider = "local"
-		}
-		fileSvc, _, err := storageResolver.ResolveFileService(ctx, tenant, backendID, provider, baseDir)
-		if err != nil {
-			return nil, false
-		}
-		rc, err := fileSvc.GetFile(ctx, physicalPath)
+		rc, _, err := files.Open(ctx, ref)
 		if err != nil {
 			return nil, false
 		}
@@ -890,8 +852,7 @@ func initRawFileService(_ *config.Config) (interfaces.FileService, error) {
 		if baseDir == "" {
 			baseDir = "/data/files"
 		}
-		externalURL := strings.TrimSpace(os.Getenv("APP_EXTERNAL_URL"))
-		return file.NewLocalFileService(baseDir, externalURL), nil
+		return file.NewLocalFileService(baseDir), nil
 	case "dummy":
 		return file.NewDummyFileService(), nil
 	default:

@@ -142,15 +142,10 @@ func (s *PageService) DownloadExport(ctx context.Context, actor *acl.Identity, j
 		return nil, notFound("export")
 	}
 
-	space, err := s.d.Repos.Spaces.Get(ctx, job.TenantID, job.SpaceID)
-	if err != nil {
+	if s.d.Storage == nil {
 		return nil, notFound("export")
 	}
-	_, files, err := s.storageFor(ctx, space)
-	if err != nil {
-		return nil, err
-	}
-	reader, err := files.GetFile(ctx, job.ResultPath)
+	reader, _, err := s.d.Storage.Open(ctx, job.ResultPath)
 	if err != nil {
 		return nil, notFound("export")
 	}
@@ -206,7 +201,7 @@ func (s *PageService) runSpaceExport(ctx context.Context, actor *acl.Identity,
 		return
 	}
 
-	_, files, err := s.storageFor(ctx, space)
+	files, err := s.writerFor(ctx, space)
 	if err != nil {
 		s.failExport(ctx, space.TenantID, jobID, "no storage is configured for this space")
 		return

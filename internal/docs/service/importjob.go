@@ -144,7 +144,7 @@ func (s *PageService) StartImport(ctx context.Context, actor *acl.Identity,
 	if err != nil {
 		return nil, err
 	}
-	_, files, err := s.storageFor(ctx, space)
+	files, err := s.writerFor(ctx, space)
 	if err != nil {
 		return nil, forbidden("no storage is configured for this space")
 	}

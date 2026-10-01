@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	urlpkg "net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -189,7 +188,11 @@ func (s *AttachmentService) UploadBytes(ctx context.Context, actor *acl.Identity
 func (s *AttachmentService) persistUpload(ctx context.Context, actor *acl.Identity,
 	space *model.Space, page *model.Page, inspected *inspected,
 ) (*AttachmentView, error) {
-	tenant, fileSvc, err := s.storageFor(ctx, space)
+	tenant, err := s.tenantFor(ctx, space.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	fileSvc, err := s.writerFor(ctx, space)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +252,7 @@ func (s *AttachmentService) persistUpload(ctx context.Context, actor *acl.Identi
 	}
 	if err := s.d.Repos.Files.Create(ctx, row); err != nil {
 		if fresh {
-			s.releaseObject(ctx, fileSvc, filePath)
+			s.releaseObject(ctx, filePath)
 		}
 		return nil, err
 	}
@@ -375,7 +378,7 @@ func head(data []byte) []byte {
 	return data
 }
 
-// store writes the bytes and returns the provider path.
+// store writes the bytes and returns their resource reference.
 func (s *AttachmentService) store(ctx context.Context, fileSvc interfaces.FileService,
 	space *model.Space, in *inspected,
 ) (string, error) {
@@ -410,14 +413,13 @@ func (s *AttachmentService) Fetch(ctx context.Context, actor *acl.Identity, id s
 // has already been authorised, by Fetch for a member or FetchPublished for a
 // visitor.
 func (s *AttachmentService) serve(ctx context.Context, row *model.Attachment, width int) (*ServeResult, error) {
-	_, fileSvc, err := s.storageForSpaceID(ctx, row.TenantID, row.SpaceID)
-	if err != nil {
-		return nil, err
+	if s.d.Storage == nil {
+		return nil, fmt.Errorf("docs: no file storage is configured")
 	}
 	serving := attachment.ServingFor(row.Mime)
 
 	if width > 0 {
-		data, media, err := s.variant(ctx, fileSvc, row, width)
+		data, media, err := s.variant(ctx, row, width)
 		switch {
 		case err == nil:
 			return &ServeResult{
@@ -435,19 +437,14 @@ func (s *AttachmentService) serve(ctx context.Context, row *model.Attachment, wi
 	// anyway. Everything else is proxied so the download headers that keep it
 	// from being treated as a document are actually applied.
 	if serving.Inline && !serving.Sandbox {
-		if url, err := fileSvc.GetFileURL(ctx, row.FilePath); err == nil && url != "" {
-			// Local storage returns its local://... storage path when no
-			// external URL is configured; a browser cannot follow that, so
-			// only an actual http(s) address earns the redirect.
-			if u, parseErr := urlpkg.Parse(url); parseErr == nil && (u.Scheme == "http" || u.Scheme == "https") {
-				return &ServeResult{
-					Redirect: url, FileName: row.FileName, ContentType: serving.ContentType,
-					Inline: true, Size: row.SizeBytes,
-				}, nil
-			}
+		if url, ok, err := s.d.Storage.URL(ctx, row.FilePath, 0); err == nil && ok {
+			return &ServeResult{
+				Redirect: url, FileName: row.FileName, ContentType: serving.ContentType,
+				Inline: true, Size: row.SizeBytes,
+			}, nil
 		}
 	}
-	body, err := fileSvc.GetFile(ctx, row.FilePath)
+	body, _, err := s.d.Storage.Open(ctx, row.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("docs: reading attachment %s: %w", row.ID, err)
 	}
@@ -554,44 +551,34 @@ func (s *AttachmentService) ListForPage(ctx context.Context, d acl.Decision) ([]
 
 // ---- storage and quota ----------------------------------------------------
 
-func (s *base) storageFor(ctx context.Context, space *model.Space) (*types.Tenant,
-	interfaces.FileService, error,
-) {
+// writerFor returns where a space's new bytes go: the backend the space is
+// bound to, or the workspace default for a space bound to none. It decides
+// nothing about existing files, which are read through their own resource
+// rows.
+func (s *base) writerFor(ctx context.Context, space *model.Space) (interfaces.FileService, error) {
 	if s.d.Storage == nil {
-		return nil, nil, fmt.Errorf("docs: no storage backend resolver is configured")
+		return nil, fmt.Errorf("docs: no file storage is configured")
 	}
-	tenant := &types.Tenant{ID: space.TenantID}
-	if s.d.Tenants != nil {
-		loaded, err := s.d.Tenants.GetTenantByID(ctx, space.TenantID)
-		if err != nil {
-			return nil, nil, err
-		}
-		if loaded != nil {
-			tenant = loaded
-		}
+	if space.StorageBackendID != nil && *space.StorageBackendID != "" {
+		return s.d.Storage.Writer(ctx, *space.StorageBackendID)
 	}
-	backendID := ""
-	if space.StorageBackendID != nil {
-		backendID = *space.StorageBackendID
-	}
-	fileSvc, _, err := s.d.Storage.ResolveFileService(ctx, tenant, backendID, "", "")
-	if err != nil {
-		return nil, nil, err
-	}
-	if fileSvc == nil {
-		return nil, nil, fmt.Errorf("docs: no file storage is configured")
-	}
-	return tenant, fileSvc, nil
+	return s.d.Storage.ForTenantDefault(ctx, space.TenantID)
 }
 
-func (s *base) storageForSpaceID(ctx context.Context, tenantID uint64,
-	spaceID string,
-) (*types.Tenant, interfaces.FileService, error) {
-	space, err := s.d.Repos.Spaces.Get(ctx, tenantID, spaceID)
-	if err != nil {
-		return nil, nil, err
+// tenantFor loads the workspace an upload is charged against. Without a
+// tenant source there is no quota to enforce, which a stub row expresses.
+func (s *base) tenantFor(ctx context.Context, tenantID uint64) (*types.Tenant, error) {
+	if s.d.Tenants == nil {
+		return &types.Tenant{ID: tenantID}, nil
 	}
-	return s.storageFor(ctx, space)
+	tenant, err := s.d.Tenants.GetTenantByID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if tenant == nil {
+		return &types.Tenant{ID: tenantID}, nil
+	}
+	return tenant, nil
 }
 
 // checkQuota refuses an upload that would take the workspace over its limit.
@@ -629,21 +616,16 @@ func (s *AttachmentService) releaseIfUnreferenced(ctx context.Context, row *mode
 	if n > 0 {
 		return
 	}
-	_, fileSvc, err := s.storageForSpaceID(ctx, row.TenantID, row.SpaceID)
-	if err != nil {
-		logger.Warnf(ctx, "[docs] resolving storage to release %s failed: %v", row.FilePath, err)
-		return
-	}
-	s.releaseObject(ctx, fileSvc, row.FilePath)
+	s.releaseObject(ctx, row.FilePath)
 	s.chargeStorage(ctx, row.TenantID, -row.SizeBytes)
 	s.variants.dropPrefix(row.ID)
 }
 
-func (s *AttachmentService) releaseObject(ctx context.Context, fileSvc interfaces.FileService, path string) {
-	if fileSvc == nil || path == "" {
+func (s *AttachmentService) releaseObject(ctx context.Context, path string) {
+	if s.d.Storage == nil || path == "" {
 		return
 	}
-	if err := fileSvc.DeleteFile(ctx, path); err != nil {
+	if err := s.d.Storage.Delete(ctx, path); err != nil {
 		logger.Warnf(ctx, "[docs] deleting stored object %s failed: %v", path, err)
 	}
 }
@@ -651,9 +633,7 @@ func (s *AttachmentService) releaseObject(ctx context.Context, fileSvc interface
 // ---- image variants -------------------------------------------------------
 
 // variant renders and caches a smaller version of an image.
-func (s *AttachmentService) variant(ctx context.Context, fileSvc interfaces.FileService,
-	row *model.Attachment, width int,
-) ([]byte, string, error) {
+func (s *AttachmentService) variant(ctx context.Context, row *model.Attachment, width int) ([]byte, string, error) {
 	if row.Kind != model.AttachmentKind(attachment.KindImage) || !attachment.IsVariantWidth(width) {
 		return nil, "", attachment.ErrNoVariant
 	}
@@ -667,7 +647,7 @@ func (s *AttachmentService) variant(ctx context.Context, fileSvc interfaces.File
 	if row.SizeBytes > MaxBufferedBytes {
 		return nil, "", attachment.ErrNoVariant
 	}
-	body, err := fileSvc.GetFile(ctx, row.FilePath)
+	body, _, err := s.d.Storage.Open(ctx, row.FilePath)
 	if err != nil {
 		return nil, "", err
 	}

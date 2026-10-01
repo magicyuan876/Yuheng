@@ -32,7 +32,7 @@ type RouterParams struct {
 	dig.In
 
 	Config                       *config.Config
-	FileService                  interfaces.FileService
+	FileStore                    interfaces.FileStore
 	UserService                  interfaces.UserService
 	KBService                    interfaces.KnowledgeBaseService
 	KnowledgeService             interfaces.KnowledgeService
@@ -70,7 +70,6 @@ type RouterParams struct {
 	VectorStoreHandler           *handler.VectorStoreHandler
 	EngineCatalog                *retriever.Catalog
 	StorageBackendHandler        *handler.StorageBackendHandler
-	StorageBackendResolver       interfaces.StorageBackendResolver
 	ResourceCatalog              interfaces.ResourceCatalog
 	FAQHandler                   *handler.FAQHandler
 	TagHandler                   *handler.TagHandler
@@ -155,19 +154,16 @@ func NewRouter(params RouterParams) *gin.Engine {
 
 	// Short-lived capability URLs for clients that cannot attach
 	// Yuheng authentication headers.
-	serveResourceGrants(r, params.ResourceCatalog, params.TenantService, params.FileService, params.StorageBackendResolver)
+	serveResourceGrants(r, params.FileStore, params.ResourceCatalog)
 
 	// 认证中间件
 	r.Use(middleware.Auth(params.TenantService, params.UserService, params.TenantMemberService, params.TenantAPIKeyService, params.Config))
 
-	// 文件服务：统一代理本地/S3 存储后端（需要认证）
-	serveFilesWithResources(r, params.FileService, params.StorageBackendResolver, params.ResourceCatalog)
+	// 文件服务：按 resource:// 句柄代理任意存储后端上的文件（需要认证）
+	serveFiles(r, params.FileStore, params.ResourceCatalog)
 
-	// Presigned file access: no auth required, signature-verified.
-	servePresignedFiles(r, params.TenantService, params.StorageBackendResolver)
-
-	// Diagnostic preview of presigned URLs (Admin only, behind auth middleware).
-	servePresignedPreview(r, params.Config, params.StorageBackendResolver)
+	// Diagnostic preview of public resource URLs (Admin only, behind auth middleware).
+	servePresignedPreview(r, params.Config, params.FileStore, params.ResourceCatalog)
 
 	// Langfuse observability — only active when LANGFUSE_* env vars are set.
 	// The middleware is registered unconditionally; when disabled it's a no-op.
@@ -216,27 +212,12 @@ func NewRouter(params RouterParams) *gin.Engine {
 		// KB-scoped image proxy: lets tenants render images embedded in
 		// org-shared KB content, which the tenant-scoped
 		// /files route cannot serve because it enforces same-tenant paths.
-		serveKBScopedFiles(
-			v1,
-			rbacGuards,
-			params.TenantService,
-			params.FileService,
-			params.StorageBackendResolver,
-			params.ResourceCatalog,
-		)
+		serveKBScopedFiles(v1, rbacGuards, params.FileStore, params.ResourceCatalog)
 		// Message-scoped image proxy: replies may reference resources stored
 		// in another workspace (e.g. org-shared content). Authorization is
 		// derived from the persisted message, never from a client-provided
 		// workspace ID.
-		serveMessageScopedFiles(
-			v1,
-			rbacGuards,
-			params.MessageService,
-			params.TenantService,
-			params.FileService,
-			params.StorageBackendResolver,
-			params.ResourceCatalog,
-		)
+		serveMessageScopedFiles(v1, rbacGuards, params.MessageService, params.FileStore, params.ResourceCatalog)
 		RegisterKnowledgeTagRoutes(v1, params.TagHandler, rbacGuards)
 		RegisterKnowledgeRoutes(v1, params.KnowledgeHandler, rbacGuards)
 		RegisterDocsRoutes(v1, params.DocsModule, rbacGuards)

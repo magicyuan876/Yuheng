@@ -17,8 +17,7 @@ import (
 
 // localFileService implements the FileService interface for local file system storage
 type localFileService struct {
-	baseDir     string // Base directory for file storage
-	externalURL string // External URL base for presigned URL generation (empty = return local:// paths)
+	baseDir string // Base directory for file storage
 }
 
 const localScheme = "local://"
@@ -35,14 +34,10 @@ func (s *localFileService) CheckConnectivity(ctx context.Context) error {
 	return nil
 }
 
-// NewLocalFileService creates a new local file service instance.
-// externalURL is the externally-reachable base URL (e.g. "https://yuheng.example.com");
-// when set, GetFileURL returns presigned HTTP URLs instead of local:// paths.
-func NewLocalFileService(baseDir, externalURL string) interfaces.FileService {
-	return &localFileService{
-		baseDir:     baseDir,
-		externalURL: strings.TrimRight(externalURL, "/"),
-	}
+// NewLocalFileService creates a new local file service instance rooted at
+// baseDir.
+func NewLocalFileService(baseDir string) interfaces.FileService {
+	return &localFileService{baseDir: baseDir}
 }
 
 // SaveFile stores an uploaded file to the local file system
@@ -243,31 +238,14 @@ func (s *localFileService) SaveBytes(ctx context.Context, data []byte, tenantID 
 	return localScheme + filepath.ToSlash(relPath), nil
 }
 
-// GetFileURL returns a download URL for the file.
-// When externalURL is configured, returns a presigned HTTP URL suitable for external access.
-// Otherwise returns the local:// path itself: without an externally reachable
-// address there is no URL to sign, and callers resolve local:// through the
-// file-serving routes.
+// GetFileURL has no URL to offer: a directory on this server's disk is not
+// addressable from outside it. It returns the local:// locator unchanged, and
+// public links are resource grants that FileStore issues on this server's
+// own address instead.
 func (s *localFileService) GetFileURL(ctx context.Context, filePath string) (string, error) {
 	if !strings.HasPrefix(filePath, localScheme) {
 		return "", fmt.Errorf("not a %s path: %q", localScheme, filePath)
 	}
-	// If external URL is configured, generate a presigned HTTP URL.
-	if s.externalURL != "" {
-		// Tenant ID is parsed from the storage path, which encodes the
-		// resource owner's tenant (not the caller's). The verifier on
-		// /api/v1/files/presigned uses this ID to look up the owning
-		// tenant's StorageEngineConfig — using the caller's tenant would
-		// break cross-tenant shared resources (e.g. shared KB images).
-		tenantID := secutils.ParseTenantIDFromStoragePath(filePath)
-		presignedURL, err := secutils.SignFileURL(s.externalURL, filePath, tenantID, 0)
-		if err != nil {
-			logger.Warnf(ctx, "Failed to generate presigned URL for %s: %v, returning local:// path", filePath, err)
-			return filePath, nil
-		}
-		return presignedURL, nil
-	}
-
 	return filePath, nil
 }
 

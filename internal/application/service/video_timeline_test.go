@@ -357,56 +357,6 @@ func TestPrepareVideoTimelineTranscribeErrorRetries(t *testing.T) {
 	assert.Equal(t, types.ParseStatusFailed, repo.updated.ParseStatus)
 }
 
-// videoTestResourceCatalog stubs only Resolve for shared-path tests.
-type videoTestResourceCatalog struct {
-	interfaces.ResourceCatalog
-	resource *types.StoredResource
-	err      error
-}
-
-func (c *videoTestResourceCatalog) Resolve(context.Context, string) (*types.StoredResource, error) {
-	return c.resource, c.err
-}
-
-func TestDocreaderSharedFilePath(t *testing.T) {
-	ctx := context.Background()
-	svc := &knowledgeService{}
-
-	t.Setenv("DOCREADER_SHARED_DATA_DIR", "/data/files")
-	assert.Equal(t, "/data/files/videos/a.mp4",
-		svc.docreaderSharedFilePath(ctx, "local://videos/a.mp4"))
-	// Multi-backend prefix unwraps to the local relative path.
-	assert.Equal(t, "/data/files/10000/k1/v.mp4",
-		svc.docreaderSharedFilePath(ctx, "storage://backend-1/local://10000/k1/v.mp4"))
-	// Traversal attempts are neutralised, non-local schemes are refused.
-	assert.Equal(t, "/data/files/etc/passwd",
-		svc.docreaderSharedFilePath(ctx, "local://../../etc/passwd"))
-	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "s3://bucket/a.mp4"))
-	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "local://"))
-
-	// Stable resource references resolve through the catalog (the shape every
-	// new upload uses); non-local providers and lookup failures refuse handoff.
-	svc.resourceCatalog = &videoTestResourceCatalog{resource: &types.StoredResource{
-		Provider:     "local",
-		PhysicalPath: "storage://backend-1/local://10000/k1/1787.mp4",
-	}}
-	assert.Equal(t, "/data/files/10000/k1/1787.mp4",
-		svc.docreaderSharedFilePath(ctx, "resource://worYS6H5gNcTguFDE6XOlw"))
-
-	svc.resourceCatalog = &videoTestResourceCatalog{resource: &types.StoredResource{
-		Provider:     "s3",
-		PhysicalPath: "storage://backend-2/s3://bucket/k1/v.mp4",
-	}}
-	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "resource://worYS6H5gNcTguFDE6XOlw"))
-
-	svc.resourceCatalog = &videoTestResourceCatalog{err: assert.AnError}
-	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "resource://worYS6H5gNcTguFDE6XOlw"))
-
-	t.Setenv("DOCREADER_SHARED_DATA_DIR", "")
-	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "local://videos/a.mp4"),
-		"path handoff disabled when shared dir is unset")
-}
-
 func TestNewVideoChunkMetadataRoundTrip(t *testing.T) {
 	segMeta := types.NewVideoSegmentChunkMetadata(1000, 2000)
 	var seg map[string]types.VideoSegmentMetadata
