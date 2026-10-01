@@ -4,17 +4,20 @@ import "time"
 
 // Space is a document container inside a tenant (workspace).
 type Space struct {
-	ID               string          `json:"id"                 gorm:"type:varchar(36);primaryKey"`
-	TenantID         uint64          `json:"tenant_id"          gorm:"not null;index"`
-	Slug             string          `json:"slug"               gorm:"type:varchar(64);not null"`
-	Name             string          `json:"name"               gorm:"type:varchar(255);not null"`
-	Description      string          `json:"description"        gorm:"type:text;not null;default:''"`
-	Icon             *string         `json:"icon,omitempty"     gorm:"type:varchar(64)"`
-	Visibility       SpaceVisibility `json:"visibility"         gorm:"type:varchar(16);not null;default:'private'"`
-	DefaultRole      SpaceRole       `json:"default_role"       gorm:"type:varchar(16);not null;default:'none'"`
-	KnowledgeBaseID  *string         `json:"knowledge_base_id,omitempty"  gorm:"type:varchar(36)"`
-	StorageBackendID *string         `json:"storage_backend_id,omitempty" gorm:"type:varchar(36)"`
-	Settings         JSON            `json:"settings"           gorm:"type:json;not null;default:'{}'"`
+	ID              string          `json:"id"                 gorm:"type:varchar(36);primaryKey"`
+	TenantID        uint64          `json:"tenant_id"          gorm:"not null;index"`
+	Slug            string          `json:"slug"               gorm:"type:varchar(64);not null"`
+	Name            string          `json:"name"               gorm:"type:varchar(255);not null"`
+	Description     string          `json:"description"        gorm:"type:text;not null;default:''"`
+	Icon            *string         `json:"icon,omitempty"     gorm:"type:varchar(64)"`
+	Visibility      SpaceVisibility `json:"visibility"         gorm:"type:varchar(16);not null;default:'private'"`
+	DefaultRole     SpaceRole       `json:"default_role"       gorm:"type:varchar(16);not null;default:'none'"`
+	KnowledgeBaseID *string         `json:"knowledge_base_id,omitempty"  gorm:"type:varchar(36)"`
+	// StorageBackendID is where the space's new attachments, imports and
+	// exports go. Required; existing files are read through their own
+	// resource rows, so rebinding never strands one.
+	StorageBackendID string `json:"storage_backend_id" gorm:"type:varchar(36);not null"`
+	Settings         JSON   `json:"settings"           gorm:"type:json;not null;default:'{}'"`
 	// QuotaBytes caps the attachment bytes this space may hold; 0 is
 	// unlimited, as everywhere else in Yuheng. A column rather than a key in
 	// Settings, because Settings is writable by a space administrator and a

@@ -23,18 +23,33 @@ const (
 	StorageBackendStatusDisabled = "disabled"
 )
 
+// EnvStorageBackendID is the id of the deployment's storage backend: the one
+// row the environment (STORAGE_TYPE, S3_*, LOCAL_STORAGE_PATH_PREFIX)
+// describes. Every workspace starts with it as its default.
+const EnvStorageBackendID = "env"
+
 // StorageBackend is one concrete file/object storage instance. A workspace may
 // register multiple instances of the same provider and bind each knowledge base
 // to a different instance.
+//
+// storage_backends is the only place storage is configured. Besides the rows
+// workspaces register (source "user"), there is exactly one row with source
+// "env" and id EnvStorageBackendID: the deployment's own storage, rewritten
+// from the environment at every start, owned by no workspace (TenantID 0,
+// stored as NULL) and shared with all of them. It is read-only through the
+// API, and it never stores credentials — those are read from the environment
+// whenever a driver is built.
 type StorageBackend struct {
-	ID          string               `json:"id" gorm:"type:varchar(36);primaryKey"`
-	TenantID    uint64               `json:"tenant_id" gorm:"not null;index"`
-	Name        string               `json:"name" gorm:"type:varchar(255);not null"`
-	Provider    string               `json:"provider" gorm:"type:varchar(32);not null;index"`
-	Config      StorageBackendConfig `json:"config" gorm:"type:json"`
-	Source      string               `json:"source" gorm:"type:varchar(16);not null;default:'user'"`
-	Status      string               `json:"status" gorm:"type:varchar(16);not null;default:'active'"`
-	LegacyAlias bool                 `json:"legacy_alias" gorm:"not null;default:false"`
+	ID string `json:"id" gorm:"type:varchar(36);primaryKey"`
+	// TenantID owns a user backend. The environment backend has none: zero
+	// here, NULL in the column (the default tag makes gorm leave a zero value
+	// to the database).
+	TenantID uint64               `json:"tenant_id" gorm:"index;default:null"`
+	Name     string               `json:"name" gorm:"type:varchar(255);not null"`
+	Provider string               `json:"provider" gorm:"type:varchar(32);not null;index"`
+	Config   StorageBackendConfig `json:"config" gorm:"type:json"`
+	Source   string               `json:"source" gorm:"type:varchar(16);not null;default:'user'"`
+	Status   string               `json:"status" gorm:"type:varchar(16);not null;default:'active'"`
 	// IsBuiltin marks a platform-shared row: visible to EVERY workspace, not
 	// just the owning one. Reads OR this against tenant_id; writes stay pinned
 	// to the owner and, at the service layer, to system administrators, which
@@ -65,6 +80,8 @@ func (b *StorageBackend) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
+// Validate checks a user backend. The environment backend is validated by
+// EnvStorageBackend, from the environment it is built from.
 func (b *StorageBackend) Validate() error {
 	if b.TenantID == 0 {
 		return errors.NewValidationError("tenant_id is required")
@@ -202,23 +219,6 @@ func (c StorageBackendConfig) LocationKey(provider string) string {
 	}, "|")
 }
 
-// ToStorageEngineConfig adapts the instance model to the existing provider
-// implementations while those implementations are progressively normalized.
-func (b StorageBackend) ToStorageEngineConfig() *StorageEngineConfig {
-	c := b.Config
-	result := &StorageEngineConfig{DefaultProvider: b.Provider}
-	switch b.Provider {
-	case StorageProviderLocal:
-		result.Local = &LocalEngineConfig{PathPrefix: c.PathPrefix}
-	case StorageProviderS3:
-		result.S3 = &S3EngineConfig{
-			Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey,
-			BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseSSL: c.UseSSL, AddressingStyle: c.AddressingStyle,
-		}
-	}
-	return result
-}
-
 func NewStorageBackendResponse(backend *StorageBackend) StorageBackend {
 	return NewStorageBackendResponseWithSharedDetail(backend, true)
 }
@@ -242,61 +242,43 @@ func NewStorageBackendResponseWithSharedDetail(
 	return out
 }
 
-// StorageBackendFromLegacy projects one provider entry from the old workspace
-// singleton JSON into the multi-instance model.
-func StorageBackendFromLegacy(tenantID uint64, provider string, legacy *StorageEngineConfig) *StorageBackend {
-	if legacy == nil {
-		return nil
-	}
-	provider = strings.ToLower(strings.TrimSpace(provider))
-	b := &StorageBackend{TenantID: tenantID, Provider: provider, Source: StorageBackendSourceUser, Status: StorageBackendStatusActive, LegacyAlias: true}
-	switch provider {
-	case StorageProviderLocal:
-		if legacy.Local == nil {
-			return nil
-		}
-		b.Name, b.Config.PathPrefix = "Local", legacy.Local.PathPrefix
-	case StorageProviderS3:
-		if legacy.S3 == nil {
-			return nil
-		}
-		c := legacy.S3
-		b.Name = "S3"
-		b.Config = StorageBackendConfig{
-			Endpoint: c.Endpoint, Region: c.Region, AccessKeyID: c.AccessKey, SecretAccessKey: c.SecretKey,
-			BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseSSL: c.UseSSL, AddressingStyle: c.AddressingStyle,
-		}
-	default:
-		return nil
-	}
-	return b
-}
-
-// StorageBackendFromEnvironment snapshots the process-wide storage backend for
-// a workspace. The row is read-only in the UI and keeps env-only deployments
-// on the same instance-resolution path as user-managed backends.
-func StorageBackendFromEnvironment(tenantID uint64) *StorageBackend {
+// EnvStorageBackend describes the deployment's storage as the environment
+// configures it: STORAGE_TYPE (default local), LOCAL_STORAGE_PATH_PREFIX, and
+// the S3_* variables, credentials included. The startup sync stores it,
+// minus the credentials, as the EnvStorageBackendID row.
+func EnvStorageBackend() (*StorageBackend, error) {
 	provider := strings.ToLower(strings.TrimSpace(os.Getenv("STORAGE_TYPE")))
 	if provider == "" {
-		provider = "local"
+		provider = StorageProviderLocal
 	}
 	b := &StorageBackend{
-		TenantID: tenantID, Name: "System " + strings.ToUpper(provider), Provider: provider,
-		Source: StorageBackendSourceEnv, Status: StorageBackendStatusActive, LegacyAlias: true,
+		ID: EnvStorageBackendID, Name: "Deployment storage", Provider: provider,
+		Source: StorageBackendSourceEnv, Status: StorageBackendStatusActive, IsBuiltin: true,
 	}
 	switch provider {
 	case StorageProviderLocal:
 		b.Config.PathPrefix = strings.TrimSpace(os.Getenv("LOCAL_STORAGE_PATH_PREFIX"))
 	case StorageProviderS3:
 		b.Config = StorageBackendConfig{
-			Endpoint: os.Getenv("S3_ENDPOINT"), Region: os.Getenv("S3_REGION"),
-			AccessKeyID: os.Getenv("S3_ACCESS_KEY"), SecretAccessKey: os.Getenv("S3_SECRET_KEY"),
-			BucketName: os.Getenv("S3_BUCKET_NAME"), PathPrefix: os.Getenv("S3_PATH_PREFIX"),
-			UseSSL:          !strings.EqualFold(os.Getenv("S3_USE_SSL"), "false"),
+			Endpoint: strings.TrimSpace(os.Getenv("S3_ENDPOINT")), Region: strings.TrimSpace(os.Getenv("S3_REGION")),
+			BucketName:      strings.TrimSpace(os.Getenv("S3_BUCKET_NAME")),
+			PathPrefix:      strings.TrimSpace(os.Getenv("S3_PATH_PREFIX")),
+			UseSSL:          !strings.EqualFold(strings.TrimSpace(os.Getenv("S3_USE_SSL")), "false"),
 			AddressingStyle: strings.ToLower(strings.TrimSpace(os.Getenv("S3_ADDRESSING_STYLE"))),
 		}
+		b.Config.AccessKeyID, b.Config.SecretAccessKey = EnvStorageCredentials()
 	default:
-		return nil
+		return nil, fmt.Errorf("STORAGE_TYPE=%q is not a supported storage provider (supported: local, s3)", provider)
 	}
-	return b
+	if err := b.Config.ValidateForProvider(provider); err != nil {
+		return nil, fmt.Errorf("deployment storage (STORAGE_TYPE=%s): %w", provider, err)
+	}
+	return b, nil
+}
+
+// EnvStorageCredentials returns the deployment storage's S3 key pair, read
+// from the environment every time so the keys never reach the database and a
+// rotation takes effect on restart.
+func EnvStorageCredentials() (accessKey, secretKey string) {
+	return strings.TrimSpace(os.Getenv("S3_ACCESS_KEY")), strings.TrimSpace(os.Getenv("S3_SECRET_KEY"))
 }

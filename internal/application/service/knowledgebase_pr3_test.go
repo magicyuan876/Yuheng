@@ -8,7 +8,6 @@ import (
 
 	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
-	"github.com/magicyuan876/yuheng/internal/storageallowlist"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/assert"
@@ -156,11 +155,29 @@ func (r *fakeKBRepo) ListUserKBPinIDs(_ context.Context, _ uint64, _ string) (ma
 // surfaces as a build error here rather than at usage site.
 var _ interfaces.KnowledgeBaseRepository = (*fakeKBRepo)(nil)
 
+// fakeStorageBackends resolves every binding to one backend per id; an empty
+// id is the workspace default, which here is "workspace-default" on S3.
+type fakeStorageBackends struct {
+	interfaces.StorageBackendService
+	unavailable bool
+}
+
+func (f *fakeStorageBackends) ResolveBackend(_ context.Context, _ uint64, id string) (*types.StorageBackend, error) {
+	if f.unavailable {
+		return nil, stderrors.New("storage backend is not active")
+	}
+	if id == "" {
+		id = "workspace-default"
+	}
+	return &types.StorageBackend{ID: id, Provider: types.StorageProviderS3}, nil
+}
+
 func newPR3KBService(repo *fakeKBRepo, registry *fakeRegistry, ownership *fakeOwnership) *knowledgeBaseService {
 	return &knowledgeBaseService{
-		repo:           repo,
-		retrieveEngine: registry,
-		ownership:      ownership,
+		repo:            repo,
+		retrieveEngine:  registry,
+		ownership:       ownership,
+		storageBackends: &fakeStorageBackends{},
 	}
 }
 
@@ -168,45 +185,35 @@ func ctxWithTenant(tenantID uint64) context.Context {
 	return context.WithValue(context.Background(), types.TenantIDContextKey, tenantID)
 }
 
-func ctxWithTenantStorage(tenantID uint64, defaultProvider string) context.Context {
-	ctx := ctxWithTenant(tenantID)
-	tenant := &types.Tenant{
-		ID: tenantID,
-		StorageEngineConfig: &types.StorageEngineConfig{
-			DefaultProvider: defaultProvider,
-		},
-	}
-	return context.WithValue(ctx, types.TenantInfoContextKey, tenant)
+// ctxWithTenantInfo is ctxWithTenant plus the loaded workspace row, as the
+// auth middleware leaves it.
+func ctxWithTenantInfo(tenantID uint64) context.Context {
+	return context.WithValue(ctxWithTenant(tenantID), types.TenantInfoContextKey, &types.Tenant{ID: tenantID})
 }
 
-func TestCreateKnowledgeBase_DefaultStorageProviderFromTenant(t *testing.T) {
+// A new knowledge base is always bound: to the backend it names, or to the
+// workspace default when it names none.
+func TestCreateKnowledgeBase_BindsAStorageBackend(t *testing.T) {
 	repo := newFakeKBRepo()
 	svc := newPR3KBService(repo, &fakeRegistry{registered: map[string]struct{}{}}, &fakeOwnership{})
 
-	kb, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, "s3"), &types.KnowledgeBase{Name: "kb"})
+	kb, err := svc.CreateKnowledgeBase(ctxWithTenant(1), &types.KnowledgeBase{Name: "kb"})
 	require.NoError(t, err)
-	assert.Equal(t, "s3", kb.GetStorageProvider())
+	assert.Equal(t, "workspace-default", kb.StorageBackendID)
 
-	kbExplicit, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, "s3"), &types.KnowledgeBase{
-		Name:                  "kb2",
-		StorageProviderConfig: &types.StorageProviderConfig{Provider: "local"},
-	})
+	named, err := svc.CreateKnowledgeBase(ctxWithTenant(1),
+		&types.KnowledgeBase{Name: "kb2", StorageBackendID: "team-s3"})
 	require.NoError(t, err)
-	assert.Equal(t, "local", kbExplicit.GetStorageProvider())
+	assert.Equal(t, "team-s3", named.StorageBackendID)
 }
 
-func TestCreateKnowledgeBase_DefaultStorageProviderRespectsAllowList(t *testing.T) {
-	t.Setenv(storageallowlist.AllowListEnv, "s3")
+func TestCreateKnowledgeBase_RefusesAnUnusableBackend(t *testing.T) {
 	repo := newFakeKBRepo()
 	svc := newPR3KBService(repo, &fakeRegistry{registered: map[string]struct{}{}}, &fakeOwnership{})
+	svc.storageBackends = &fakeStorageBackends{unavailable: true}
 
-	kb, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, ""), &types.KnowledgeBase{Name: "kb"})
-	require.NoError(t, err)
-	assert.Equal(t, "s3", kb.GetStorageProvider())
-
-	kbDisallowedDefault, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, "local"), &types.KnowledgeBase{Name: "kb2"})
-	require.NoError(t, err)
-	assert.Equal(t, "s3", kbDisallowedDefault.GetStorageProvider())
+	_, err := svc.CreateKnowledgeBase(ctxWithTenant(1), &types.KnowledgeBase{Name: "kb"})
+	require.Error(t, err)
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +333,7 @@ func TestCopyKnowledgeBase_Defenses(t *testing.T) {
 	mkKB := func(id string, tenant uint64, embed string, vsid *string) *types.KnowledgeBase {
 		return &types.KnowledgeBase{
 			ID: id, Name: id, TenantID: tenant, EmbeddingModelID: embed, VectorStoreID: vsid,
+			StorageBackendID: types.EnvStorageBackendID,
 		}
 	}
 	storeA := "store-A"
@@ -377,6 +385,21 @@ func TestCopyKnowledgeBase_Defenses(t *testing.T) {
 
 		_, _, err := svc.CopyKnowledgeBase(ctxWithTenant(1), "src", "dst")
 		require.NoError(t, err)
+	})
+
+	// Source files are copied server-side, which needs one backend at both
+	// ends; the same provider on two backends is not enough.
+	t.Run("dstKB set + different storage backends -> 400", func(t *testing.T) {
+		repo := newFakeKBRepo()
+		repo.rows["src"] = mkKB("src", 1, "embed-1", &storeA)
+		dst := mkKB("dst", 1, "embed-1", &storeA)
+		dst.StorageBackendID = "team-s3"
+		repo.rows["dst"] = dst
+		svc := newPR3KBService(repo, &fakeRegistry{}, &fakeOwnership{})
+
+		_, _, err := svc.CopyKnowledgeBase(ctxWithTenant(1), "src", "dst")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "storage instances")
 	})
 
 	t.Run("dstKB set + different embedding models -> 400", func(t *testing.T) {

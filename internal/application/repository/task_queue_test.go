@@ -38,8 +38,8 @@ func setupFinalizingPendingOpTest(t *testing.T) (*gorm.DB, interfaces.TaskPendin
 	seeder, ok := repo.(interfaces.TaskPendingOpsFinalizingSeeder)
 	require.True(t, ok, "task pending repository must support atomic finalizing handoff")
 	require.NoError(t, db.Exec(
-		`INSERT INTO knowledge_bases (id, tenant_id, name, embedding_model_id, summary_model_id)
-			VALUES ('kb-1', 1, 'kb-1', '', '')`,
+		`INSERT INTO knowledge_bases (id, tenant_id, name, embedding_model_id, summary_model_id, storage_backend_id)
+			VALUES ('kb-1', 1, 'kb-1', '', '', 'env')`,
 	).Error)
 	require.NoError(t, db.Exec(
 		`INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, source, parse_status)
@@ -287,8 +287,8 @@ func TestTaskPendingOps_DeleteByScope_RejectsMissingScope(t *testing.T) {
 func TestTaskPendingOps_EnqueueIfKnowledgeBaseActive(t *testing.T) {
 	db := setupTaskQueueTestDB(t)
 	require.NoError(t, db.Exec(
-		"INSERT INTO knowledge_bases (id, tenant_id, name, embedding_model_id, summary_model_id, deleted_at) "+
-			"VALUES (?, ?, 'active', '', '', NULL), (?, ?, 'deleted', '', '', ?)",
+		"INSERT INTO knowledge_bases (id, tenant_id, name, embedding_model_id, summary_model_id, storage_backend_id, "+
+			"deleted_at) VALUES (?, ?, 'active', '', '', 'env', NULL), (?, ?, 'deleted', '', '', 'env', ?)",
 		"kb-active", 1, "kb-deleted", 1, time.Now(),
 	).Error)
 

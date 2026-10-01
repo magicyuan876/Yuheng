@@ -55,7 +55,6 @@ import (
 	"github.com/magicyuan876/yuheng/internal/models/limiter"
 	"github.com/magicyuan876/yuheng/internal/models/utils/ollama"
 	"github.com/magicyuan876/yuheng/internal/router"
-	"github.com/magicyuan876/yuheng/internal/storageallowlist"
 	"github.com/magicyuan876/yuheng/internal/stream"
 	"github.com/magicyuan876/yuheng/internal/tracing/langfuse"
 	"github.com/magicyuan876/yuheng/internal/types"
@@ -224,10 +223,9 @@ func BuildContainer(container *dig.Container) *dig.Container {
 		return sr, nil
 	}))
 	must(container.Provide(service.NewVectorStoreService))
-	must(container.Provide(service.NewStorageBackendServiceWithResources))
+	must(container.Provide(service.NewStorageBackendService))
 	must(container.Provide(service.NewFileStore))
 	must(container.Provide(func(s *service.StorageBackendService) interfaces.StorageBackendService { return s }))
-	must(container.Provide(func(s *service.StorageBackendService) interfaces.StorageBackendResolver { return s }))
 
 	// Event bus and session service
 	logger.Debugf(ctx, "[Container] Registering event bus and session service...")
@@ -643,7 +641,6 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 		syncSequences(db)
 		// Reset any pending tasks left over from previous aborted runs (no-Redis mode)
 		resetPendingTasks(db)
-		migrateLegacyStorageBackends(db)
 
 		// Post-migration: declarative built-in models from config/builtin_models.yaml (optional).
 		if err := types.LoadBuiltinModelsConfig(context.Background(), db, config.ConfigDir()); err != nil {
@@ -651,6 +648,14 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 		}
 	} else {
 		logger.Infof(context.Background(), "Auto-migration is disabled (AUTO_MIGRATE=false)")
+	}
+
+	// The deployment storage backend is whatever the environment says it is,
+	// and that is checked on every start, migrated schema or not: a server
+	// whose storage configuration contradicts what is already stored must
+	// not start serving.
+	if err := syncEnvStorageBackend(context.Background(), db); err != nil {
+		return nil, err
 	}
 
 	// Get underlying SQL DB object
@@ -665,116 +670,6 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(pool.ConnMaxLifetime)
 
 	return db, nil
-}
-
-// migrateLegacyStorageBackends backfills the storage_backends table from each
-// workspace's legacy StorageEngineConfig (or environment defaults) and binds
-// existing knowledge bases to the resulting backend.
-//
-// The table, columns and indexes are created by the SQL migrations
-// (migration 000068_storage_backends); this step only handles data that
-// cannot be expressed portably in
-// SQL: environment snapshots, JSON→config mapping, AES-encrypted credentials,
-// UUID generation and the per-startup refresh of env-backed aliases.
-// The migration is idempotent: one legacy_alias row per tenant/provider.
-func migrateLegacyStorageBackends(db *gorm.DB) {
-	var tenants []*types.Tenant
-	if err := db.Find(&tenants).Error; err != nil {
-		logger.Warnf(context.Background(), "Failed to load workspaces for storage backend migration: %v", err)
-		return
-	}
-	if len(tenants) == 0 {
-		return
-	}
-
-	// Load every alias in a single query. Probing each tenant/provider pair with
-	// First() makes GORM log "record not found" for every miss, which floods the
-	// startup log with workspaces × providers lines on fresh installs.
-	var aliases []*types.StorageBackend
-	if err := db.Where("legacy_alias = ?", true).Find(&aliases).Error; err != nil {
-		logger.Warnf(context.Background(), "Failed to load legacy storage aliases: %v", err)
-		return
-	}
-	existingAliases := make(map[uint64]map[string]*types.StorageBackend, len(aliases))
-	for _, alias := range aliases {
-		byProvider := existingAliases[alias.TenantID]
-		if byProvider == nil {
-			byProvider = make(map[string]*types.StorageBackend)
-			existingAliases[alias.TenantID] = byProvider
-		}
-		byProvider[alias.Provider] = alias
-	}
-
-	for _, tenant := range tenants {
-		legacy := tenant.StorageEngineConfig
-		defaultProvider := ""
-		if legacy != nil {
-			defaultProvider = strings.ToLower(strings.TrimSpace(legacy.DefaultProvider))
-		}
-		if defaultProvider == "" {
-			defaultProvider = strings.ToLower(strings.TrimSpace(os.Getenv("STORAGE_TYPE")))
-		}
-		if defaultProvider == "" {
-			defaultProvider = "local"
-		}
-
-		backendIDs := make(map[string]string)
-		for _, provider := range storageallowlist.Supported() {
-			if existing := existingAliases[tenant.ID][provider]; existing != nil {
-				// Environment-backed aliases are snapshots, not user-owned config.
-				// Refresh them at every startup so credential rotation does not
-				// leave the persisted resolver on stale values. If the workspace
-				// later gains an explicit legacy config, promote the alias to user
-				// source and stop automatic refreshes.
-				if existing.Source == types.StorageBackendSourceEnv {
-					desired := types.StorageBackendFromLegacy(tenant.ID, provider, legacy)
-					if desired == nil && provider == defaultProvider {
-						desired = types.StorageBackendFromEnvironment(tenant.ID)
-					}
-					if desired != nil && desired.Provider == provider {
-						_ = db.Model(&types.StorageBackend{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
-							"name": desired.Name, "config": desired.Config, "source": desired.Source, "status": desired.Status, "updated_at": time.Now(),
-						}).Error
-					}
-				}
-				backendIDs[provider] = existing.ID
-				continue
-			}
-			backend := types.StorageBackendFromLegacy(tenant.ID, provider, legacy)
-			if backend == nil && provider == defaultProvider {
-				backend = types.StorageBackendFromEnvironment(tenant.ID)
-			}
-			if backend == nil {
-				continue
-			}
-			if err := db.Create(backend).Error; err != nil {
-				logger.Warnf(context.Background(), "Failed to migrate %s storage for workspace %d: %v", provider, tenant.ID, err)
-				continue
-			}
-			backendIDs[provider] = backend.ID
-		}
-		if tenant.DefaultStorageBackendID == nil {
-			if id := backendIDs[defaultProvider]; id != "" {
-				if err := db.Model(&types.Tenant{}).Where("id = ?", tenant.ID).Update("default_storage_backend_id", id).Error; err != nil {
-					logger.Warnf(context.Background(), "Failed to set default storage backend for workspace %d: %v", tenant.ID, err)
-				}
-			}
-		}
-
-		var kbs []*types.KnowledgeBase
-		if err := db.Where("tenant_id = ? AND storage_backend_id IS NULL", tenant.ID).Find(&kbs).Error; err != nil {
-			continue
-		}
-		for _, kb := range kbs {
-			provider := kb.GetStorageProvider()
-			if provider == "" {
-				provider = defaultProvider
-			}
-			if id := backendIDs[provider]; id != "" {
-				_ = db.Model(&types.KnowledgeBase{}).Where("id = ? AND storage_backend_id IS NULL", kb.ID).Update("storage_backend_id", id).Error
-			}
-		}
-	}
 }
 
 // syncSequences ensures PostgreSQL sequences for auto-increment columns (seq_id)

@@ -16,14 +16,16 @@ func TestStorageBackendPathRoundTrip(t *testing.T) {
 	assert.Equal(t, "s3", ParseProviderScheme(path))
 }
 
-func TestSharesStorageBackendWithUsesConcreteInstance(t *testing.T) {
-	aID, bID := "s3-a", "s3-b"
-	a := &KnowledgeBase{StorageBackendID: &aID, StorageProviderConfig: &StorageProviderConfig{Provider: "s3"}}
-	b := &KnowledgeBase{StorageBackendID: &bID, StorageProviderConfig: &StorageProviderConfig{Provider: "s3"}}
-	assert.False(t, a.SharesStorageBackendWith(b, "", "s3"))
+// Two knowledge bases share storage only when they are bound to the same
+// backend; the same provider is not enough (two S3 buckets are two stores).
+func TestSharesStorageBackendWithComparesBackendIDs(t *testing.T) {
+	a := &KnowledgeBase{StorageBackendID: "s3-a"}
+	b := &KnowledgeBase{StorageBackendID: "s3-b"}
+	assert.False(t, a.SharesStorageBackendWith(b))
 
-	b.StorageBackendID = &aID
-	assert.True(t, a.SharesStorageBackendWith(b, "", "s3"))
+	b.StorageBackendID = "s3-a"
+	assert.True(t, a.SharesStorageBackendWith(b))
+	assert.False(t, (&KnowledgeBase{}).SharesStorageBackendWith(&KnowledgeBase{}), "unbound is not shared")
 }
 
 func TestNewStorageBackendResponseMasksCredentials(t *testing.T) {
@@ -34,7 +36,7 @@ func TestNewStorageBackendResponseMasksCredentials(t *testing.T) {
 	assert.Equal(t, "id", backend.Config.AccessKeyID)
 }
 
-func TestStorageBackendFromEnvironment(t *testing.T) {
+func TestEnvStorageBackend(t *testing.T) {
 	t.Setenv("STORAGE_TYPE", "s3")
 	t.Setenv("S3_ENDPOINT", "https://s3.example.com")
 	t.Setenv("S3_REGION", "ap-test-1")
@@ -43,21 +45,38 @@ func TestStorageBackendFromEnvironment(t *testing.T) {
 	t.Setenv("S3_BUCKET_NAME", "bucket")
 	t.Setenv("S3_ADDRESSING_STYLE", " Virtual ")
 
-	backend := StorageBackendFromEnvironment(42)
-	require.NotNil(t, backend)
-	assert.Equal(t, uint64(42), backend.TenantID)
+	backend, err := EnvStorageBackend()
+	require.NoError(t, err)
+	assert.Equal(t, EnvStorageBackendID, backend.ID)
+	assert.Zero(t, backend.TenantID, "the deployment backend belongs to no workspace")
+	assert.True(t, backend.IsBuiltin)
 	assert.Equal(t, "s3", backend.Provider)
 	assert.Equal(t, StorageBackendSourceEnv, backend.Source)
-	assert.True(t, backend.LegacyAlias)
 	assert.Equal(t, "bucket", backend.Config.BucketName)
 	assert.Equal(t, "virtual", backend.Config.AddressingStyle)
+	assert.Equal(t, "access", backend.Config.AccessKeyID)
 }
 
-func TestStorageBackendFromEnvironmentIgnoresRemovedProviders(t *testing.T) {
-	for _, provider := range []string{"minio", "cos", "tos", "oss", "obs", "ks3"} {
+func TestEnvStorageBackendDefaultsToLocal(t *testing.T) {
+	t.Setenv("STORAGE_TYPE", "")
+	t.Setenv("LOCAL_STORAGE_PATH_PREFIX", "deploy")
+	backend, err := EnvStorageBackend()
+	require.NoError(t, err)
+	assert.Equal(t, StorageProviderLocal, backend.Provider)
+	assert.Equal(t, "deploy", backend.Config.PathPrefix)
+}
+
+func TestEnvStorageBackendRefusesWhatItCannotUse(t *testing.T) {
+	for _, provider := range []string{"minio", "cos", "tos", "oss", "obs", "ks3", "dummy"} {
 		t.Setenv("STORAGE_TYPE", provider)
-		assert.Nil(t, StorageBackendFromEnvironment(1), provider)
+		_, err := EnvStorageBackend()
+		assert.Error(t, err, provider)
 	}
+	t.Setenv("STORAGE_TYPE", "s3")
+	t.Setenv("S3_REGION", "")
+	t.Setenv("S3_BUCKET_NAME", "bucket")
+	_, err := EnvStorageBackend()
+	assert.Error(t, err, "an incomplete S3 configuration")
 }
 
 func TestStorageBackendValidate(t *testing.T) {
@@ -112,19 +131,6 @@ func TestStorageBackendValidate(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
-}
-
-func TestStorageBackendToStorageEngineConfig(t *testing.T) {
-	backend := StorageBackend{Provider: "s3", Config: StorageBackendConfig{
-		Endpoint: "http://rustfs:9000", Region: "us-east-1", BucketName: "docs", AccessKeyID: "ak",
-		SecretAccessKey: "sk", PathPrefix: "yuheng", UseSSL: true, AddressingStyle: "path",
-	}}
-	cfg := backend.ToStorageEngineConfig()
-	require.NotNil(t, cfg.S3)
-	assert.Equal(t, "s3", cfg.DefaultProvider)
-	assert.Equal(t, "path", cfg.S3.AddressingStyle)
-	assert.Equal(t, "sk", cfg.S3.SecretKey)
-	assert.True(t, cfg.S3.UseSSL)
 }
 
 func TestStorageEngineConfigValidate(t *testing.T) {

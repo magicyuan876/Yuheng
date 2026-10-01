@@ -40,8 +40,8 @@ type Params struct {
 	// Knowledge bases and storage backends are optional so the module still
 	// boots in a build that lacks either; binding a space to them is then
 	// rejected with a clear message.
-	KnowledgeBases  interfaces.KnowledgeBaseRepository  `optional:"true"`
-	StorageBackends interfaces.StorageBackendRepository `optional:"true"`
+	KnowledgeBases  interfaces.KnowledgeBaseRepository `optional:"true"`
+	StorageBackends interfaces.StorageBackendService   `optional:"true"`
 	// Files and Tenants are what attachments need: where to put and find the
 	// bytes, and whose storage quota to charge. Without them the module still
 	// boots and uploading is refused with a clear message.

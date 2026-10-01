@@ -250,8 +250,9 @@ func TestRecoverPendingWikiTasks_RecreatesOneTriggerPerLaneAndKB(t *testing.T) {
 	db := setupResetPendingDB(t)
 	require.NoError(t, db.Exec(
 		`INSERT INTO knowledge_bases
-		 (id, tenant_id, name, embedding_model_id, summary_model_id, deleted_at)
-		 VALUES (?, ?, 'a', '', '', NULL), (?, ?, 'b', '', '', NULL), (?, ?, 'deleted', '', '', ?)`,
+		 (id, tenant_id, name, embedding_model_id, summary_model_id, storage_backend_id, deleted_at)
+		 VALUES (?, ?, 'a', '', '', 'env', NULL), (?, ?, 'b', '', '', 'env', NULL),
+		        (?, ?, 'deleted', '', '', 'env', ?)`,
 		"kb-a", 7, "kb-b", 8, "kb-deleted", 9, time.Now(),
 	).Error)
 	rows := []struct {

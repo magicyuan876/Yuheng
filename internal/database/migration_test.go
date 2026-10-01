@@ -466,4 +466,18 @@ func TestUpgradeFromOlderSchemaKeepsData(t *testing.T) {
 	if coscols != 0 {
 		t.Error("knowledge_bases.cos_config (with its credential) survived the upgrade")
 	}
+
+	// 000134 makes storage bindings required: the workspace, its knowledge
+	// base and its docs space, all unbound before, land on the deployment
+	// backend.
+	var tenantDefault, kbBackend, spaceBackend string
+	if err := db.QueryRow(`SELECT t.default_storage_backend_id, k.storage_backend_id, s.storage_backend_id
+		FROM tenants t, knowledge_bases k, docs_spaces s
+		WHERE t.id = 20001 AND k.id = 'kb-1' AND s.id = 'sp-1'`).
+		Scan(&tenantDefault, &kbBackend, &spaceBackend); err != nil {
+		t.Fatalf("storage bindings: %v", err)
+	}
+	if tenantDefault != "env" || kbBackend != "env" || spaceBackend != "env" {
+		t.Errorf("bindings = %q/%q/%q; want env everywhere", tenantDefault, kbBackend, spaceBackend)
+	}
 }

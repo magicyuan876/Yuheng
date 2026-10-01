@@ -75,17 +75,13 @@ func NewFileStore(
 
 // ---- backend resolution ---------------------------------------------------
 
-// backend loads a backend row by id. Resources written before every write
-// named its backend carry an empty id; they were written through the
-// deployment's environment storage, which is what they resolve to.
+// backend loads a backend row by id. The deployment backend's row carries no
+// credentials; they are read from the environment here, every time, so they
+// never touch the database.
 func (s *fileStore) backend(ctx context.Context, id string) (*types.StorageBackend, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		env := types.StorageBackendFromEnvironment(0)
-		if env == nil {
-			return nil, fmt.Errorf("deployment storage (STORAGE_TYPE) is not a supported provider")
-		}
-		return env, nil
+		return nil, fmt.Errorf("no storage backend named")
 	}
 	backend, err := s.backends.Find(ctx, id)
 	if err != nil {
@@ -93,6 +89,9 @@ func (s *fileStore) backend(ctx context.Context, id string) (*types.StorageBacke
 	}
 	if backend == nil {
 		return nil, fmt.Errorf("storage backend %s not found", id)
+	}
+	if backend.Source == types.StorageBackendSourceEnv {
+		backend.Config.AccessKeyID, backend.Config.SecretAccessKey = types.EnvStorageCredentials()
 	}
 	return backend, nil
 }
@@ -258,10 +257,10 @@ func (s *fileStore) ForKnowledgeBase(ctx context.Context, kb *types.KnowledgeBas
 	if kb == nil {
 		return nil, fmt.Errorf("knowledge base is required")
 	}
-	if kb.StorageBackendID == nil || strings.TrimSpace(*kb.StorageBackendID) == "" {
+	if kb.StorageBackendID == "" {
 		return nil, fmt.Errorf("knowledge base %s has no storage backend", kb.ID)
 	}
-	return s.Writer(ctx, *kb.StorageBackendID)
+	return s.Writer(ctx, kb.StorageBackendID)
 }
 
 func (s *fileStore) ForTenantDefault(ctx context.Context, tenantID uint64) (interfaces.FileService, error) {
@@ -272,10 +271,10 @@ func (s *fileStore) ForTenantDefault(ctx context.Context, tenantID uint64) (inte
 	if tenant == nil {
 		return nil, fmt.Errorf("workspace %d not found", tenantID)
 	}
-	if tenant.DefaultStorageBackendID == nil || strings.TrimSpace(*tenant.DefaultStorageBackendID) == "" {
+	if tenant.DefaultStorageBackendID == "" {
 		return nil, fmt.Errorf("workspace %d has no default storage backend", tenantID)
 	}
-	return s.Writer(ctx, *tenant.DefaultStorageBackendID)
+	return s.Writer(ctx, tenant.DefaultStorageBackendID)
 }
 
 // backendWriter is the FileService a FileStore hands out for one backend.

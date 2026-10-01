@@ -63,7 +63,7 @@ type InitializationHandler struct {
 	ollamaService    *ollama.OllamaService
 	documentReader   interfaces.DocumentReader
 	pooler           embedding.EmbedderPooler
-	storageResolver  interfaces.StorageBackendResolver
+	storageResolver  interfaces.StorageBackendService
 }
 
 // NewInitializationHandler 创建初始化处理器
@@ -77,7 +77,7 @@ func NewInitializationHandler(
 	ollamaService *ollama.OllamaService,
 	documentReader interfaces.DocumentReader,
 	pooler embedding.EmbedderPooler,
-	storageResolver interfaces.StorageBackendResolver,
+	storageResolver interfaces.StorageBackendService,
 ) *InitializationHandler {
 	return &InitializationHandler{
 		config:           config,
@@ -296,24 +296,19 @@ func (h *InitializationHandler) UpdateKBConfig(c *gin.Context) {
 	// Bind the concrete storage instance. Provider remains a compatibility
 	// projection for older clients and historical rows.
 	if strings.TrimSpace(req.StorageBackendID) != "" {
-		tenant, _ := types.TenantInfoFromContext(ctx)
-		backend, resolveErr := h.storageResolver.ResolveBackend(ctx, tenant, req.StorageBackendID, "")
-		if resolveErr != nil || backend == nil {
+		backend, resolveErr := h.storageResolver.ResolveBackend(ctx, kb.TenantID, req.StorageBackendID)
+		if resolveErr != nil {
 			c.Error(errors.NewBadRequestError("Storage backend is unavailable"))
 			return
 		}
-		oldID := ""
-		if kb.StorageBackendID != nil {
-			oldID = *kb.StorageBackendID
-		}
-		if oldID != "" && oldID != backend.ID {
+		if oldID := kb.StorageBackendID; oldID != "" && oldID != backend.ID {
 			knowledgeList, listErr := h.knowledgeService.ListPagedKnowledgeByKnowledgeBaseID(ctx, kbIdStr, &types.Pagination{Page: 1, PageSize: 1}, types.KnowledgeListFilter{})
 			if listErr == nil && knowledgeList != nil && knowledgeList.Total > 0 {
 				c.Error(errors.NewBadRequestError("Storage backend cannot be changed while the knowledge base contains files; migrate storage first"))
 				return
 			}
 		}
-		kb.StorageBackendID = &backend.ID
+		kb.StorageBackendID = backend.ID
 		req.StorageProvider = backend.Provider
 	}
 	// Legacy provider projection.

@@ -15,7 +15,6 @@ type StorageBackendRepository interface {
 	List(ctx context.Context, tenantID uint64) ([]*types.StorageBackend, error)
 	Update(ctx context.Context, backend *types.StorageBackend) error
 	Delete(ctx context.Context, tenantID uint64, id string) error
-	FindLegacyAlias(ctx context.Context, tenantID uint64, provider string) (*types.StorageBackend, error)
 }
 
 type StorageBackendService interface {
@@ -23,16 +22,13 @@ type StorageBackendService interface {
 	Update(ctx context.Context, backend *types.StorageBackend) error
 	Delete(ctx context.Context, tenantID uint64, id string) error
 	SetDefault(ctx context.Context, tenantID uint64, id string) error
+	// ResolveBackend returns the active backend tenantID binds new content
+	// to: id, or the workspace default when id is empty.
+	ResolveBackend(ctx context.Context, tenantID uint64, id string) (*types.StorageBackend, error)
 	// SetSharing publishes a backend to every workspace, or withdraws it.
 	// System administrators only; withdrawal is refused while a workspace
-	// other than the owner still binds it as a default, from a knowledge base,
-	// or through an active stored resource.
+	// other than the owner still binds it as a default, from a knowledge base
+	// or docs space, or through an active stored resource.
 	SetSharing(ctx context.Context, id string, shared bool) (*types.StorageBackend, error)
 	Test(ctx context.Context, backend *types.StorageBackend) error
-}
-
-// StorageBackendResolver picks the backend a new knowledge base binds to.
-// backendID wins; provider is a legacy fallback.
-type StorageBackendResolver interface {
-	ResolveBackend(ctx context.Context, tenant *types.Tenant, backendID, provider string) (*types.StorageBackend, error)
 }

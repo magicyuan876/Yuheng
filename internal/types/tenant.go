@@ -42,8 +42,11 @@ type Tenant struct {
 	Credentials *CredentialsConfig `yaml:"credentials" json:"credentials" gorm:"type:jsonb"`
 	// Storage engine config: parameters for Local and S3. Used for document/file storage and docreader.
 	StorageEngineConfig *StorageEngineConfig `yaml:"storage_engine_config" json:"storage_engine_config" gorm:"type:jsonb"`
-	// DefaultStorageBackendID is the workspace default concrete storage instance.
-	DefaultStorageBackendID *string `yaml:"default_storage_backend_id" json:"default_storage_backend_id,omitempty" gorm:"column:default_storage_backend_id;type:varchar(36)"`
+	// DefaultStorageBackendID is the backend the workspace's own writes go
+	// to (chat images, session attachments, temporary documents) and the one
+	// new knowledge bases and docs spaces bind to. Always set: a new workspace
+	// starts on the deployment backend, id "env".
+	DefaultStorageBackendID string `json:"default_storage_backend_id" gorm:"not null;default:'env'"`
 	// Chat history config: knowledge base configuration for indexing and searching chat messages via vector search
 	ChatHistoryConfig *ChatHistoryConfig `yaml:"chat_history_config" json:"chat_history_config" gorm:"type:jsonb"`
 	// Retrieval config: global search/retrieval parameters shared by knowledge search and message search

@@ -155,7 +155,7 @@ func TestDeleteKnowledgeBaseCleansUpPersistedDataSources(t *testing.T) {
 	}
 
 	err := svc.DeleteKnowledgeBase(
-		ctxWithTenantStorage(fixture.ds.TenantID, "local"),
+		ctxWithTenantInfo(fixture.ds.TenantID),
 		fixture.ds.KnowledgeBaseID,
 	)
 	require.NoError(t, err)

@@ -64,8 +64,7 @@ func (r routedStorage) Delete(ctx context.Context, ref string) error {
 	return files.DeleteFile(ctx, ref)
 }
 
-// Rebinding a space, or changing the workspace default, moves only where new
-// attachments go; every existing attachment keeps resolving — and can still be
+// Rebinding a space moves only where new attachments go; every existing attachment keeps resolving — and can still be
 // released — from the backend that holds it (B3).
 func TestAttachmentsSurviveRebindingTheSpace(t *testing.T) {
 	first, second, workspaceDefault := newMemFiles(), newMemFiles(), newMemFiles()
@@ -78,19 +77,17 @@ func TestAttachmentsSurviveRebindingTheSpace(t *testing.T) {
 	}), files: first, tenants: &fakeTenants{}}
 	page := e.create(t, e.alice, nil, "Page")
 
-	// Unbound, the space writes to the workspace default.
+	e.space.StorageBackendID = "default"
 	onDefault, err := e.put(t, e.alice, "default.png", testPNG(t, 4, 4, 1), page.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, workspaceDefault.count())
 
-	bound := "first"
-	e.space.StorageBackendID = &bound
+	e.space.StorageBackendID = "first"
 	onFirst, err := e.put(t, e.alice, "first.png", testPNG(t, 4, 4, 2), page.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, first.count())
 
-	rebound := "second"
-	e.space.StorageBackendID = &rebound
+	e.space.StorageBackendID = "second"
 	onSecond, err := e.put(t, e.alice, "second.png", testPNG(t, 4, 4, 3), page.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, second.count())

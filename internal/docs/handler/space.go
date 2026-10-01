@@ -84,7 +84,8 @@ type SetSpaceMembersRequest struct {
 }
 
 // BindKnowledgeBaseRequest is the body of PUT /docs/spaces/{sid}/knowledge-base.
-// Absent fields are unchanged; an empty string clears the binding.
+// Absent fields are unchanged; an empty knowledge_base_id clears that binding,
+// an empty storage_backend_id rebinds the space to the workspace default.
 type BindKnowledgeBaseRequest struct {
 	KnowledgeBaseID  *string `json:"knowledge_base_id"`
 	StorageBackendID *string `json:"storage_backend_id"`

@@ -120,13 +120,13 @@ func TestFileStoreReferencesSurviveARebind(t *testing.T) {
 	old := f.localBackend(t, 7, "Old", "old")
 	next := f.localBackend(t, 7, "New", "new")
 
-	kb := &types.KnowledgeBase{ID: "kb-1", TenantID: 7, StorageBackendID: &old.ID}
+	kb := &types.KnowledgeBase{ID: "kb-1", TenantID: 7, StorageBackendID: old.ID}
 	writer, err := f.store.ForKnowledgeBase(context.Background(), kb)
 	require.NoError(t, err)
 	before, err := writer.SaveBytes(context.Background(), []byte("before"), 7, "x.txt", false)
 	require.NoError(t, err)
 
-	kb.StorageBackendID = &next.ID
+	kb.StorageBackendID = next.ID
 	writer, err = f.store.ForKnowledgeBase(context.Background(), kb)
 	require.NoError(t, err)
 	after, err := writer.SaveBytes(context.Background(), []byte("after"), 7, "x.txt", false)
@@ -261,7 +261,7 @@ func TestFileStoreRebuildsTheDriverWhenTheRowChanges(t *testing.T) {
 func TestFileStoreWritesTheWorkspaceDefault(t *testing.T) {
 	f := newFileStoreFixture(t)
 	backend := f.localBackend(t, 7, "Default", "default")
-	require.NoError(t, f.db.Create(&types.Tenant{ID: 7, Name: "w", DefaultStorageBackendID: &backend.ID}).Error)
+	require.NoError(t, f.db.Create(&types.Tenant{ID: 7, Name: "w", DefaultStorageBackendID: backend.ID}).Error)
 
 	writer, err := f.store.ForTenantDefault(context.Background(), 7)
 	require.NoError(t, err)

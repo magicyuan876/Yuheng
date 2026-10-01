@@ -29,8 +29,8 @@ func newStewardFixture(t *testing.T, kbCreator string) *stewardFixture {
 	f := &stewardFixture{db: db, repo: NewKnowledgeStewardshipRepository(db), kb: uuid.NewString()}
 	require.NoError(t, db.Exec(`
 		INSERT INTO knowledge_bases (id, name, tenant_id, embedding_model_id, summary_model_id, creator_id,
-		                             review_interval_days)
-		VALUES (?, 'Handbook', ?, '', '', ?, 30)`, f.kb, stewardTenant, kbCreator).Error)
+		                             review_interval_days, storage_backend_id)
+		VALUES (?, 'Handbook', ?, '', '', ?, 30, 'env')`, f.kb, stewardTenant, kbCreator).Error)
 	return f
 }
 

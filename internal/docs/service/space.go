@@ -126,7 +126,11 @@ func (s *SpaceService) Create(ctx context.Context, actor *acl.Identity, in Creat
 	if err != nil {
 		return nil, err
 	}
-	storageID, err := s.checkStorageBackend(ctx, actor.TenantID, in.StorageBackendID)
+	var requested string
+	if in.StorageBackendID != nil {
+		requested = *in.StorageBackendID
+	}
+	storageID, err := s.checkStorageBackend(ctx, actor.TenantID, requested)
 	if err != nil {
 		return nil, err
 	}
@@ -225,25 +229,27 @@ func (s *SpaceService) checkKnowledgeBase(ctx context.Context, tenantID uint64, 
 	return &v, nil
 }
 
-func (s *SpaceService) checkStorageBackend(ctx context.Context, tenantID uint64, id *string) (*string, error) {
-	if id == nil {
-		return nil, nil
-	}
-	v := strings.TrimSpace(*id)
-	if v == "" {
-		return nil, nil
-	}
+// checkStorageBackend returns the backend a space binds to: id, or the
+// workspace default when id is empty. Every space is bound — its attachments,
+// imports and exports have to land somewhere. Without the storage dependency
+// (a trimmed build) a space is left unbound and uploads to it are refused;
+// naming a backend is then an error rather than silently ignored.
+func (s *SpaceService) checkStorageBackend(ctx context.Context, tenantID uint64, id string) (string, error) {
+	id = strings.TrimSpace(id)
 	if s.d.StorageBackends == nil {
-		return nil, invalid("storage backend binding is not available in this deployment")
+		if id != "" {
+			return "", invalid("storage backend binding is not available in this deployment")
+		}
+		return "", nil
 	}
-	sb, err := s.d.StorageBackends.GetByID(ctx, tenantID, v)
+	sb, err := s.d.StorageBackends.ResolveBackend(ctx, tenantID, id)
 	if err != nil {
-		return nil, err
+		if id == "" {
+			return "", err
+		}
+		return "", invalid("storage backend %q cannot be used by this workspace: %v", id, err)
 	}
-	if sb == nil {
-		return nil, invalid("storage backend %q was not found in this workspace", v)
-	}
-	return &v, nil
+	return sb.ID, nil
 }
 
 // List returns the spaces the caller can read, ordered by name.
@@ -446,7 +452,8 @@ func (s *SpaceService) Restore(ctx context.Context, actor *acl.Identity, spaceID
 }
 
 // BindKnowledgeBase sets or clears the knowledge base and storage backend a
-// space uses. Pointers: nil leaves the field alone, "" clears it. The
+// space uses. Pointers: nil leaves the field alone; "" clears the knowledge
+// base and rebinds storage to the workspace default. The
 // ingestion side effects of binding belong to the knowledge bridge (T5.1);
 // here only the reference is validated and stored.
 func (s *SpaceService) BindKnowledgeBase(ctx context.Context, actor *acl.Identity, space *model.Space,
@@ -477,7 +484,9 @@ func (s *SpaceService) BindKnowledgeBase(ctx context.Context, actor *acl.Identit
 		space.KnowledgeBaseID = kb
 	}
 	if storageBackendID != nil {
-		sb, err := s.checkStorageBackend(ctx, actor.TenantID, storageBackendID)
+		// A space is never unbound: an empty id rebinds it to the workspace
+		// default. Existing files stay where they are and keep resolving.
+		sb, err := s.checkStorageBackend(ctx, actor.TenantID, *storageBackendID)
 		if err != nil {
 			return nil, err
 		}

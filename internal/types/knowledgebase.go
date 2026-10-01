@@ -89,8 +89,12 @@ type KnowledgeBase struct {
 	ASRConfig ASRConfig `yaml:"asr_config"              json:"asr_config"              gorm:"type:json"`
 	// Storage provider config (new): only stores provider selection; credentials from workspace StorageEngineConfig
 	StorageProviderConfig *StorageProviderConfig `yaml:"storage_provider_config" json:"storage_provider_config"  gorm:"column:storage_provider_config;type:jsonb"`
-	// StorageBackendID binds this KB to one concrete storage instance.
-	StorageBackendID *string `yaml:"storage_backend_id" json:"storage_backend_id,omitempty" gorm:"column:storage_backend_id;type:varchar(36);default:null"`
+	// StorageBackendID is the storage backend this knowledge base's new files
+	// are written to. Required (a new knowledge base takes the workspace
+	// default). It decides nothing about files already stored: each of those
+	// is read through its own resource row, so the binding may change while
+	// the knowledge base has files.
+	StorageBackendID string `yaml:"storage_backend_id" json:"storage_backend_id" gorm:"type:varchar(36);not null"`
 	// VectorStoreID references the VectorStore this knowledge base is bound to.
 	// When nil, the KB falls back to the workspace's effective engines derived from
 	// the RETRIEVE_DRIVER environment variable (env store flow).
@@ -371,25 +375,10 @@ func (kb *KnowledgeBase) SetStorageProvider(provider string) {
 	kb.StorageProviderConfig = &StorageProviderConfig{Provider: provider}
 }
 
-// SharesStorageBackendWith compares concrete instance bindings first. Provider
-// comparison is only a compatibility fallback for rows not yet backfilled.
-func (kb *KnowledgeBase) SharesStorageBackendWith(other *KnowledgeBase, defaultBackendID, defaultProvider string) bool {
-	if kb == nil || other == nil {
-		return false
-	}
-	effectiveID := func(candidate *KnowledgeBase) string {
-		if candidate.StorageBackendID != nil {
-			if id := strings.TrimSpace(*candidate.StorageBackendID); id != "" {
-				return id
-			}
-		}
-		return strings.TrimSpace(defaultBackendID)
-	}
-	leftID, rightID := effectiveID(kb), effectiveID(other)
-	if leftID != "" || rightID != "" {
-		return leftID != "" && leftID == rightID
-	}
-	return kb.EffectiveStorageProvider(defaultProvider) == other.EffectiveStorageProvider(defaultProvider)
+// SharesStorageBackendWith reports whether two knowledge bases write to the
+// same backend, which a server-side copy between them needs.
+func (kb *KnowledgeBase) SharesStorageBackendWith(other *KnowledgeBase) bool {
+	return kb != nil && other != nil && kb.StorageBackendID != "" && kb.StorageBackendID == other.StorageBackendID
 }
 
 // InferStorageFromFilePath deduces the storage provider from a file path format.

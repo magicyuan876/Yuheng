@@ -933,21 +933,12 @@ func (h *KnowledgeBaseHandler) CopyKnowledgeBase(c *gin.Context) {
 					"cross-store cloning is not yet supported"))
 			return
 		}
-		// Pre-flight defense 3: compare concrete instance IDs, not just the
-		// provider type (two S3 backends are different physical stores).
-		if tenant, _ := ctx.Value(types.TenantInfoContextKey).(*types.Tenant); tenant != nil {
-			defaultID, defaultProvider := "", ""
-			if tenant.DefaultStorageBackendID != nil {
-				defaultID = *tenant.DefaultStorageBackendID
-			}
-			if tenant.StorageEngineConfig != nil {
-				defaultProvider = tenant.StorageEngineConfig.DefaultProvider
-			}
-			if !sourceKB.SharesStorageBackendWith(targetKB, defaultID, defaultProvider) {
-				c.Error(apperrors.NewBadRequestError(
-					"source and target knowledge bases use different storage instances; cross-storage-backend cloning is not supported"))
-				return
-			}
+		// Pre-flight defense 3: both must write to the same storage backend
+		// (two S3 backends are different physical stores).
+		if !sourceKB.SharesStorageBackendWith(targetKB) {
+			_ = c.Error(apperrors.NewBadRequestError("source and target knowledge bases use different storage " +
+				"instances; cross-storage-backend cloning is not supported"))
+			return
 		}
 	}
 

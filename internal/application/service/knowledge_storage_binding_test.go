@@ -30,10 +30,10 @@ func (r *bindingRecorder) Writer(_ context.Context, backendID string) (interface
 func (r *bindingRecorder) ForKnowledgeBase(
 	ctx context.Context, kb *types.KnowledgeBase,
 ) (interfaces.FileService, error) {
-	if kb == nil || kb.StorageBackendID == nil {
+	if kb == nil || kb.StorageBackendID == "" {
 		return nil, errors.New("unbound knowledge base")
 	}
-	return r.Writer(ctx, *kb.StorageBackendID)
+	return r.Writer(ctx, kb.StorageBackendID)
 }
 
 func (r *bindingRecorder) ForTenantDefault(ctx context.Context, _ uint64) (interfaces.FileService, error) {
@@ -86,7 +86,7 @@ func (w *recordingWriter) CopyFile(context.Context, string, uint64, string) (str
 func TestKnowledgeUploadWritesToTheKnowledgeBaseBackend(t *testing.T) {
 	backendID := "kb-backend"
 	files := &bindingRecorder{}
-	kb := &types.KnowledgeBase{ID: "kb-1", StorageBackendID: &backendID}
+	kb := &types.KnowledgeBase{ID: "kb-1", StorageBackendID: backendID}
 	svc := &knowledgeService{
 		repo:      &createKnowledgeFileRepoStub{},
 		kbService: &createKnowledgeFileKBServiceStub{kb: kb},
@@ -132,7 +132,7 @@ func TestFAQFailedEntriesCSVWritesToTheKnowledgeBaseBackend(t *testing.T) {
 	backendID := "faq-backend"
 	files := &bindingRecorder{}
 	svc := &knowledgeService{
-		kbService: &faqCSVKBServiceStub{kb: &types.KnowledgeBase{ID: "kb-faq", StorageBackendID: &backendID}},
+		kbService: &faqCSVKBServiceStub{kb: &types.KnowledgeBase{ID: "kb-faq", StorageBackendID: backendID}},
 		files:     files,
 	}
 	link, err := svc.generateFailedEntriesCSV(context.Background(), 1, "kb-faq", "task-1",

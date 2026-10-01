@@ -110,7 +110,7 @@ func TestDeleteKnowledgeBaseForwardsDataSourceTaskScope(t *testing.T) {
 		dsRepo:        dsRepo,
 	}
 
-	err := svc.DeleteKnowledgeBase(ctxWithTenantStorage(1, "local"), kbID)
+	err := svc.DeleteKnowledgeBase(ctxWithTenantInfo(1), kbID)
 
 	require.NoError(t, err)
 	require.Len(t, inspector.calls, 2)
@@ -148,7 +148,7 @@ func TestDeleteKnowledgeBaseCancelsQueuedTasksBestEffort(t *testing.T) {
 				taskPendingRepo: pendingRepo,
 			}
 
-			err := svc.DeleteKnowledgeBase(ctxWithTenantStorage(1, "local"), kbID)
+			err := svc.DeleteKnowledgeBase(ctxWithTenantInfo(1), kbID)
 
 			require.NoError(t, err)
 			require.Len(t, inspector.calls, 1)

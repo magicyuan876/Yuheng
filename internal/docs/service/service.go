@@ -51,10 +51,11 @@ type KnowledgeBases interface {
 	GetKnowledgeBaseByIDAndTenant(ctx context.Context, id string, tenantID uint64) (*types.KnowledgeBase, error)
 }
 
-// StorageBackends checks that a storage backend is usable by the tenant.
-// interfaces.StorageBackendRepository satisfies it.
+// StorageBackends picks the backend a space binds to: the named one, or the
+// workspace default when id is empty, refused unless the workspace may use it
+// and it is active. interfaces.StorageBackendService satisfies it.
 type StorageBackends interface {
-	GetByID(ctx context.Context, tenantID uint64, id string) (*types.StorageBackend, error)
+	ResolveBackend(ctx context.Context, tenantID uint64, id string) (*types.StorageBackend, error)
 }
 
 // Tokens validates a user's access token for the collaboration callbacks,

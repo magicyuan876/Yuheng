@@ -552,17 +552,13 @@ func (s *AttachmentService) ListForPage(ctx context.Context, d acl.Decision) ([]
 // ---- storage and quota ----------------------------------------------------
 
 // writerFor returns where a space's new bytes go: the backend the space is
-// bound to, or the workspace default for a space bound to none. It decides
-// nothing about existing files, which are read through their own resource
-// rows.
+// bound to. It decides nothing about existing files, which are read through
+// their own resource rows.
 func (s *base) writerFor(ctx context.Context, space *model.Space) (interfaces.FileService, error) {
 	if s.d.Storage == nil {
 		return nil, fmt.Errorf("docs: no file storage is configured")
 	}
-	if space.StorageBackendID != nil && *space.StorageBackendID != "" {
-		return s.d.Storage.Writer(ctx, *space.StorageBackendID)
-	}
-	return s.d.Storage.ForTenantDefault(ctx, space.TenantID)
+	return s.d.Storage.Writer(ctx, space.StorageBackendID)
 }
 
 // tenantFor loads the workspace an upload is charged against. Without a

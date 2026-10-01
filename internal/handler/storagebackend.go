@@ -67,7 +67,7 @@ func (h *StorageBackendHandler) List(c *gin.Context) {
 		result = append(result, types.NewStorageBackendResponseWithSharedDetail(backend, sharedDetail))
 	}
 	tenant, _ := types.TenantInfoFromContext(c.Request.Context())
-	var defaultID *string
+	defaultID := ""
 	if tenant != nil {
 		defaultID = tenant.DefaultStorageBackendID
 	}
@@ -172,12 +172,14 @@ func (h *StorageBackendHandler) Update(c *gin.Context) {
 
 // Delete godoc
 // @Summary      Delete storage backend
-// @Description  Soft-delete a storage backend. A backend that is the workspace default, still bound to knowledge bases, environment-sourced, or a legacy alias cannot be deleted.
+// @Description  Soft-delete a storage backend the workspace owns. Refused while any workspace still uses it
+// @Description  (a workspace default, a knowledge base or docs space bound to it, or a stored file on it),
+// @Description  while it is platform-shared, and always for the deployment backend.
 // @Tags         StorageBackend
 // @Produce      json
 // @Param        id   path      string  true  "Storage backend ID"
 // @Success      200  {object}  map[string]interface{}   "Deletion success"
-// @Failure      400  {object}  apperrors.AppError          "Backend is default, bound, read-only, or legacy alias"
+// @Failure      400  {object}  apperrors.AppError          "Backend still in use, shared, or the deployment backend"
 // @Failure      401  {object}  map[string]interface{}   "Unauthorized"
 // @Failure      404  {object}  apperrors.AppError          "Storage backend not found"
 // @Security     Bearer
@@ -193,7 +195,10 @@ func (h *StorageBackendHandler) Delete(c *gin.Context) {
 
 // SetDefault godoc
 // @Summary      Set default storage backend
-// @Description  Mark a storage backend as the workspace default. Only an active backend can become the default. New knowledge bases without an explicit binding use the default.
+// @Description  Mark a storage backend as the workspace default: any active backend the workspace can see
+// @Description  (its own, a platform-shared one, or the deployment backend). New knowledge bases and docs
+// @Description  spaces without an explicit binding, and the workspace's own uploads (chat images,
+// @Description  attachments), use the default.
 // @Tags         StorageBackend
 // @Produce      json
 // @Param        id   path      string  true  "Storage backend ID"

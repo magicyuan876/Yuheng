@@ -15,7 +15,6 @@ import (
 	"github.com/magicyuan876/yuheng/internal/datasource"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/logger"
-	"github.com/magicyuan876/yuheng/internal/storageallowlist"
 	"github.com/magicyuan876/yuheng/internal/tracing/langfuse"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
@@ -39,7 +38,7 @@ type knowledgeBaseService struct {
 	ownership       retriever.TenantStoreOwnership
 	tenantRepo      interfaces.TenantRepository
 	files           interfaces.FileStore
-	storageResolver interfaces.StorageBackendResolver
+	storageBackends interfaces.StorageBackendService
 	graphEngine     interfaces.RetrieveGraphRepository
 	asynqClient     interfaces.TaskEnqueuer
 	taskInspector   interfaces.TaskInspector
@@ -62,7 +61,7 @@ func NewKnowledgeBaseService(repo interfaces.KnowledgeBaseRepository,
 	ownership retriever.TenantStoreOwnership,
 	tenantRepo interfaces.TenantRepository,
 	files interfaces.FileStore,
-	storageResolver interfaces.StorageBackendResolver,
+	storageBackends interfaces.StorageBackendService,
 	graphEngine interfaces.RetrieveGraphRepository,
 	asynqClient interfaces.TaskEnqueuer,
 	taskInspector interfaces.TaskInspector,
@@ -84,7 +83,7 @@ func NewKnowledgeBaseService(repo interfaces.KnowledgeBaseRepository,
 		ownership:       ownership,
 		tenantRepo:      tenantRepo,
 		files:           files,
-		storageResolver: storageResolver,
+		storageBackends: storageBackends,
 		graphEngine:     graphEngine,
 		asynqClient:     asynqClient,
 		taskInspector:   taskInspector,
@@ -139,7 +138,6 @@ func (s *knowledgeBaseService) CreateKnowledgeBase(ctx context.Context,
 		return nil, apperrors.NewValidationError(
 			fmt.Sprintf("review_interval_days must be between 0 and %d", types.MaxReviewIntervalDays))
 	}
-	applyTenantDefaultStorageProvider(ctx, kb)
 	if err := s.applyAndValidateStorageBackend(ctx, kb); err != nil {
 		return nil, err
 	}
@@ -178,56 +176,17 @@ func (s *knowledgeBaseService) CreateKnowledgeBase(ctx context.Context,
 	return kb, nil
 }
 
+// applyAndValidateStorageBackend binds a new knowledge base to the backend its
+// files will be written to: the one it names, or the workspace default. The
+// binding is required, so a backend that cannot be used refuses the create.
 func (s *knowledgeBaseService) applyAndValidateStorageBackend(ctx context.Context, kb *types.KnowledgeBase) error {
-	if s.storageResolver == nil || kb == nil {
-		return nil
-	}
-	tenant, _ := types.TenantInfoFromContext(ctx)
-	if tenant == nil {
-		return apperrors.NewBadRequestError("workspace context missing")
-	}
-	id := ""
-	if kb.StorageBackendID != nil {
-		id = strings.TrimSpace(*kb.StorageBackendID)
-	}
-	provider := kb.GetStorageProvider()
-	// A newly created KB without an explicit instance follows the concrete
-	// tenant default. The legacy provider is only a fallback for workspaces
-	// that have not been migrated yet.
-	if id == "" && tenant.DefaultStorageBackendID != nil && strings.TrimSpace(*tenant.DefaultStorageBackendID) != "" {
-		provider = ""
-	}
-	backend, err := s.storageResolver.ResolveBackend(ctx, tenant, id, provider)
+	backend, err := s.storageBackends.ResolveBackend(ctx, kb.TenantID, kb.StorageBackendID)
 	if err != nil {
 		return apperrors.NewBadRequestError("storage backend is unavailable").WithDetails(err.Error())
 	}
-	if backend == nil {
-		return nil
-	}
-	kb.StorageBackendID = &backend.ID
+	kb.StorageBackendID = backend.ID
 	kb.SetStorageProvider(backend.Provider)
 	return nil
-}
-
-// applyTenantDefaultStorageProvider fills an empty KB storage provider from the
-// tenant's global default (Settings → Storage engine). Frontend should send the
-// same value; this keeps API clients and legacy UIs consistent.
-func applyTenantDefaultStorageProvider(ctx context.Context, kb *types.KnowledgeBase) {
-	if kb == nil || strings.TrimSpace(kb.GetStorageProvider()) != "" {
-		return
-	}
-	tenant, _ := ctx.Value(types.TenantInfoContextKey).(*types.Tenant)
-	provider := ""
-	if tenant != nil && tenant.StorageEngineConfig != nil {
-		provider = strings.ToLower(strings.TrimSpace(tenant.StorageEngineConfig.DefaultProvider))
-	}
-	if provider == "" || !storageallowlist.IsAllowed(provider) {
-		provider = storageallowlist.FirstAllowed()
-	}
-	if provider == "" {
-		return
-	}
-	kb.SetStorageProvider(provider)
 }
 
 // validateVectorStoreBinding routes through retriever.VerifyBinding so the
@@ -1157,20 +1116,11 @@ func (s *knowledgeBaseService) CopyKnowledgeBase(ctx context.Context,
 					"cross-store cloning is not yet supported")
 		}
 
-		// Defense 3: the concrete storage instance must match. Comparing only
-		// provider names would incorrectly allow S3-A -> S3-B clones.
-		if tenant, _ := ctx.Value(types.TenantInfoContextKey).(*types.Tenant); tenant != nil {
-			defaultID, defaultProvider := "", ""
-			if tenant.DefaultStorageBackendID != nil {
-				defaultID = *tenant.DefaultStorageBackendID
-			}
-			if tenant.StorageEngineConfig != nil {
-				defaultProvider = tenant.StorageEngineConfig.DefaultProvider
-			}
-			if !sourceKB.SharesStorageBackendWith(targetKB, defaultID, defaultProvider) {
-				return nil, nil, apperrors.NewBadRequestError(
-					"source and target knowledge bases use different storage instances; cross-storage-backend cloning is not supported")
-			}
+		// Defense 3: both must write to the same storage backend. Source
+		// files are copied server-side, which needs one backend at both ends.
+		if !sourceKB.SharesStorageBackendWith(targetKB) {
+			return nil, nil, apperrors.NewBadRequestError("source and target knowledge bases use different " +
+				"storage instances; cross-storage-backend cloning is not supported")
 		}
 	} else {
 		var faqConfig *types.FAQConfig

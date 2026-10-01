@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,39 +18,24 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// StorageBackendService governs storage backend rows: registering, editing,
+// sharing and retiring them, and choosing the one a new binding points at.
+// Reading and writing bytes is FileStore's job, not this service's.
 type StorageBackendService struct {
-	repo            interfaces.StorageBackendRepository
-	db              *gorm.DB
-	resourceCatalog interfaces.ResourceCatalog
+	repo interfaces.StorageBackendRepository
+	db   *gorm.DB
 }
 
-// NewStorageBackendService creates a storage backend service. The optional
-// catalog keeps focused tests compatible while production uses the explicit
-// constructor below.
-func NewStorageBackendService(
-	repo interfaces.StorageBackendRepository,
-	db *gorm.DB,
-	catalogs ...interfaces.ResourceCatalog,
-) *StorageBackendService {
-	service := &StorageBackendService{repo: repo, db: db}
-	if len(catalogs) > 0 {
-		service.resourceCatalog = catalogs[0]
-	}
-	return service
-}
-
-// NewStorageBackendServiceWithResources is the production DI constructor.
-// The variadic constructor above remains convenient for focused tests that do
-// not exercise resource registration.
-func NewStorageBackendServiceWithResources(
-	repo interfaces.StorageBackendRepository,
-	db *gorm.DB,
-	catalog interfaces.ResourceCatalog,
-) *StorageBackendService {
-	return NewStorageBackendService(repo, db, catalog)
+// NewStorageBackendService creates a storage backend service.
+func NewStorageBackendService(repo interfaces.StorageBackendRepository, db *gorm.DB) *StorageBackendService {
+	return &StorageBackendService{repo: repo, db: db}
 }
 
 func (s *StorageBackendService) Create(ctx context.Context, backend *types.StorageBackend) error {
+	// Only the startup sync writes the environment backend; nothing that
+	// arrives through the API may claim to be it.
+	backend.Source = types.StorageBackendSourceUser
+	backend.IsBuiltin = false
 	if err := backend.Validate(); err != nil {
 		return err
 	}
@@ -80,7 +64,7 @@ func (s *StorageBackendService) Update(ctx context.Context, incoming *types.Stor
 		return apperrors.NewNotFoundError("storage backend not found")
 	}
 	if existing.Source == types.StorageBackendSourceEnv {
-		return apperrors.NewBadRequestError("environment storage backend is read-only")
+		return errEnvBackendReadOnly()
 	}
 	// A platform-shared backend is visible to every workspace, so only a
 	// system administrator may repoint it — and the write must be keyed on the
@@ -91,6 +75,7 @@ func (s *StorageBackendService) Update(ctx context.Context, incoming *types.Stor
 		return err
 	}
 	incoming.TenantID = owner
+	incoming.Source = existing.Source
 	incoming.IsBuiltin = existing.IsBuiltin
 	incoming.Provider = existing.Provider
 	incoming.Config = incoming.Config.MergeSecrets(existing.Config)
@@ -101,29 +86,14 @@ func (s *StorageBackendService) Update(ctx context.Context, incoming *types.Stor
 		incoming.Status = existing.Status
 	}
 	if incoming.Status == types.StorageBackendStatusDisabled && existing.Status != types.StorageBackendStatusDisabled {
-		var references int64
-		if err := s.db.WithContext(ctx).Model(&types.Tenant{}).Where("id = ? AND default_storage_backend_id = ?", incoming.TenantID, incoming.ID).Count(&references).Error; err != nil {
+		// A disabled backend takes no writes, so nothing may still send it
+		// any — in whichever workspace the binding is.
+		bound, err := s.countBindings(ctx, s.db, existing, false)
+		if err != nil {
 			return err
 		}
-		if references == 0 {
-			if err := s.db.WithContext(ctx).Model(&types.KnowledgeBase{}).Where("tenant_id = ? AND storage_backend_id = ?", incoming.TenantID, incoming.ID).Count(&references).Error; err != nil {
-				return err
-			}
-		}
-		if references == 0 {
-			if err := s.db.WithContext(ctx).Model(&types.StoredResource{}).
-				Where(
-					"tenant_id = ? AND storage_backend_id = ? AND state = ?",
-					incoming.TenantID,
-					incoming.ID,
-					types.ResourceStateActive,
-				).
-				Count(&references).Error; err != nil {
-				return err
-			}
-		}
-		if references > 0 {
-			return apperrors.NewBadRequestError("a default or bound storage backend cannot be disabled")
+		if bound.total() > 0 {
+			return apperrors.NewBadRequestError("a storage backend still in use cannot be disabled: " + bound.String())
 		}
 	}
 	if err := incoming.Validate(); err != nil {
@@ -139,6 +109,11 @@ func (s *StorageBackendService) Update(ctx context.Context, incoming *types.Stor
 	return s.repo.Update(ctx, incoming)
 }
 
+// Delete retires a backend its workspace owns. It is refused while anything
+// in any workspace still uses it: an active stored resource (whose bytes are
+// there), or a knowledge base, docs space or workspace default bound to it.
+// None of those columns has a foreign key — rows are soft-deleted — so this
+// check is what keeps a binding from dangling.
 func (s *StorageBackendService) Delete(ctx context.Context, tenantID uint64, id string) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var backend types.StorageBackend
@@ -146,50 +121,28 @@ func (s *StorageBackendService) Delete(ctx context.Context, tenantID uint64, id 
 			Clauses(clause.Locking{Strength: "UPDATE"})
 		if err := query.First(&backend).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// The environment backend has no owning workspace, so the
+				// query above never finds it; say why rather than 404.
+				if id == types.EnvStorageBackendID {
+					return errEnvBackendReadOnly()
+				}
 				return apperrors.NewNotFoundError("storage backend not found")
 			}
 			return err
 		}
-		if backend.Source == types.StorageBackendSourceEnv {
-			return apperrors.NewBadRequestError("environment storage backend is read-only")
-		}
-		// Deleting a shared backend has to be a two-step operation: stop
-		// sharing it first, then delete. Every reference check below is
-		// tenant-scoped (tenant_id = ? AND storage_backend_id = ?), so
-		// running them here would clear the owner's workspace while other
-		// workspaces still had knowledge bases and resources bound to the
-		// backend — and those bindings are bare string columns with no
-		// foreign key, so they would be left dangling silently. SetSharing
-		// runs the cross-tenant check that this path cannot.
+		// Withdrawing a backend from every workspace is a platform decision,
+		// so a shared backend is unshared (by a system administrator) before
+		// its owner can delete it.
 		if backend.IsBuiltin {
 			return apperrors.NewBadRequestError(
 				"stop sharing this storage backend platform-wide before deleting it")
 		}
-		var defaultCount int64
-		if err := tx.Model(&types.Tenant{}).Where("id = ? AND default_storage_backend_id = ?", tenantID, id).Count(&defaultCount).Error; err != nil {
+		bound, err := s.countBindings(ctx, tx, &backend, false)
+		if err != nil {
 			return err
 		}
-		if defaultCount > 0 {
-			return apperrors.NewBadRequestError("default storage backend cannot be deleted")
-		}
-		var kbCount int64
-		if err := tx.Model(&types.KnowledgeBase{}).Where("tenant_id = ? AND storage_backend_id = ?", tenantID, id).Count(&kbCount).Error; err != nil {
-			return err
-		}
-		if kbCount > 0 {
-			return apperrors.NewBadRequestError(fmt.Sprintf("storage backend still has %d knowledge base(s) bound to it", kbCount))
-		}
-		var resourceCount int64
-		if err := tx.Model(&types.StoredResource{}).
-			Where("tenant_id = ? AND storage_backend_id = ? AND state = ?", tenantID, id, types.ResourceStateActive).
-			Count(&resourceCount).Error; err != nil {
-			return err
-		}
-		if resourceCount > 0 {
-			return apperrors.NewBadRequestError(fmt.Sprintf("storage backend still has %d active resource(s)", resourceCount))
-		}
-		if backend.LegacyAlias {
-			return apperrors.NewBadRequestError("legacy storage backend cannot be deleted while old file paths may reference it")
+		if bound.total() > 0 {
+			return apperrors.NewBadRequestError("storage backend is still in use: " + bound.String())
 		}
 		return tx.Delete(&backend).Error
 	})
@@ -198,10 +151,8 @@ func (s *StorageBackendService) Delete(ctx context.Context, tenantID uint64, id 
 // SetSharing publishes a storage backend to every workspace, or withdraws it.
 // System administrators only.
 //
-// Withdrawal is refused while a workspace other than the owner still has a
-// knowledge base, an active stored resource, or its workspace default bound to
-// the backend. Those bindings are bare string columns with no foreign key, so
-// stranding them produces upload and download failures with no clear cause.
+// Withdrawal is refused while a workspace other than the owner still uses the
+// backend (see countBindings); the owner may keep using it after un-sharing.
 //
 // Object keys already carry the tenant (prefix/{tenantID}/{knowledgeID}/uuid),
 // so two workspaces sharing one bucket never collide — only the credential and
@@ -222,22 +173,20 @@ func (s *StorageBackendService) SetSharing(
 	}
 	if existing.Source == types.StorageBackendSourceEnv {
 		return nil, apperrors.NewBadRequestError(
-			"environment storage backend is read-only; it is already available to every workspace")
+			"the deployment storage backend is read-only; it is already available to every workspace")
 	}
 	if existing.IsBuiltin == shared {
 		return existing, nil // idempotent
 	}
 
 	if !shared {
-		bound, err := s.countForeignBindings(ctx, existing.TenantID, id)
+		bound, err := s.countBindings(ctx, s.db, existing, true)
 		if err != nil {
 			return nil, err
 		}
-		if bound > 0 {
-			return nil, apperrors.NewBadRequestError(fmt.Sprintf(
-				"cannot stop sharing: %d binding(s) in other workspaces still use this storage backend",
-				bound,
-			))
+		if bound.total() > 0 {
+			return nil, apperrors.NewBadRequestError(
+				"cannot stop sharing: other workspaces still use this storage backend: " + bound.String())
 		}
 	}
 
@@ -251,74 +200,148 @@ func (s *StorageBackendService) SetSharing(
 	return existing, nil
 }
 
-// countForeignBindings counts references to a storage backend from workspaces
-// OTHER than its owner: workspace defaults, knowledge bases and active stored
-// resources. The owner may keep using its own backend after un-sharing.
-func (s *StorageBackendService) countForeignBindings(
-	ctx context.Context, ownerTenantID uint64, id string,
-) (int64, error) {
-	db := s.db.WithContext(ctx)
-	var total int64
-	for _, q := range []*gorm.DB{
-		db.Model(&types.Tenant{}).
-			Where("default_storage_backend_id = ? AND id <> ?", id, ownerTenantID),
-		db.Model(&types.KnowledgeBase{}).
-			Where("storage_backend_id = ? AND tenant_id <> ?", id, ownerTenantID),
-		db.Model(&types.StoredResource{}).
-			Where("storage_backend_id = ? AND tenant_id <> ? AND state = ?",
-				id, ownerTenantID, types.ResourceStateActive),
+// backendBindings counts what still depends on one storage backend.
+type backendBindings struct {
+	defaults, knowledgeBases, spaces, resources int64
+}
+
+func (b backendBindings) total() int64 {
+	return b.defaults + b.knowledgeBases + b.spaces + b.resources
+}
+
+// String names what is still bound, for the refusal message.
+func (b backendBindings) String() string {
+	var parts []string
+	for _, part := range []struct {
+		n    int64
+		what string
+	}{
+		{b.defaults, "workspace default(s)"},
+		{b.knowledgeBases, "knowledge base(s)"},
+		{b.spaces, "docs space(s)"},
+		{b.resources, "stored file(s)"},
 	} {
-		var n int64
-		if err := q.Count(&n).Error; err != nil {
-			return 0, err
+		if part.n > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", part.n, part.what))
 		}
-		total += n
 	}
-	return total, nil
+	return strings.Join(parts, ", ")
 }
 
+// countBindings counts everything that would break if the backend went away
+// or stopped taking writes: workspaces that default to it, live knowledge
+// bases and docs spaces bound to it, and active resources stored on it — in
+// every workspace, because a shared backend is bound across workspaces. With
+// exceptOwner the owner's own bindings are left out: un-sharing withdraws the
+// backend from everyone else, not from its owner.
+//
+// db is the handle to count with, so Delete can count inside its locking
+// transaction.
+func (s *StorageBackendService) countBindings(
+	ctx context.Context, db *gorm.DB, backend *types.StorageBackend, exceptOwner bool,
+) (backendBindings, error) {
+	db = db.WithContext(ctx)
+	scope := func(q *gorm.DB, tenantColumn string) *gorm.DB {
+		if exceptOwner {
+			return q.Where(tenantColumn+" <> ?", backend.TenantID)
+		}
+		return q
+	}
+	var out backendBindings
+	for _, count := range []struct {
+		query *gorm.DB
+		into  *int64
+	}{
+		{scope(db.Model(&types.Tenant{}).Where("default_storage_backend_id = ?", backend.ID), "id"), &out.defaults},
+		{
+			scope(db.Model(&types.KnowledgeBase{}).Where("storage_backend_id = ?", backend.ID), "tenant_id"),
+			&out.knowledgeBases,
+		},
+		// The docs module owns docs_spaces; the table, not its model, is
+		// named here so core storage governance does not import the module.
+		{scope(db.Table("docs_spaces").
+			Where("storage_backend_id = ? AND deleted_at IS NULL", backend.ID), "tenant_id"), &out.spaces},
+		{
+			scope(db.Model(&types.StoredResource{}).
+				Where("storage_backend_id = ? AND state = ?", backend.ID, types.ResourceStateActive), "tenant_id"),
+			&out.resources,
+		},
+	} {
+		if err := count.query.Count(count.into).Error; err != nil {
+			return backendBindings{}, err
+		}
+	}
+	return out, nil
+}
+
+// SetDefault makes a backend the workspace default. Any backend the workspace
+// can see qualifies — its own, a platform-shared one, the deployment backend —
+// as long as it is active (B6: only owned rows used to be found, although the
+// UI offers shared ones).
 func (s *StorageBackendService) SetDefault(ctx context.Context, tenantID uint64, id string) error {
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var backend types.StorageBackend
-		query := tx.Where("tenant_id = ? AND id = ?", tenantID, id).
-			Clauses(clause.Locking{Strength: "UPDATE"})
-		if err := query.First(&backend).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.NewNotFoundError("storage backend not found")
-			}
-			return err
-		}
-		if backend.Status != types.StorageBackendStatusActive {
-			return apperrors.NewBadRequestError("only an active storage backend can be the default")
-		}
-		return tx.Model(&types.Tenant{}).Where("id = ?", tenantID).Update("default_storage_backend_id", id).Error
-	})
+	backend, err := s.ResolveBackend(ctx, tenantID, id)
+	if err != nil {
+		return err
+	}
+	return s.db.WithContext(ctx).Model(&types.Tenant{}).Where("id = ?", tenantID).
+		Update("default_storage_backend_id", backend.ID).Error
 }
 
+// ResolveBackend returns the backend a workspace binds new content to: the
+// named one, or the workspace default when id is empty. The backend must be
+// visible to the workspace (its own, shared, or the deployment backend) and
+// active, because a binding decides where new bytes are written.
+func (s *StorageBackendService) ResolveBackend(
+	ctx context.Context, tenantID uint64, id string,
+) (*types.StorageBackend, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		var tenant types.Tenant
+		if err := s.db.WithContext(ctx).Select("default_storage_backend_id").
+			Where("id = ?", tenantID).Take(&tenant).Error; err != nil {
+			return nil, err
+		}
+		id = tenant.DefaultStorageBackendID
+	}
+	backend, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if backend == nil {
+		return nil, apperrors.NewNotFoundError("storage backend not found")
+	}
+	if backend.Status != types.StorageBackendStatusActive {
+		return nil, apperrors.NewBadRequestError("storage backend is not active")
+	}
+	return backend, nil
+}
+
+// Test checks that a backend's configuration reaches working storage. The
+// deployment backend is tested with the credentials the environment holds,
+// since its row never stores any.
 func (s *StorageBackendService) Test(ctx context.Context, backend *types.StorageBackend) error {
-	if err := backend.Validate(); err != nil {
+	if backend.Source == types.StorageBackendSourceEnv {
+		env := *backend
+		env.Config.AccessKeyID, env.Config.SecretAccessKey = types.EnvStorageCredentials()
+		backend = &env
+	} else if err := backend.Validate(); err != nil {
 		return err
 	}
 	if err := validateStorageBackendEndpoint(backend); err != nil {
 		return err
 	}
-	if backend.Provider == "local" {
-		baseDir := strings.TrimSpace(os.Getenv("LOCAL_STORAGE_BASE_DIR"))
-		if baseDir == "" {
-			baseDir = "/data/files"
-		}
-		candidate := filepath.Join(baseDir, strings.Trim(strings.TrimSpace(backend.Config.PathPrefix), "/\\"))
-		safeDir, err := secutils.SafePathUnderBase(baseDir, candidate)
+	c := backend.Config
+	switch backend.Provider {
+	case types.StorageProviderLocal:
+		// A new local backend's directory is created here, so the
+		// connectivity check below tests the directory it will really use.
+		dir, err := filesvc.LocalBackendDir(c.PathPrefix)
 		if err != nil {
 			return err
 		}
-		if err := os.MkdirAll(safeDir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("create local storage directory: %w", err)
 		}
-	}
-	c := backend.Config
-	switch backend.Provider {
-	case "local":
 		driver, err := filesvc.NewDriver(backend)
 		if err != nil {
 			return err
@@ -334,49 +357,11 @@ func (s *StorageBackendService) Test(ctx context.Context, backend *types.Storage
 	}
 }
 
-func storageBackendID(id *string) string {
-	if id == nil {
-		return ""
-	}
-	return strings.TrimSpace(*id)
-}
-
-func storageEngineDefaultProvider(sec *types.StorageEngineConfig) string {
-	if sec == nil {
-		return ""
-	}
-	return strings.ToLower(strings.TrimSpace(sec.DefaultProvider))
-}
-
-func (s *StorageBackendService) ResolveBackend(ctx context.Context, tenant *types.Tenant, backendID, provider string) (*types.StorageBackend, error) {
-	if tenant == nil {
-		return nil, fmt.Errorf("workspace context missing")
-	}
-	backendID = strings.TrimSpace(backendID)
-	provider = strings.ToLower(strings.TrimSpace(provider))
-	if backendID == "" && provider != "" {
-		backend, err := s.repo.FindLegacyAlias(ctx, tenant.ID, provider)
-		if err != nil || backend != nil {
-			return backend, err
-		}
-	}
-	if backendID == "" {
-		backendID = storageBackendID(tenant.DefaultStorageBackendID)
-	}
-	if backendID != "" {
-		backend, err := s.repo.GetByID(ctx, tenant.ID, backendID)
-		if err != nil {
-			return nil, err
-		}
-		if backend == nil {
-			return nil, fmt.Errorf("storage backend not found")
-		}
-		if backend.Status != types.StorageBackendStatusActive {
-			return nil, fmt.Errorf("storage backend is not active")
-		}
-		return backend, nil
-	}
-	return nil, nil
+// errEnvBackendReadOnly refuses any API change to the deployment backend: it
+// is whatever the environment says, and the startup sync rewrites it.
+func errEnvBackendReadOnly() error {
+	return apperrors.NewBadRequestError(
+		"the deployment storage backend is configured by the environment and is read-only")
 }
 
 func validateStorageBackendEndpoint(backend *types.StorageBackend) error {
@@ -393,7 +378,4 @@ func validateStorageBackendEndpoint(backend *types.StorageBackend) error {
 	return nil
 }
 
-var (
-	_ interfaces.StorageBackendService  = (*StorageBackendService)(nil)
-	_ interfaces.StorageBackendResolver = (*StorageBackendService)(nil)
-)
+var _ interfaces.StorageBackendService = (*StorageBackendService)(nil)

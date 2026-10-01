@@ -356,8 +356,8 @@ func TestFindingsAssignedToAPerson(t *testing.T) {
 	f := newFindingFixture(t)
 	ctx := context.Background()
 	require.NoError(t, f.db.Exec(`
-		INSERT INTO knowledge_bases (id, name, tenant_id, embedding_model_id, summary_model_id)
-		VALUES (?, 'Handbook', 1, '', '')`, f.kb).Error)
+		INSERT INTO knowledge_bases (id, name, tenant_id, embedding_model_id, summary_model_id, storage_backend_id)
+		VALUES (?, 'Handbook', 1, '', '', 'env')`, f.kb).Error)
 	a, b, c := f.doc(t, "A"), f.doc(t, "B"), f.doc(t, "C")
 	mine := duplicateOf(a, b, "h1", 0.97)
 	me := "me"
@@ -390,8 +390,9 @@ func TestListReviewChecksDue(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
 	require.NoError(t, f.db.Exec(`
-		INSERT INTO knowledge_bases (id, name, tenant_id, embedding_model_id, summary_model_id, review_interval_days)
-		VALUES (?, 'Handbook', 1, '', '', 30)`, f.kb).Error)
+		INSERT INTO knowledge_bases (id, name, tenant_id, embedding_model_id, summary_model_id, review_interval_days,
+		                             storage_backend_id)
+		VALUES (?, 'Handbook', 1, '', '', 30, 'env')`, f.kb).Error)
 	entry := func(title string, vouchedDaysAgo int, status string) string {
 		id := f.doc(t, title)
 		at := now.AddDate(0, 0, -vouchedDaysAgo)

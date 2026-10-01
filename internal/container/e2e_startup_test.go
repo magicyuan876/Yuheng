@@ -109,7 +109,8 @@ func TestServerStartsWithItsOwnDefaults(t *testing.T) {
 			// depend on, resolved from the same container.
 			must1(t, s.DI.Invoke(func(
 				_ interfaces.KnowledgeService,
-				_ interfaces.StorageBackendResolver,
+				_ interfaces.StorageBackendService,
+				_ interfaces.FileStore,
 				_ interfaces.TenantRepository,
 				_ interfaces.TaskEnqueuer,
 			) {

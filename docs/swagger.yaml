@@ -1116,7 +1116,12 @@ definitions:
           base is shared with (not stored in database)
         type: integer
       storage_backend_id:
-        description: StorageBackendID binds this KB to one concrete storage instance.
+        description: |-
+          StorageBackendID is the storage backend this knowledge base's new files
+          are written to. Required (a new knowledge base takes the workspace
+          default). It decides nothing about files already stored: each of those
+          is read through its own resource row, so the binding may change while
+          the knowledge base has files.
         type: string
       storage_provider_config:
         allOf:
@@ -2751,8 +2756,11 @@ definitions:
           Credentials config: tenant-level third-party provider credentials.
           See CredentialsConfig — currently an empty extension point.
       default_storage_backend_id:
-        description: DefaultStorageBackendID is the workspace default concrete storage
-          instance.
+        description: |-
+          DefaultStorageBackendID is the backend the workspace's own writes go
+          to (chat images, session attachments, temporary documents) and the one
+          new knowledge bases and docs spaces bind to. Always set: a new workspace
+          starts on the deployment backend, id "env".
         type: string
       deleted_at:
         allOf:
@@ -14945,9 +14953,10 @@ paths:
       - StorageBackend
   /storage-backends/{id}:
     delete:
-      description: Soft-delete a storage backend. A backend that is the workspace
-        default, still bound to knowledge bases, environment-sourced, or a legacy
-        alias cannot be deleted.
+      description: |-
+        Soft-delete a storage backend the workspace owns. Refused while any workspace still uses it
+        (a workspace default, a knowledge base or docs space bound to it, or a stored file on it),
+        while it is platform-shared, and always for the deployment backend.
       parameters:
       - description: Storage backend ID
         in: path
@@ -14963,7 +14972,7 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: Backend is default, bound, read-only, or legacy alias
+          description: Backend still in use, shared, or the deployment backend
           schema:
             $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
         "401":
@@ -15062,9 +15071,11 @@ paths:
       - StorageBackend
   /storage-backends/{id}/default:
     put:
-      description: Mark a storage backend as the workspace default. Only an active
-        backend can become the default. New knowledge bases without an explicit binding
-        use the default.
+      description: |-
+        Mark a storage backend as the workspace default: any active backend the workspace can see
+        (its own, a platform-shared one, or the deployment backend). New knowledge bases and docs
+        spaces without an explicit binding, and the workspace's own uploads (chat images,
+        attachments), use the default.
       parameters:
       - description: Storage backend ID
         in: path

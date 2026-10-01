@@ -15253,7 +15253,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Soft-delete a storage backend. A backend that is the workspace default, still bound to knowledge bases, environment-sourced, or a legacy alias cannot be deleted.",
+                "description": "Soft-delete a storage backend the workspace owns. Refused while any workspace still uses it\n(a workspace default, a knowledge base or docs space bound to it, or a stored file on it),\nwhile it is platform-shared, and always for the deployment backend.",
                 "produces": [
                     "application/json"
                 ],
@@ -15279,7 +15279,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Backend is default, bound, read-only, or legacy alias",
+                        "description": "Backend still in use, shared, or the deployment backend",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -15310,7 +15310,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Mark a storage backend as the workspace default. Only an active backend can become the default. New knowledge bases without an explicit binding use the default.",
+                "description": "Mark a storage backend as the workspace default: any active backend the workspace can see\n(its own, a platform-shared one, or the deployment backend). New knowledge bases and docs\nspaces without an explicit binding, and the workspace's own uploads (chat images,\nattachments), use the default.",
                 "produces": [
                     "application/json"
                 ],
@@ -20008,7 +20008,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "storage_backend_id": {
-                    "description": "StorageBackendID binds this KB to one concrete storage instance.",
+                    "description": "StorageBackendID is the storage backend this knowledge base's new files\nare written to. Required (a new knowledge base takes the workspace\ndefault). It decides nothing about files already stored: each of those\nis read through its own resource row, so the binding may change while\nthe knowledge base has files.",
                     "type": "string"
                 },
                 "storage_provider_config": {
@@ -22143,7 +22143,7 @@ const docTemplate = `{
                     ]
                 },
                 "default_storage_backend_id": {
-                    "description": "DefaultStorageBackendID is the workspace default concrete storage instance.",
+                    "description": "DefaultStorageBackendID is the backend the workspace's own writes go\nto (chat images, session attachments, temporary documents) and the one\nnew knowledge bases and docs spaces bind to. Always set: a new workspace\nstarts on the deployment backend, id \"env\".",
                     "type": "string"
                 },
                 "deleted_at": {
