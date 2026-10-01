@@ -302,8 +302,8 @@ operations that intentionally go through `yuheng api`:
   multimodal extraction defaults, FAQ thresholds, VLM model. Use
   `yuheng api PUT /api/v1/knowledge-bases/<id> --input -` with a JSON
   body matching the server's `UpdateKnowledgeBaseRequest`. (Note: the
-  storage provider is set once at create time via
-  `kb create --storage-provider <name>` and is not updatable.)
+  storage backend is picked at create time via
+  `kb create --storage-backend <id>`, or left to the workspace default.)
 - **Per-request `chat` parameters** — multi-KB scope, summary model
   override, image attachments, web search toggle. Use `yuheng api POST
   /api/v1/knowledge-chat/<session-id> --input -`.

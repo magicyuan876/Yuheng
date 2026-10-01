@@ -63,7 +63,7 @@ type InitializationHandler struct {
 	ollamaService    *ollama.OllamaService
 	documentReader   interfaces.DocumentReader
 	pooler           embedding.EmbedderPooler
-	storageResolver  interfaces.StorageBackendService
+	storageBackends  interfaces.StorageBackendService
 }
 
 // NewInitializationHandler 创建初始化处理器
@@ -77,7 +77,7 @@ func NewInitializationHandler(
 	ollamaService *ollama.OllamaService,
 	documentReader interfaces.DocumentReader,
 	pooler embedding.EmbedderPooler,
-	storageResolver interfaces.StorageBackendService,
+	storageBackends interfaces.StorageBackendService,
 ) *InitializationHandler {
 	return &InitializationHandler{
 		config:           config,
@@ -89,7 +89,7 @@ func NewInitializationHandler(
 		ollamaService:    ollamaService,
 		documentReader:   documentReader,
 		pooler:           pooler,
-		storageResolver:  storageResolver,
+		storageBackends:  storageBackends,
 	}
 }
 
@@ -121,13 +121,15 @@ type KBModelConfigRequest struct {
 		TableMetadataInstructions *string   `json:"tableMetadataInstructions,omitempty"`
 	} `json:"documentSplitting"`
 
-	// 多模态配置（仅模型相关；存储引擎在 storageProvider 中配置）
+	// 多模态配置（仅模型相关）
 	Multimodal struct {
 		Enabled bool `json:"enabled"`
 	} `json:"multimodal"`
 
-	// 存储引擎选择（"local" | "s3"），影响文档上传与文档内图片存储，参数从全局设置读取
-	StorageProvider  string `json:"storageProvider"`
+	// StorageBackendID rebinds the knowledge base: files added from now on go
+	// to this backend. Existing files stay on the backend they were written to
+	// and keep resolving through their resource rows, so a knowledge base with
+	// files may be rebound. Empty leaves the binding as it is.
 	StorageBackendID string `json:"storageBackendId"`
 
 	// 知识图谱配置
@@ -293,45 +295,14 @@ func (h *InitializationHandler) UpdateKBConfig(c *gin.Context) {
 		kb.VLMConfig.CustomInstructions = strings.TrimSpace(req.VLMConfig.CustomInstructions)
 	}
 
-	// Bind the concrete storage instance. Provider remains a compatibility
-	// projection for older clients and historical rows.
 	if strings.TrimSpace(req.StorageBackendID) != "" {
-		backend, resolveErr := h.storageResolver.ResolveBackend(ctx, kb.TenantID, req.StorageBackendID)
+		backend, resolveErr := h.storageBackends.ResolveBackend(ctx, kb.TenantID, req.StorageBackendID)
 		if resolveErr != nil {
-			c.Error(errors.NewBadRequestError("Storage backend is unavailable"))
+			_ = c.Error(errors.NewBadRequestError("Storage backend is unavailable").WithDetails(resolveErr.Error()))
 			return
 		}
-		if oldID := kb.StorageBackendID; oldID != "" && oldID != backend.ID {
-			knowledgeList, listErr := h.knowledgeService.ListPagedKnowledgeByKnowledgeBaseID(ctx, kbIdStr, &types.Pagination{Page: 1, PageSize: 1}, types.KnowledgeListFilter{})
-			if listErr == nil && knowledgeList != nil && knowledgeList.Total > 0 {
-				c.Error(errors.NewBadRequestError("Storage backend cannot be changed while the knowledge base contains files; migrate storage first"))
-				return
-			}
-		}
 		kb.StorageBackendID = backend.ID
-		req.StorageProvider = backend.Provider
 	}
-	// Legacy provider projection.
-	provider := strings.ToLower(strings.TrimSpace(req.StorageProvider))
-	if provider == "" {
-		provider = "local"
-	}
-	if !isStorageProviderAllowed(provider) {
-		c.Error(errors.NewBadRequestError("Storage provider is not allowed by STORAGE_ALLOW_LIST"))
-		return
-	}
-	oldProvider := kb.GetStorageProvider()
-	if oldProvider == "" {
-		oldProvider = "local"
-	}
-	if oldProvider != provider {
-		knowledgeList, err := h.knowledgeService.ListPagedKnowledgeByKnowledgeBaseID(ctx,
-			kbIdStr, &types.Pagination{Page: 1, PageSize: 1}, types.KnowledgeListFilter{})
-		if err == nil && knowledgeList != nil && knowledgeList.Total > 0 {
-			logger.Warn(ctx, "Storage engine changed with existing files, old files may become inaccessible")
-		}
-	}
-	kb.SetStorageProvider(provider)
 
 	// 更新知识图谱配置
 	if req.NodeExtract.Enabled {
@@ -971,10 +942,8 @@ func (h *InitializationHandler) buildConfigResponse(ctx context.Context, models 
 		}
 	}
 
-	// 判断多模态是否启用：有VLM模型ID或有存储配置（兼容新旧字段）
-	storageProvider := kb.GetStorageProvider()
-	hasMultimodal := kb.VLMConfig.IsEnabled() ||
-		(storageProvider != "" && storageProvider != types.StorageProviderLocal)
+	// 多模态是否启用只看 VLM 配置：图片无论存在哪个存储后端都会被保存。
+	hasMultimodal := kb.VLMConfig.IsEnabled()
 	if config["multimodal"] == nil {
 		config["multimodal"] = map[string]interface{}{
 			"enabled": hasMultimodal,
@@ -1029,17 +998,6 @@ func (h *InitializationHandler) buildConfigResponse(ctx context.Context, models 
 			ds["tableMetadataInstructions"] = kb.ChunkingConfig.TableMetadataInstructions
 		}
 		config["documentSplitting"] = ds
-
-		// 添加多模态的存储配置信息
-		effectiveProvider := kb.GetStorageProvider()
-		if effectiveProvider != "" && effectiveProvider != types.StorageProviderLocal {
-			if config["multimodal"] == nil {
-				config["multimodal"] = map[string]interface{}{
-					"enabled": true,
-				}
-			}
-			config["multimodal"].(map[string]interface{})["storageType"] = effectiveProvider
-		}
 	}
 
 	if kb.ExtractConfig != nil {
@@ -1593,8 +1551,6 @@ type testMultimodalForm struct {
 	VLMAPIKey        string `form:"vlm_api_key"`
 	VLMInterfaceType string `form:"vlm_interface_type"`
 
-	StorageType string `form:"storage_type"`
-
 	// 文档切分配置（字符串后续自行解析，以避免类型绑定失败）
 	ChunkSize     string `form:"chunk_size"`
 	ChunkOverlap  string `form:"chunk_overlap"`
@@ -1612,7 +1568,6 @@ type testMultimodalForm struct {
 // @Param        vlm_base_url      formData  string  true   "VLM Base URL"
 // @Param        vlm_api_key       formData  string  false  "VLM API Key"
 // @Param        vlm_interface_type formData string  false  "VLM接口类型"
-// @Param        storage_type      formData  string  true   "存储类型(local/s3)"
 // @Success      200               {object}  map[string]interface{}  "测试结果"
 // @Failure      400               {object}  errors.AppError         "请求参数错误"
 // @Security     Bearer
@@ -1634,8 +1589,6 @@ func (h *InitializationHandler) TestMultimodalFunction(c *gin.Context) {
 		req.VLMBaseURL = os.Getenv("OLLAMA_BASE_URL") + "/v1"
 	}
 
-	req.StorageType = strings.ToLower(req.StorageType)
-
 	if req.VLMModel == "" || req.VLMBaseURL == "" {
 		logger.Error(ctx, "VLM model name and base URL are required")
 		c.Error(errors.NewBadRequestError("VLM模型名称和Base URL不能为空"))
@@ -1646,12 +1599,6 @@ func (h *InitializationHandler) TestMultimodalFunction(c *gin.Context) {
 	if err := utils.ValidateURLForSSRF(req.VLMBaseURL); err != nil {
 		logger.Warnf(ctx, "SSRF validation failed for VLM BaseURL: %v", err)
 		c.Error(errors.NewBadRequestError(utils.FormatSSRFError("VLM Base URL", req.VLMBaseURL, err)))
-		return
-	}
-
-	if req.StorageType != types.StorageProviderLocal && req.StorageType != types.StorageProviderS3 {
-		logger.Error(ctx, "Invalid storage type")
-		c.Error(errors.NewBadRequestError("无效的存储类型"))
 		return
 	}
 

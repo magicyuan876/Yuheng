@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +15,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/magicyuan876/yuheng/internal/application/repository"
 	"github.com/magicyuan876/yuheng/internal/application/service"
-	"github.com/magicyuan876/yuheng/internal/application/service/file"
 	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/database"
@@ -60,11 +56,6 @@ type SystemHandler struct {
 	// runtime task console. It updates business state and tracing before queue
 	// records are removed, unlike a raw Redis deletion.
 	knowledgeSvc runtimeKnowledgeCanceller
-	// storageBackendRepo lets GetStorageEngineStatus report multi-instance
-	// storage backends (Settings → Storage) as "available", not just the legacy
-	// singleton tenant.StorageEngineConfig. Optional — nil in partially-wired
-	// unit tests, in which case only the legacy config is consulted.
-	storageBackendRepo interfaces.StorageBackendRepository
 	// parserResolver owns the platform layer of the parser engine
 	// configuration (ENV < platform < workspace). Optional — nil in partially
 	// wired unit tests, in which case the platform endpoints report that
@@ -89,24 +80,22 @@ func NewSystemHandler(cfg *config.Config,
 	auditSvc interfaces.AuditLogService,
 	taskInspector interfaces.TaskInspector,
 	knowledgeSvc interfaces.KnowledgeService,
-	storageBackendRepo interfaces.StorageBackendRepository,
 	parserResolver interfaces.ParserEngineResolver,
 	engines *retriever.Catalog,
 ) *SystemHandler {
 	return &SystemHandler{
-		cfg:                cfg,
-		neo4jDriver:        neo4jDriver,
-		documentReader:     documentReader,
-		tenantSvc:          tenantSvc,
-		userSvc:            userSvc,
-		systemSettingSvc:   systemSettingSvc,
-		apiKeySvc:          apiKeySvc,
-		auditSvc:           auditSvc,
-		taskInspector:      taskInspector,
-		knowledgeSvc:       knowledgeSvc,
-		storageBackendRepo: storageBackendRepo,
-		parserResolver:     parserResolver,
-		engines:            engines,
+		cfg:              cfg,
+		neo4jDriver:      neo4jDriver,
+		documentReader:   documentReader,
+		tenantSvc:        tenantSvc,
+		userSvc:          userSvc,
+		systemSettingSvc: systemSettingSvc,
+		apiKeySvc:        apiKeySvc,
+		auditSvc:         auditSvc,
+		taskInspector:    taskInspector,
+		knowledgeSvc:     knowledgeSvc,
+		parserResolver:   parserResolver,
+		engines:          engines,
 	}
 }
 
@@ -642,245 +631,6 @@ func (h *SystemHandler) getGraphDatabaseEngine() string {
 func (h *SystemHandler) supportsRetrieverType(driver string, retrieverType types.RetrieverType) bool {
 	engine, ok := h.engines.ByDriver(driver)
 	return ok && engine.Capabilities.Supports(retrieverType)
-}
-
-// activeBackendProviders returns the set of storage providers that have at
-// least one active multi-instance backend registered for the caller's
-// workspace. Used to keep GetStorageEngineStatus in sync with the new Storage
-// settings UI, which writes to storage_backends rather than the legacy
-// tenant.StorageEngineConfig singleton. Best-effort and nil-safe: a missing
-// repo, missing tenant, or query error yields an empty set so callers fall
-// back to the legacy config checks.
-func (h *SystemHandler) activeBackendProviders(c *gin.Context) map[string]bool {
-	result := map[string]bool{}
-	if h.storageBackendRepo == nil {
-		return result
-	}
-	v, exists := c.Get(types.TenantInfoContextKey.String())
-	if !exists {
-		return result
-	}
-	tenant, ok := v.(*types.Tenant)
-	if !ok || tenant == nil {
-		return result
-	}
-	backends, err := h.storageBackendRepo.List(c.Request.Context(), tenant.ID)
-	if err != nil {
-		logger.Warnf(c.Request.Context(), "[storage] list backends for status failed: tenant=%d err=%v", tenant.ID, err)
-		return result
-	}
-	for _, backend := range backends {
-		if backend == nil || backend.Status != types.StorageBackendStatusActive {
-			continue
-		}
-		result[strings.ToLower(strings.TrimSpace(backend.Provider))] = true
-	}
-	return result
-}
-
-// StorageEngineStatusItem describes one storage engine's availability and description.
-type StorageEngineStatusItem struct {
-	Name        string `json:"name"` // "local" or "s3"
-	Allowed     bool   `json:"allowed"`
-	Available   bool   `json:"available"`   // whether the engine can be used
-	Description string `json:"description"` // short description for UI
-}
-
-// GetStorageEngineStatusResponse is the response for GET /system/storage-engine-status.
-type GetStorageEngineStatusResponse struct {
-	Engines          []StorageEngineStatusItem `json:"engines"`
-	AllowedProviders []string                  `json:"allowed_providers"`
-}
-
-// GetStorageEngineStatus godoc
-// @Summary      获取存储引擎状态
-// @Description  返回 Local、S3 各存储引擎的可用状态及说明，供全局设置与知识库选择使用
-// @Tags         系统
-// @Produce      json
-// @Success      200  {object}  GetStorageEngineStatusResponse
-// @Router       /system/storage-engine-status [get]
-func (h *SystemHandler) GetStorageEngineStatus(c *gin.Context) {
-	// Providers that already have an active multi-instance backend registered
-	// (Settings → Storage). These are authoritative and independent of the
-	// legacy singleton tenant.StorageEngineConfig, so a workspace that only
-	// configured storage through the new UI is still reported as available.
-	activeBackend := h.activeBackendProviders(c)
-	s3Configured := h.isS3Configured(c) || activeBackend[types.StorageProviderS3]
-	allowed := getAllowedStorageProviders()
-	allowedProviders := make([]string, 0, len(getSupportedStorageProviders()))
-	for _, provider := range getSupportedStorageProviders() {
-		if allowed[provider] {
-			allowedProviders = append(allowedProviders, provider)
-		}
-	}
-	engines := []StorageEngineStatusItem{
-		{Name: "local", Allowed: allowed["local"], Available: true, Description: "本地文件系统存储，仅适合单机部署"},
-		{
-			Name: "s3", Allowed: allowed["s3"], Available: s3Configured,
-			Description: "S3 兼容对象存储（RustFS、MinIO、AWS S3、阿里云 OSS、腾讯云 COS、火山引擎 TOS 等），适合私有云与公有云部署",
-		},
-	}
-	c.JSON(200, gin.H{
-		"code": 0,
-		"msg":  "success",
-		"data": GetStorageEngineStatusResponse{Engines: engines, AllowedProviders: allowedProviders},
-	})
-}
-
-// --- Storage engine helpers ---
-// storageNamePattern validates region and bucket name format to prevent URL
-// injection: with virtual-hosted addressing both become part of the request host.
-var storageNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}$`)
-
-// sanitizeStorageCheckError converts a raw storage connectivity error into a safe
-// user-facing message that does not leak internal network details (hostnames, IPs, ports).
-// The concrete mapping lives in internal/utils so the service layer can share it.
-func sanitizeStorageCheckError(err error) string {
-	return secutils.SanitizeStorageConnectivityError(err)
-}
-
-// storageEndpointHost extracts the hostname from a storage endpoint string.
-// Endpoints may be bare host:port, hostnames, or full URLs with a scheme
-// (e.g. "http://127.0.0.1:9000" for S3-compatible stores).
-func storageEndpointHost(endpoint string) string {
-	endpoint = strings.TrimSpace(endpoint)
-	if endpoint == "" {
-		return ""
-	}
-	if strings.Contains(endpoint, "://") {
-		if u, err := url.Parse(endpoint); err == nil {
-			if h := u.Hostname(); h != "" {
-				return h
-			}
-		}
-	}
-	if host, _, err := net.SplitHostPort(endpoint); err == nil {
-		return host
-	}
-	return endpoint
-}
-
-// isBlockedStorageEndpoint reports whether a storage endpoint is refused,
-// delegating to the same fail-closed SSRF policy the storage clients use.
-// Private storage endpoints must be explicitly whitelisted by an operator.
-func isBlockedStorageEndpoint(endpoint string) (bool, string) {
-	endpoint = strings.TrimSpace(endpoint)
-	if endpoint == "" {
-		return true, "无效的地址"
-	}
-	if err := secutils.ValidateURLForSSRF(endpoint); err != nil {
-		return true, secutils.FormatSSRFError("存储 Endpoint", endpoint, err)
-	}
-	return false, ""
-}
-
-// --- Storage engine connectivity check ---
-
-// StorageCheckRequest is the body for POST /system/storage-engine-check.
-type StorageCheckRequest struct {
-	Provider string                `json:"provider"` // "local" or "s3"
-	S3       *types.S3EngineConfig `json:"s3,omitempty"`
-}
-
-// StorageCheckResponse is the response for a single-engine connectivity check.
-type StorageCheckResponse struct {
-	OK      bool   `json:"ok"`
-	Message string `json:"message"`
-}
-
-// CheckStorageEngine tests connectivity for a single storage engine using the provided config.
-// @Summary      测试存储引擎连通性
-// @Description  使用当前填写的参数测试 S3 兼容存储的连通性，不保存配置
-// @Tags         系统
-// @Accept       json
-// @Produce      json
-// @Param        body  body  StorageCheckRequest  true  "存储引擎配置"
-// @Success      200   {object}  StorageCheckResponse
-// @Router       /system/storage-engine-check [post]
-func (h *SystemHandler) CheckStorageEngine(c *gin.Context) {
-	ctx := logger.CloneContext(c.Request.Context())
-
-	var req StorageCheckRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"code": 1, "msg": "请求体格式错误"})
-		return
-	}
-	if !isStorageProviderAllowed(req.Provider) {
-		c.JSON(403, gin.H{"code": 1, "msg": "该存储引擎已被禁用"})
-		return
-	}
-
-	switch req.Provider {
-	case types.StorageProviderS3:
-		h.checkS3(ctx, c, req.S3)
-	default:
-		c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: true, Message: "本地存储无需检测"}})
-	}
-}
-
-func (h *SystemHandler) isS3Configured(c *gin.Context) bool {
-	if v, exists := c.Get(types.TenantInfoContextKey.String()); exists {
-		if tenant, ok := v.(*types.Tenant); ok && tenant != nil && tenant.StorageEngineConfig != nil && tenant.StorageEngineConfig.S3 != nil {
-			s3Conf := tenant.StorageEngineConfig.S3
-			return s3Conf.Region != "" && s3Conf.BucketName != "" && (s3Conf.AccessKey == "") == (s3Conf.SecretKey == "")
-		}
-	}
-	return false
-}
-
-func (h *SystemHandler) checkS3(ctx context.Context, c *gin.Context, cfg *types.S3EngineConfig) {
-	if cfg == nil {
-		c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: "未提供 S3 配置"}})
-		return
-	}
-	if cfg.Region == "" || cfg.BucketName == "" {
-		c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: "Region、Bucket 名称不能为空"}})
-		return
-	}
-	if !storageNamePattern.MatchString(cfg.Region) {
-		c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: "Region 格式不正确，仅允许字母、数字、点、连字符"}})
-		return
-	}
-	if !storageNamePattern.MatchString(cfg.BucketName) {
-		c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: "Bucket 名称格式不正确，仅允许字母、数字、点、连字符"}})
-		return
-	}
-	if (cfg.AccessKey == "") != (cfg.SecretKey == "") {
-		c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: "Access Key 与 Secret Key 必须同时填写或同时留空（使用 AWS 默认凭证链）"}})
-		return
-	}
-	if err := types.ValidateS3AddressingStyle(cfg.AddressingStyle); err != nil {
-		c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: "寻址方式必须是 auto、path 或 virtual"}})
-		return
-	}
-
-	if endpoint := file.S3EndpointURL(cfg.Endpoint, cfg.UseSSL); endpoint != "" {
-		if blocked, reason := isBlockedStorageEndpoint(endpoint); blocked {
-			logger.Warnf(ctx, "Storage check: S3 endpoint blocked by SSRF protection, endpoint: %s", cfg.Endpoint)
-			c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: reason}})
-			return
-		}
-	}
-
-	err := file.CheckS3Connectivity(ctx, file.S3Options{
-		Endpoint: cfg.Endpoint, Region: cfg.Region, AccessKey: cfg.AccessKey, SecretKey: cfg.SecretKey,
-		BucketName: cfg.BucketName, UseSSL: cfg.UseSSL, AddressingStyle: cfg.AddressingStyle,
-	})
-	if err != nil {
-		logger.Errorf(ctx, "Storage check: S3 connectivity failed, bucket: %s, error: %v", cfg.BucketName, err)
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "403") {
-			c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: "认证失败，请检查静态密钥或 AWS IAM Role / 默认凭证链权限"}})
-			return
-		}
-		if strings.Contains(errMsg, "404") || strings.Contains(errMsg, "NotFound") {
-			c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: fmt.Sprintf("Bucket「%s」不存在，请检查名称和 Region", cfg.BucketName)}})
-			return
-		}
-		c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: false, Message: sanitizeStorageCheckError(err)}})
-		return
-	}
-	c.JSON(200, gin.H{"code": 0, "data": StorageCheckResponse{OK: true, Message: fmt.Sprintf("连接成功，Bucket「%s」已确认存在", cfg.BucketName)}})
 }
 
 func (h *SystemHandler) ResolveDocumentReader(ctx context.Context, addr string) interfaces.DocumentReader {

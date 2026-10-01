@@ -373,7 +373,9 @@ func TestUpgradeFromOlderSchemaKeepsData(t *testing.T) {
 	}
 	// 000121 drops knowledge_bases.cos_config after copying its provider;
 	// 000123 replaces docs_pages.status with exclude_from_knowledge and drops
-	// the column. Seed at 000120's schema (with 000121-000123 not yet applied).
+	// the column; 000134 binds every workspace, knowledge base and docs space
+	// to a storage backend. Seed at 000120's schema (with 000121 onwards not
+	// yet applied).
 	const before = 120
 
 	url, db := pgtest.NewEmpty(t)
@@ -450,21 +452,26 @@ func TestUpgradeFromOlderSchemaKeepsData(t *testing.T) {
 		t.Error("docs_pages.status survived the upgrade")
 	}
 
-	// The knowledge base kept its row, its provider moved into the new column,
-	// and the credential column is gone.
-	var name, provider string
-	if err := db.QueryRow(`SELECT name, storage_provider_config->>'provider' FROM knowledge_bases WHERE id='kb-1'`).
-		Scan(&name, &provider); err != nil {
+	// The knowledge base kept its row; the credential column 000121 dropped
+	// and the provider-name columns 000135/000136 dropped are gone.
+	var name string
+	if err := db.QueryRow(`SELECT name FROM knowledge_bases WHERE id='kb-1'`).Scan(&name); err != nil {
 		t.Fatalf("knowledge base row: %v", err)
 	}
-	if name != "Handbook" || provider != "local" {
-		t.Errorf("knowledge base = %q provider %q; want Handbook/local", name, provider)
+	if name != "Handbook" {
+		t.Errorf("knowledge base = %q; want Handbook", name)
 	}
-	var coscols int
-	_ = db.QueryRow(`SELECT count(*) FROM information_schema.columns
-		WHERE table_name='knowledge_bases' AND column_name='cos_config'`).Scan(&coscols)
-	if coscols != 0 {
-		t.Error("knowledge_bases.cos_config (with its credential) survived the upgrade")
+	for _, column := range []struct{ table, name string }{
+		{"knowledge_bases", "cos_config"},
+		{"knowledge_bases", "storage_provider_config"},
+		{"tenants", "storage_engine_config"},
+	} {
+		var n int
+		_ = db.QueryRow(`SELECT count(*) FROM information_schema.columns
+			WHERE table_name=$1 AND column_name=$2`, column.table, column.name).Scan(&n)
+		if n != 0 {
+			t.Errorf("%s.%s survived the upgrade", column.table, column.name)
+		}
 	}
 
 	// 000134 makes storage bindings required: the workspace, its knowledge

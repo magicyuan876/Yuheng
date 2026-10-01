@@ -108,13 +108,26 @@ func TestGetTenantKVViewerForbiddenForSecretKeys(t *testing.T) {
 	tenant := secretTenantFixture()
 	engine := newTenantHandlerTestEngine(t, types.TenantRoleViewer, tenant)
 
-	for _, key := range []string{"web-search-config", "parser-engine-config", "storage-engine-config"} {
+	for _, key := range []string{"web-search-config", "parser-engine-config"} {
 		t.Run(key, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/tenants/kv/"+key, nil)
 			engine.ServeHTTP(rec, req)
 			require.Equal(t, http.StatusForbidden, rec.Code)
 		})
+	}
+}
+
+// Storage is configured as storage backends now; the workspace KV key that
+// held S3 credentials in plain JSON is gone (B10).
+func TestGetTenantKVStorageEngineConfigIsGone(t *testing.T) {
+	engine := newTenantHandlerTestEngine(t, types.TenantRoleAdmin, secretTenantFixture())
+	for _, method := range []string{http.MethodGet, http.MethodPut} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(method, "/tenants/kv/storage-engine-config", strings.NewReader("{}"))
+		req.Header.Set("Content-Type", "application/json")
+		engine.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusBadRequest, rec.Code, method)
 	}
 }
 
@@ -145,11 +158,6 @@ func secretTenantFixture() *types.Tenant {
 		},
 		ParserEngineConfig: &types.ParserEngineConfig{
 			MinerUAPIKey: "parser-secret-123",
-		},
-		StorageEngineConfig: &types.StorageEngineConfig{
-			S3: &types.S3EngineConfig{
-				SecretKey: "s3-secret-789",
-			},
 		},
 	}
 }

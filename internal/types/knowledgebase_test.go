@@ -123,14 +123,15 @@ func TestKnowledgeBase_VectorStoreID_JSON(t *testing.T) {
 	}
 }
 
-// A knowledge base decodes vector_store_id and storage_provider_config as they
-// are; the removed cos_config field a legacy client may still send is ignored
-// rather than mapped onto the storage provider.
+// A knowledge base decodes vector_store_id and storage_backend_id as they
+// are; the removed cos_config and storage_provider_config fields an old client
+// may still send are ignored rather than mapped onto the binding.
 func TestKnowledgeBase_UnmarshalJSON_StorageAndVectorStore(t *testing.T) {
 	body := `{
 		"id": "kb-1",
 		"cos_config": {"provider": "s3", "bucket_name": "legacy-bucket"},
 		"storage_provider_config": {"provider": "local"},
+		"storage_backend_id": "team-s3",
 		"vector_store_id": "store-uuid"
 	}`
 
@@ -142,8 +143,8 @@ func TestKnowledgeBase_UnmarshalJSON_StorageAndVectorStore(t *testing.T) {
 	if kb.VectorStoreID == nil || *kb.VectorStoreID != "store-uuid" {
 		t.Errorf("expected VectorStoreID = &\"store-uuid\", got %v", kb.VectorStoreID)
 	}
-	if got := kb.GetStorageProvider(); got != "local" {
-		t.Errorf("expected the provider from storage_provider_config, got %q", got)
+	if kb.StorageBackendID != "team-s3" {
+		t.Errorf("expected StorageBackendID = team-s3, got %q", kb.StorageBackendID)
 	}
 }
 
@@ -255,54 +256,6 @@ func TestKnowledgeBase_SharesStoreWith(t *testing.T) {
 				t.Fatalf("SharesStoreWith: got %v, want %v", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestEffectiveStorageProvider(t *testing.T) {
-	tests := []struct {
-		name          string
-		kbProvider    string
-		tenantDefault string
-		want          string
-	}{
-		{"kb pins provider", "local", "s3", "local"},
-		{"kb empty falls back to tenant default", "", "s3", "s3"},
-		{"both empty", "", "", ""},
-		{"tenant default cased", "", "  S3 ", "s3"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			kb := &KnowledgeBase{}
-			if tt.kbProvider != "" {
-				kb.StorageProviderConfig = &StorageProviderConfig{Provider: tt.kbProvider}
-			}
-			if got := kb.EffectiveStorageProvider(tt.tenantDefault); got != tt.want {
-				t.Errorf("EffectiveStorageProvider(%q) with kb=%q = %q, want %q",
-					tt.tenantDefault, tt.kbProvider, got, tt.want)
-			}
-		})
-	}
-}
-
-// TestEffectiveStorageProvider_CrossBackendDetection documents the comparison the
-// clone preflight performs: a mismatch is only flagged when both effective
-// providers are non-empty and differ.
-func TestEffectiveStorageProvider_CrossBackendDetection(t *testing.T) {
-	tenantDefault := "local"
-	src := &KnowledgeBase{} // inherits tenant default -> local
-	dst := &KnowledgeBase{StorageProviderConfig: &StorageProviderConfig{Provider: "s3"}}
-
-	sp := src.EffectiveStorageProvider(tenantDefault)
-	dp := dst.EffectiveStorageProvider(tenantDefault)
-	if sp == "" || dp == "" || sp == dp {
-		t.Fatalf("expected cross-backend mismatch, got src=%q dst=%q", sp, dp)
-	}
-
-	// Same effective provider (dst empty inherits the same tenant default) must NOT be flagged.
-	dstSame := &KnowledgeBase{}
-	if dstSame.EffectiveStorageProvider(tenantDefault) != sp {
-		t.Errorf("same tenant default should match: got %q vs %q",
-			dstSame.EffectiveStorageProvider(tenantDefault), sp)
 	}
 }
 

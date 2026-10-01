@@ -23,6 +23,34 @@ const (
 	StorageBackendStatusDisabled = "disabled"
 )
 
+// Storage provider names. Object storage converges to two providers: the
+// zero-dependency local filesystem and any S3-compatible service (RustFS,
+// MinIO, AWS S3, Aliyun OSS, Tencent COS, Volcengine TOS, ...) reached through
+// its S3 endpoint.
+const (
+	StorageProviderLocal = "local"
+	StorageProviderS3    = "s3"
+)
+
+// S3 addressing styles. See StorageBackendConfig.AddressingStyle.
+const (
+	S3AddressingAuto    = "auto"
+	S3AddressingPath    = "path"
+	S3AddressingVirtual = "virtual"
+)
+
+// ValidateS3AddressingStyle accepts the empty string (meaning auto) and the
+// three named styles, and rejects everything else so a typo cannot silently
+// fall back to a style the operator did not ask for.
+func ValidateS3AddressingStyle(style string) error {
+	switch style {
+	case "", S3AddressingAuto, S3AddressingPath, S3AddressingVirtual:
+		return nil
+	default:
+		return fmt.Errorf("addressing_style must be one of auto, path or virtual, got %q", style)
+	}
+}
+
 // EnvStorageBackendID is the id of the deployment's storage backend: the one
 // row the environment (STORAGE_TYPE, S3_*, LOCAL_STORAGE_PATH_PREFIX)
 // describes. Every workspace starts with it as its default.
@@ -117,7 +145,11 @@ type StorageBackendConfig struct {
 	BucketName      string `json:"bucket_name,omitempty"`
 	PathPrefix      string `json:"path_prefix,omitempty"`
 	UseSSL          bool   `json:"use_ssl,omitempty"`
-	// AddressingStyle is "", "auto", "path" or "virtual"; see S3EngineConfig.
+	// AddressingStyle selects how the bucket appears in request URLs:
+	// "path" is endpoint/bucket/key, "virtual" is bucket.endpoint/key (Aliyun
+	// OSS, Tencent COS, Volcengine TOS and Huawei OBS only accept this one),
+	// and ""/"auto" picks virtual-hosted for AWS endpoints and path-style for
+	// any other custom endpoint, which is what MinIO and RustFS need.
 	AddressingStyle string `json:"addressing_style,omitempty"`
 }
 
@@ -172,9 +204,19 @@ func (c StorageBackendConfig) MaskSensitiveFields() StorageBackendConfig {
 	return out
 }
 
+// MergeSecrets keeps a stored credential where the client sent back the
+// redaction placeholder it was shown. An empty value is a real change, not
+// "keep": both keys empty selects the AWS default credential chain, and
+// treating empty as preserve would make it impossible to move a backend from
+// static keys to an IAM role. (The tenant storage-engine config, which this
+// model replaced, had the same rule.)
 func (c StorageBackendConfig) MergeSecrets(existing StorageBackendConfig) StorageBackendConfig {
-	c.AccessKeyID = PreserveIfRedacted(c.AccessKeyID, existing.AccessKeyID)
-	c.SecretAccessKey = PreserveIfRedacted(c.SecretAccessKey, existing.SecretAccessKey)
+	if c.AccessKeyID == RedactedSecretPlaceholder {
+		c.AccessKeyID = existing.AccessKeyID
+	}
+	if c.SecretAccessKey == RedactedSecretPlaceholder {
+		c.SecretAccessKey = existing.SecretAccessKey
+	}
 	return c
 }
 

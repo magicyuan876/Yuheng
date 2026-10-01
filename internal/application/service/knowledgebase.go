@@ -185,7 +185,6 @@ func (s *knowledgeBaseService) applyAndValidateStorageBackend(ctx context.Contex
 		return apperrors.NewBadRequestError("storage backend is unavailable").WithDetails(err.Error())
 	}
 	kb.StorageBackendID = backend.ID
-	kb.SetStorageProvider(backend.Provider)
 	return nil
 }
 
@@ -1141,7 +1140,6 @@ func (s *knowledgeBaseService) CopyKnowledgeBase(ctx context.Context,
 			EmbeddingModelID:      sourceKB.EmbeddingModelID,
 			SummaryModelID:        sourceKB.SummaryModelID,
 			VLMConfig:             sourceKB.VLMConfig,
-			StorageProviderConfig: sourceKB.StorageProviderConfig,
 			StorageBackendID:      sourceKB.StorageBackendID,
 			FAQConfig:             faqConfig,
 			VectorStoreID:         sourceKB.VectorStoreID,

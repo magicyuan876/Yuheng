@@ -10,6 +10,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/storageallowlist"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
+	secutils "github.com/magicyuan876/yuheng/internal/utils"
 )
 
 // storageTestErrorMessage returns a safe user-facing message for a storage
@@ -21,7 +22,7 @@ func storageTestErrorMessage(err error) string {
 	if errors.As(err, &appErr) {
 		return appErr.Message
 	}
-	return sanitizeStorageCheckError(err)
+	return secutils.SanitizeStorageConnectivityError(err)
 }
 
 type StorageBackendHandler struct {

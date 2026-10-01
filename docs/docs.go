@@ -7027,13 +7027,6 @@ const docTemplate = `{
                         "description": "VLM接口类型",
                         "name": "vlm_interface_type",
                         "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "存储类型(local/s3)",
-                        "name": "storage_type",
-                        "in": "formData",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -16447,60 +16440,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/system/storage-engine-check": {
-            "post": {
-                "description": "使用当前填写的参数测试 S3 兼容存储的连通性，不保存配置",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "系统"
-                ],
-                "summary": "测试存储引擎连通性",
-                "parameters": [
-                    {
-                        "description": "存储引擎配置",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.StorageCheckRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.StorageCheckResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/system/storage-engine-status": {
-            "get": {
-                "description": "返回 Local、S3 各存储引擎的可用状态及说明，供全局设置与知识库选择使用",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "系统"
-                ],
-                "summary": "获取存储引擎状态",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.GetStorageEngineStatusResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/system/upload-limits": {
             "get": {
                 "description": "返回文档/视频上传上限（MB）。值来自 SystemAdmin 可动态调整的系统设置",
@@ -16722,7 +16661,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "获取空间级别的KV配置（支持web-search-config、prompt-templates、parser-engine-config、storage-engine-config、chat-history-config、retrieval-config）",
+                "description": "获取空间级别的KV配置（支持web-search-config、prompt-templates、parser-engine-config、\nchat-history-config、retrieval-config）",
                 "consumes": [
                     "application/json"
                 ],
@@ -16767,7 +16706,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "更新空间级别的KV配置（支持web-search-config、parser-engine-config、storage-engine-config、chat-history-config、retrieval-config）",
+                "description": "更新空间级别的KV配置（支持web-search-config、parser-engine-config、chat-history-config、retrieval-config）",
                 "consumes": [
                     "application/json"
                 ],
@@ -20019,14 +19958,6 @@ const docTemplate = `{
                     "description": "StorageBackendID is the storage backend this knowledge base's new files\nare written to. Required (a new knowledge base takes the workspace\ndefault). It decides nothing about files already stored: each of those\nis read through its own resource row, so the binding may change while\nthe knowledge base has files.",
                     "type": "string"
                 },
-                "storage_provider_config": {
-                    "description": "Storage provider config (new): only stores provider selection; credentials from workspace StorageEngineConfig",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageProviderConfig"
-                        }
-                    ]
-                },
                 "summary_model_id": {
                     "description": "Summary model ID",
                     "type": "string"
@@ -20313,14 +20244,6 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
-                }
-            }
-        },
-        "github_com_magicyuan876_yuheng_internal_types.LocalEngineConfig": {
-            "type": "object",
-            "properties": {
-                "path_prefix": {
-                    "type": "string"
                 }
             }
         },
@@ -21556,36 +21479,6 @@ const docTemplate = `{
                 "RuntimeTaskCompleted"
             ]
         },
-        "github_com_magicyuan876_yuheng_internal_types.S3EngineConfig": {
-            "type": "object",
-            "properties": {
-                "access_key": {
-                    "type": "string"
-                },
-                "addressing_style": {
-                    "description": "AddressingStyle selects how the bucket appears in request URLs:\n\"path\" is endpoint/bucket/key, \"virtual\" is bucket.endpoint/key (Aliyun\nOSS, Tencent COS, Volcengine TOS and Huawei OBS only accept this one),\nand \"\"/\"auto\" picks virtual-hosted for AWS endpoints and path-style for\nany other custom endpoint, which is what MinIO and RustFS need.",
-                    "type": "string"
-                },
-                "bucket_name": {
-                    "type": "string"
-                },
-                "endpoint": {
-                    "type": "string"
-                },
-                "path_prefix": {
-                    "type": "string"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "secret_key": {
-                    "type": "string"
-                },
-                "use_ssl": {
-                    "type": "boolean"
-                }
-            }
-        },
         "github_com_magicyuan876_yuheng_internal_types.SearchParams": {
             "type": "object",
             "properties": {
@@ -21892,7 +21785,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "addressing_style": {
-                    "description": "AddressingStyle is \"\", \"auto\", \"path\" or \"virtual\"; see S3EngineConfig.",
+                    "description": "AddressingStyle selects how the bucket appears in request URLs:\n\"path\" is endpoint/bucket/key, \"virtual\" is bucket.endpoint/key (Aliyun\nOSS, Tencent COS, Volcengine TOS and Huawei OBS only accept this one),\nand \"\"/\"auto\" picks virtual-hosted for AWS endpoints and path-style for\nany other custom endpoint, which is what MinIO and RustFS need.",
                     "type": "string"
                 },
                 "bucket_name": {
@@ -21931,30 +21824,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "source": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_magicyuan876_yuheng_internal_types.StorageEngineConfig": {
-            "type": "object",
-            "properties": {
-                "default_provider": {
-                    "description": "\"local\" or \"s3\"",
-                    "type": "string"
-                },
-                "local": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.LocalEngineConfig"
-                },
-                "s3": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.S3EngineConfig"
-                }
-            }
-        },
-        "github_com_magicyuan876_yuheng_internal_types.StorageProviderConfig": {
-            "type": "object",
-            "properties": {
-                "provider": {
-                    "description": "\"local\" or \"s3\"",
                     "type": "string"
                 }
             }
@@ -22221,14 +22090,6 @@ const docTemplate = `{
                 "status": {
                     "description": "Status",
                     "type": "string"
-                },
-                "storage_engine_config": {
-                    "description": "Storage engine config: parameters for Local and S3. Used for document/file storage and docreader.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageEngineConfig"
-                        }
-                    ]
                 },
                 "storage_quota": {
                     "description": "Storage quota (Bytes), default is 10GB, including vector, original file, text, index, etc.",
@@ -24204,23 +24065,6 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.GetStorageEngineStatusResponse": {
-            "type": "object",
-            "properties": {
-                "allowed_providers": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "engines": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handler.StorageEngineStatusItem"
-                    }
-                }
-            }
-        },
         "internal_handler.GetSystemInfoResponse": {
             "type": "object",
             "properties": {
@@ -24329,7 +24173,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "multimodal": {
-                    "description": "多模态配置（仅模型相关；存储引擎在 storageProvider 中配置）",
+                    "description": "多模态配置（仅模型相关）",
                     "type": "object",
                     "properties": {
                         "enabled": {
@@ -24386,10 +24230,7 @@ const docTemplate = `{
                     }
                 },
                 "storageBackendId": {
-                    "type": "string"
-                },
-                "storageProvider": {
-                    "description": "存储引擎选择（\"local\" | \"s3\"），影响文档上传与文档内图片存储，参数从全局设置读取",
+                    "description": "StorageBackendID rebinds the knowledge base: files added from now on go\nto this backend. Existing files stay on the backend they were written to\nand keep resolving through their resource rows, so a knowledge base with\nfiles may be rebound. Empty leaves the binding as it is.",
                     "type": "string"
                 },
                 "vlm_config": {
@@ -24854,49 +24695,6 @@ const docTemplate = `{
             "properties": {
                 "shared": {
                     "type": "boolean"
-                }
-            }
-        },
-        "internal_handler.StorageCheckRequest": {
-            "type": "object",
-            "properties": {
-                "provider": {
-                    "description": "\"local\" or \"s3\"",
-                    "type": "string"
-                },
-                "s3": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.S3EngineConfig"
-                }
-            }
-        },
-        "internal_handler.StorageCheckResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "ok": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "internal_handler.StorageEngineStatusItem": {
-            "type": "object",
-            "properties": {
-                "allowed": {
-                    "type": "boolean"
-                },
-                "available": {
-                    "description": "whether the engine can be used",
-                    "type": "boolean"
-                },
-                "description": {
-                    "description": "short description for UI",
-                    "type": "string"
-                },
-                "name": {
-                    "description": "\"local\" or \"s3\"",
-                    "type": "string"
                 }
             }
         },

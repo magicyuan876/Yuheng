@@ -40,8 +40,6 @@ type Tenant struct {
 	// Credentials config: tenant-level third-party provider credentials.
 	// See CredentialsConfig — currently an empty extension point.
 	Credentials *CredentialsConfig `yaml:"credentials" json:"credentials" gorm:"type:jsonb"`
-	// Storage engine config: parameters for Local and S3. Used for document/file storage and docreader.
-	StorageEngineConfig *StorageEngineConfig `yaml:"storage_engine_config" json:"storage_engine_config" gorm:"type:jsonb"`
 	// DefaultStorageBackendID is the backend the workspace's own writes go
 	// to (chat images, session attachments, temporary documents) and the one
 	// new knowledge bases and docs spaces bind to. Always set: a new workspace
@@ -442,93 +440,6 @@ func (c *ParserEngineConfig) Value() (driver.Value, error) {
 
 // Scan implements the sql.Scanner interface for ParserEngineConfig
 func (c *ParserEngineConfig) Scan(value interface{}) error {
-	if value == nil {
-		return nil
-	}
-	b, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-	return json.Unmarshal(b, c)
-}
-
-// Storage provider names. Object storage converges to two providers: the
-// zero-dependency local filesystem and any S3-compatible service (RustFS,
-// MinIO, AWS S3, Aliyun OSS, Tencent COS, Volcengine TOS, ...) reached through
-// its S3 endpoint.
-const (
-	StorageProviderLocal = "local"
-	StorageProviderS3    = "s3"
-)
-
-// S3 addressing styles. See S3EngineConfig.AddressingStyle.
-const (
-	S3AddressingAuto    = "auto"
-	S3AddressingPath    = "path"
-	S3AddressingVirtual = "virtual"
-)
-
-// ValidateS3AddressingStyle accepts the empty string (meaning auto) and the
-// three named styles, and rejects everything else so a typo cannot silently
-// fall back to a style the operator did not ask for.
-func ValidateS3AddressingStyle(style string) error {
-	switch style {
-	case "", S3AddressingAuto, S3AddressingPath, S3AddressingVirtual:
-		return nil
-	default:
-		return fmt.Errorf("addressing_style must be one of auto, path or virtual, got %q", style)
-	}
-}
-
-// StorageEngineConfig holds tenant-level storage engine parameters for the two
-// providers: the local filesystem and S3-compatible object storage.
-// Knowledge bases select which provider to use; parameters are read from here.
-type StorageEngineConfig struct {
-	DefaultProvider string             `json:"default_provider"` // "local" or "s3"
-	Local           *LocalEngineConfig `json:"local,omitempty"`
-	S3              *S3EngineConfig    `json:"s3,omitempty"`
-}
-
-// Validate rejects a config whose provider settings cannot be used.
-func (c *StorageEngineConfig) Validate() error {
-	if c == nil || c.S3 == nil {
-		return nil
-	}
-	return ValidateS3AddressingStyle(c.S3.AddressingStyle)
-}
-
-// LocalEngineConfig is for local file system storage (single-machine deployment only).
-type LocalEngineConfig struct {
-	PathPrefix string `json:"path_prefix"`
-}
-
-// S3EngineConfig is for any S3-compatible object storage.
-type S3EngineConfig struct {
-	Endpoint   string `json:"endpoint"`
-	Region     string `json:"region"`
-	AccessKey  string `json:"access_key"`
-	SecretKey  string `json:"secret_key"`
-	BucketName string `json:"bucket_name"`
-	PathPrefix string `json:"path_prefix"`
-	UseSSL     bool   `json:"use_ssl"`
-	// AddressingStyle selects how the bucket appears in request URLs:
-	// "path" is endpoint/bucket/key, "virtual" is bucket.endpoint/key (Aliyun
-	// OSS, Tencent COS, Volcengine TOS and Huawei OBS only accept this one),
-	// and ""/"auto" picks virtual-hosted for AWS endpoints and path-style for
-	// any other custom endpoint, which is what MinIO and RustFS need.
-	AddressingStyle string `json:"addressing_style"`
-}
-
-// Value implements the driver.Valuer interface for StorageEngineConfig
-func (c *StorageEngineConfig) Value() (driver.Value, error) {
-	if c == nil {
-		return nil, nil
-	}
-	return json.Marshal(c)
-}
-
-// Scan implements the sql.Scanner interface for StorageEngineConfig
-func (c *StorageEngineConfig) Scan(value interface{}) error {
 	if value == nil {
 		return nil
 	}

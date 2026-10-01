@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	werrors "github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
@@ -49,13 +48,6 @@ func (s *tenantService) CreateTenant(ctx context.Context, tenant *types.Tenant) 
 	// backend, until it registers or picks another default.
 	if tenant.DefaultStorageBackendID == "" {
 		tenant.DefaultStorageBackendID = types.EnvStorageBackendID
-	}
-
-	if err := s.validateStorageBucketUniqueness(ctx, tenant); err != nil {
-		logger.ErrorWithFields(ctx, err, map[string]interface{}{
-			"tenant_name": tenant.Name,
-		})
-		return nil, err
 	}
 
 	logger.Info(ctx, "Saving tenant information to database")
@@ -113,13 +105,6 @@ func (s *tenantService) UpdateTenant(ctx context.Context, tenant *types.Tenant) 
 	}
 
 	logger.Infof(ctx, "Updating tenant, ID: %d, name: %s", tenant.ID, tenant.Name)
-
-	if err := s.validateStorageBucketUniqueness(ctx, tenant); err != nil {
-		logger.ErrorWithFields(ctx, err, map[string]interface{}{
-			"tenant_id": tenant.ID,
-		})
-		return nil, err
-	}
 
 	tenant.UpdatedAt = time.Now()
 	logger.Info(ctx, "Saving tenant information to database")
@@ -234,71 +219,4 @@ func (s *tenantService) GetTenantByIDForUser(ctx context.Context, tenantID uint6
 	}
 
 	return tenant, nil
-}
-
-func (s *tenantService) validateStorageBucketUniqueness(ctx context.Context, tenant *types.Tenant) error {
-	if tenant.StorageEngineConfig == nil {
-		return nil
-	}
-
-	// Fetch existing tenant from DB to compare
-	var oldTenant *types.Tenant
-	if tenant.ID != 0 {
-		var err error
-		oldTenant, err = s.repo.GetTenantByID(ctx, tenant.ID)
-		if err != nil && err.Error() != "tenant not found" && err.Error() != "record not found" {
-			return err
-		}
-	}
-
-	// Fetch ALL tenants to check for collision.
-	allTenants, err := s.repo.ListTenants(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Helper to get bucket names from a StorageEngineConfig
-	getBuckets := func(cfg *types.StorageEngineConfig) map[string]string {
-		if cfg == nil {
-			return nil
-		}
-		res := make(map[string]string)
-		if cfg.S3 != nil && cfg.S3.BucketName != "" {
-			res[types.StorageProviderS3] = cfg.S3.BucketName
-		}
-		return res
-	}
-
-	var oldBuckets map[string]string
-	if oldTenant != nil {
-		oldBuckets = getBuckets(oldTenant.StorageEngineConfig)
-	}
-	newBuckets := getBuckets(tenant.StorageEngineConfig)
-
-	// Collect buckets used by other tenants
-	usedByOthers := make(map[string]map[string]bool) // provider -> set of bucket names
-	for _, t := range allTenants {
-		if t.ID == tenant.ID {
-			continue
-		}
-		tb := getBuckets(t.StorageEngineConfig)
-		for p, b := range tb {
-			if usedByOthers[p] == nil {
-				usedByOthers[p] = make(map[string]bool)
-			}
-			usedByOthers[p][b] = true
-		}
-	}
-
-	// Check if any NEW bucket is already used by someone else, AND it's different from the OLD bucket
-	for p, b := range newBuckets {
-		oldB := oldBuckets[p]
-		if b != oldB { // User is trying to change their bucket name or set a new one
-			if usedByOthers[p] != nil && usedByOthers[p][b] {
-				return werrors.NewBadRequestError("存储桶名称「" + b + "」已被其他空间使用，为保证数据隔离，请使用其他名称")
-			}
-		}
-	}
-
-	return nil
 }

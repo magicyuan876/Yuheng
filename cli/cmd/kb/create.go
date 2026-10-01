@@ -27,17 +27,13 @@ var kbCreateFields = []string{
 }
 
 type CreateOptions struct {
-	Name            string
-	Description     string
-	EmbeddingModel  string
-	ChatModel       string
-	StorageProvider string
-	DryRun          bool
+	Name           string
+	Description    string
+	EmbeddingModel string
+	ChatModel      string
+	StorageBackend string
+	DryRun         bool
 }
-
-// storageProviderValues mirrors the server enum in
-// internal/types/knowledgebase.go:StorageProviderConfig.Provider.
-var storageProviderValues = []string{"local", "s3"}
 
 // CreateService is the narrow SDK surface this command depends on.
 // *sdk.Client satisfies it via duck typing.
@@ -59,22 +55,13 @@ func NewCmdCreate(f *cmdutil.Factory) *cobra.Command {
 			}
 			fopts.ResolveDefault(iostreams.IO.IsStdoutTTY())
 			opts.Name = args[0]
-			// Validate --storage-provider enum before the dry-run gate so
-			// --dry-run rejects identically to the live path. ValidateEnum
-			// returns input.invalid_argument (exit 5) and normalizes to the
-			// canonical lowercase form — consistent with every other enum flag
-			// (model --type, message search --mode).
-			// runCreate re-validates for direct-call callers.
-			canonSP, err := cmdutil.ValidateEnum("storage-provider", opts.StorageProvider, storageProviderValues)
-			if err != nil {
-				return err
-			}
-			opts.StorageProvider = canonSP
+			opts.StorageBackend = strings.TrimSpace(opts.StorageBackend)
 			if handled, err := cmdutil.HandleDryRun(c, opts.DryRun, cmdutil.DryRunPlan{
 				Action: "kb.create",
 				Args: map[string]any{
-					"name":        opts.Name,
-					"description": opts.Description,
+					"name":            opts.Name,
+					"description":     opts.Description,
+					"storage_backend": opts.StorageBackend,
 				},
 			}); handled {
 				return err
@@ -102,8 +89,8 @@ func NewCmdCreate(f *cmdutil.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&opts.Description, "description", "", "Knowledge base description (optional)")
 	cmd.Flags().StringVar(&opts.EmbeddingModel, "embedding-model", "", "Embedding model id or name (optional; makes the KB retrieval-ready at creation)")
 	cmd.Flags().StringVar(&opts.ChatModel, "chat-model", "", "Chat/LLM model id or name (optional; pre-set the KB's answer model at creation)")
-	cmd.Flags().StringVar(&opts.StorageProvider, "storage-provider", "",
-		"Storage provider for documents in this KB: "+strings.Join(storageProviderValues, " | ")+" (optional; server default when unset)")
+	cmd.Flags().StringVar(&opts.StorageBackend, "storage-backend", "",
+		"Storage backend id new files of this KB go to (optional; the workspace default when unset)")
 	cmdutil.AddFormatFlag(cmd, kbCreateFields...)
 	cmdutil.AddDryRunFlag(cmd, &opts.DryRun)
 	cmdutil.SetAgentHelp(cmd, cmdutil.AgentHelp{
@@ -136,13 +123,9 @@ func runCreate(ctx context.Context, opts *CreateOptions, fopts *cmdutil.FormatOp
 	if opts.ChatModel != "" {
 		req.SummaryModelID = opts.ChatModel
 	}
-	if opts.StorageProvider != "" {
-		canonSP, err := cmdutil.ValidateEnum("storage-provider", opts.StorageProvider, storageProviderValues)
-		if err != nil {
-			return err
-		}
-		req.StorageProviderConfig = &sdk.StorageProviderConfig{Provider: canonSP}
-	}
+	// The server checks the backend is one this workspace may use and is
+	// active; an unknown id comes back as a 4xx like any other bad input.
+	req.StorageBackendID = strings.TrimSpace(opts.StorageBackend)
 
 	created, err := svc.CreateKnowledgeBase(ctx, req)
 	if err != nil {

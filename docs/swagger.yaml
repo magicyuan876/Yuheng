@@ -1129,11 +1129,6 @@ definitions:
           is read through its own resource row, so the binding may change while
           the knowledge base has files.
         type: string
-      storage_provider_config:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageProviderConfig'
-        description: 'Storage provider config (new): only stores provider selection;
-          credentials from workspace StorageEngineConfig'
       summary_model_id:
         description: Summary model ID
         type: string
@@ -1332,11 +1327,6 @@ definitions:
         type: array
       total:
         type: integer
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.LocalEngineConfig:
-    properties:
-      path_prefix:
-        type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.LoginRequest:
     properties:
@@ -2292,31 +2282,6 @@ definitions:
     - RuntimeTaskRetry
     - RuntimeTaskArchived
     - RuntimeTaskCompleted
-  github_com_magicyuan876_yuheng_internal_types.S3EngineConfig:
-    properties:
-      access_key:
-        type: string
-      addressing_style:
-        description: |-
-          AddressingStyle selects how the bucket appears in request URLs:
-          "path" is endpoint/bucket/key, "virtual" is bucket.endpoint/key (Aliyun
-          OSS, Tencent COS, Volcengine TOS and Huawei OBS only accept this one),
-          and ""/"auto" picks virtual-hosted for AWS endpoints and path-style for
-          any other custom endpoint, which is what MinIO and RustFS need.
-        type: string
-      bucket_name:
-        type: string
-      endpoint:
-        type: string
-      path_prefix:
-        type: string
-      region:
-        type: string
-      secret_key:
-        type: string
-      use_ssl:
-        type: boolean
-    type: object
   github_com_magicyuan876_yuheng_internal_types.SearchParams:
     properties:
       disable_keywords_match:
@@ -2559,7 +2524,12 @@ definitions:
       access_key_id:
         type: string
       addressing_style:
-        description: AddressingStyle is "", "auto", "path" or "virtual"; see S3EngineConfig.
+        description: |-
+          AddressingStyle selects how the bucket appears in request URLs:
+          "path" is endpoint/bucket/key, "virtual" is bucket.endpoint/key (Aliyun
+          OSS, Tencent COS, Volcengine TOS and Huawei OBS only accept this one),
+          and ""/"auto" picks virtual-hosted for AWS endpoints and path-style for
+          any other custom endpoint, which is what MinIO and RustFS need.
         type: string
       bucket_name:
         type: string
@@ -2585,22 +2555,6 @@ definitions:
       provider:
         type: string
       source:
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.StorageEngineConfig:
-    properties:
-      default_provider:
-        description: '"local" or "s3"'
-        type: string
-      local:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.LocalEngineConfig'
-      s3:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.S3EngineConfig'
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.StorageProviderConfig:
-    properties:
-      provider:
-        description: '"local" or "s3"'
         type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.SubmitJoinRequestRequest:
@@ -2811,11 +2765,6 @@ definitions:
       status:
         description: Status
         type: string
-      storage_engine_config:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageEngineConfig'
-        description: 'Storage engine config: parameters for Local and S3. Used for
-          document/file storage and docreader.'
       storage_quota:
         description: Storage quota (Bytes), default is 10GB, including vector, original
           file, text, index, etc.
@@ -4294,17 +4243,6 @@ definitions:
     required:
     - model_id
     type: object
-  internal_handler.GetStorageEngineStatusResponse:
-    properties:
-      allowed_providers:
-        items:
-          type: string
-        type: array
-      engines:
-        items:
-          $ref: '#/definitions/internal_handler.StorageEngineStatusItem'
-        type: array
-    type: object
   internal_handler.GetSystemInfoResponse:
     properties:
       build_time:
@@ -4387,7 +4325,7 @@ definitions:
       llmModelId:
         type: string
       multimodal:
-        description: 多模态配置（仅模型相关；存储引擎在 storageProvider 中配置）
+        description: 多模态配置（仅模型相关）
         properties:
           enabled:
             type: boolean
@@ -4425,9 +4363,11 @@ definitions:
             type: integer
         type: object
       storageBackendId:
-        type: string
-      storageProvider:
-        description: 存储引擎选择（"local" | "s3"），影响文档上传与文档内图片存储，参数从全局设置读取
+        description: |-
+          StorageBackendID rebinds the knowledge base: files added from now on go
+          to this backend. Existing files stay on the backend they were written to
+          and keep resolving through their resource rows, so a knowledge base with
+          files may be rebound. Empty leaves the binding as it is.
         type: string
       vlm_config:
         $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.VLMConfig'
@@ -4758,35 +4698,6 @@ definitions:
         type: boolean
     required:
     - shared
-    type: object
-  internal_handler.StorageCheckRequest:
-    properties:
-      provider:
-        description: '"local" or "s3"'
-        type: string
-      s3:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.S3EngineConfig'
-    type: object
-  internal_handler.StorageCheckResponse:
-    properties:
-      message:
-        type: string
-      ok:
-        type: boolean
-    type: object
-  internal_handler.StorageEngineStatusItem:
-    properties:
-      allowed:
-        type: boolean
-      available:
-        description: whether the engine can be used
-        type: boolean
-      description:
-        description: short description for UI
-        type: string
-      name:
-        description: '"local" or "s3"'
-        type: string
     type: object
   internal_handler.SuggestionEventRequest:
     properties:
@@ -9861,11 +9772,6 @@ paths:
       - description: VLM接口类型
         in: formData
         name: vlm_interface_type
-        type: string
-      - description: 存储类型(local/s3)
-        in: formData
-        name: storage_type
-        required: true
         type: string
       produces:
       - application/json
@@ -15946,41 +15852,6 @@ paths:
       summary: 使用当前参数检测解析引擎可用性
       tags:
       - 系统
-  /system/storage-engine-check:
-    post:
-      consumes:
-      - application/json
-      description: 使用当前填写的参数测试 S3 兼容存储的连通性，不保存配置
-      parameters:
-      - description: 存储引擎配置
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.StorageCheckRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_handler.StorageCheckResponse'
-      summary: 测试存储引擎连通性
-      tags:
-      - 系统
-  /system/storage-engine-status:
-    get:
-      description: 返回 Local、S3 各存储引擎的可用状态及说明，供全局设置与知识库选择使用
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_handler.GetStorageEngineStatusResponse'
-      summary: 获取存储引擎状态
-      tags:
-      - 系统
   /system/upload-limits:
     get:
       description: 返回文档/视频上传上限（MB）。值来自 SystemAdmin 可动态调整的系统设置
@@ -16592,7 +16463,9 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取空间级别的KV配置（支持web-search-config、prompt-templates、parser-engine-config、storage-engine-config、chat-history-config、retrieval-config）
+      description: |-
+        获取空间级别的KV配置（支持web-search-config、prompt-templates、parser-engine-config、
+        chat-history-config、retrieval-config）
       parameters:
       - description: 配置键名
         in: path
@@ -16620,7 +16493,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: 更新空间级别的KV配置（支持web-search-config、parser-engine-config、storage-engine-config、chat-history-config、retrieval-config）
+      description: 更新空间级别的KV配置（支持web-search-config、parser-engine-config、chat-history-config、retrieval-config）
       parameters:
       - description: 配置键名
         in: path

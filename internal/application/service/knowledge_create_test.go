@@ -192,7 +192,9 @@ func TestCreateKnowledgeFromFilePersistsStoredFilePathOnCreate(t *testing.T) {
 	require.Equal(t, 1, task.calls)
 }
 
-func TestCreateKnowledgeFromImageFallsBackWhenLegacyStorageConfigIsIncomplete(t *testing.T) {
+// An image upload into a knowledge base with a VLM is stored through the
+// knowledge base's writer and queued for processing, like any other file.
+func TestCreateKnowledgeFromImageStoresAndQueuesIt(t *testing.T) {
 	t.Parallel()
 
 	repo := &createKnowledgeFileRepoStub{}
@@ -202,22 +204,15 @@ func TestCreateKnowledgeFromImageFallsBackWhenLegacyStorageConfigIsIncomplete(t 
 		ID:        "kb-1",
 		VLMConfig: types.VLMConfig{Enabled: true, ModelID: "vlm-1"},
 	}
-	kb.SetStorageProvider("s3")
 	svc := &knowledgeService{
 		repo:      repo,
 		kbService: &createKnowledgeFileKBServiceStub{kb: kb},
 		files:     storeOver(fileSvc),
 		task:      task,
 	}
-	ctx := context.WithValue(newCreateKnowledgeFileContext(), types.TenantInfoContextKey, &types.Tenant{
-		StorageEngineConfig: &types.StorageEngineConfig{
-			DefaultProvider: "s3",
-			S3:              &types.S3EngineConfig{AccessKey: "incomplete"},
-		},
-	})
 
 	knowledge, err := svc.CreateKnowledgeFromFile(
-		ctx,
+		newCreateKnowledgeFileContext(),
 		"kb-1",
 		newMultipartFileHeader(t, "image.png", "image bytes"),
 		nil,

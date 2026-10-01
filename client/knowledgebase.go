@@ -13,24 +13,29 @@ import (
 
 // KnowledgeBase represents a knowledge base
 type KnowledgeBase struct {
-	ID                    string                 `json:"id"`
-	Name                  string                 `json:"name"` // Name must be unique within the same tenant
-	Type                  string                 `json:"type"`
-	IsTemporary           bool                   `json:"is_temporary"`
-	IsPinned              bool                   `json:"is_pinned"`
-	Description           string                 `json:"description"`
-	TenantID              uint64                 `json:"tenant_id"`
-	ChunkingConfig        ChunkingConfig         `json:"chunking_config"`
-	ImageProcessingConfig ImageProcessingConfig  `json:"image_processing_config"`
-	FAQConfig             *FAQConfig             `json:"faq_config"`
-	EmbeddingModelID      string                 `json:"embedding_model_id"`
-	SummaryModelID        string                 `json:"summary_model_id"`
-	VLMConfig             VLMConfig              `json:"vlm_config"`
-	StorageProviderConfig *StorageProviderConfig `json:"storage_provider_config"`
-	ExtractConfig         *ExtractConfig         `json:"extract_config"`
-	AutoTagConfig         *AutoTagConfig         `json:"auto_tag_config"`
-	CreatedAt             time.Time              `json:"created_at"`
-	UpdatedAt             time.Time              `json:"updated_at"`
+	ID                    string                `json:"id"`
+	Name                  string                `json:"name"` // Name must be unique within the same tenant
+	Type                  string                `json:"type"`
+	IsTemporary           bool                  `json:"is_temporary"`
+	IsPinned              bool                  `json:"is_pinned"`
+	Description           string                `json:"description"`
+	TenantID              uint64                `json:"tenant_id"`
+	ChunkingConfig        ChunkingConfig        `json:"chunking_config"`
+	ImageProcessingConfig ImageProcessingConfig `json:"image_processing_config"`
+	FAQConfig             *FAQConfig            `json:"faq_config"`
+	EmbeddingModelID      string                `json:"embedding_model_id"`
+	SummaryModelID        string                `json:"summary_model_id"`
+	VLMConfig             VLMConfig             `json:"vlm_config"`
+	// StorageBackendID is the storage backend new files go to. Leave it empty
+	// when creating to bind the workspace default.
+	StorageBackendID string `json:"storage_backend_id,omitempty"`
+	// StorageBackend names the bound backend in responses; the server fills
+	// it for knowledge bases of the caller's own workspace.
+	StorageBackend *StorageBackendRef `json:"storage_backend,omitempty"`
+	ExtractConfig  *ExtractConfig     `json:"extract_config"`
+	AutoTagConfig  *AutoTagConfig     `json:"auto_tag_config"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
 	// Computed fields (not stored in database)
 	KnowledgeCount  int64 `json:"knowledge_count"`
 	ChunkCount      int64 `json:"chunk_count"`
@@ -73,9 +78,14 @@ type VLMConfig struct {
 	ModelID string `json:"model_id"`
 }
 
-// StorageProviderConfig stores the KB-level storage provider selection.
-type StorageProviderConfig struct {
-	Provider string `json:"provider"`
+// StorageBackendRef names a storage backend inside a knowledge base
+// response: enough to show and choose it, nothing about where it is.
+type StorageBackendRef struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Provider  string `json:"provider"`
+	Source    string `json:"source"`
+	IsBuiltin bool   `json:"is_builtin"`
 }
 
 // ExtractConfig represents the extract configuration for a knowledge base

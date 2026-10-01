@@ -214,9 +214,8 @@ func RegisterAuthRoutes(r *gin.RouterGroup, handler *handler.AuthHandler, g *rba
 
 // RegisterSystemRoutes registers system information routes
 //
-// Reads (GetSystemInfo / ListParserEngines / GetStorageEngineStatus)
-// are gated to Viewer+ — any tenant member can see "is the parser
-// reachable". The /*-check / /reconnect endpoints actively probe
+// Reads (GetSystemInfo / ListParserEngines) are gated to Viewer+ — any
+// tenant member can see "is the parser reachable". The /*-check / /reconnect endpoints actively probe
 // remote services with tenant credentials and could trigger network
 // fanout, so they're Admin+.
 func RegisterSystemRoutes(
@@ -241,8 +240,6 @@ func RegisterSystemRoutes(
 		systemRoutes.GET("/parser-engines", g.Viewer(), handler.ListParserEngines)
 		systemRoutes.POST("/parser-engines/check", g.PlatformManaged(), handler.CheckParserEngines)
 		systemRoutes.POST("/docreader/reconnect", g.PlatformManaged(), handler.ReconnectDocReader)
-		systemRoutes.GET("/storage-engine-status", g.Viewer(), handler.GetStorageEngineStatus)
-		systemRoutes.POST("/storage-engine-check", g.PlatformManaged(), handler.CheckStorageEngine)
 	}
 }
 

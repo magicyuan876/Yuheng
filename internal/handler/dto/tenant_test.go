@@ -17,7 +17,6 @@ func TestTenantResponse_ViewerOmitsSecrets(t *testing.T) {
 	assert.NotContains(t, s, "tenant-api-key-123")
 	assert.NotContains(t, s, "wk-app-secret-def")
 	assert.NotContains(t, s, "parser-secret-123")
-	assert.NotContains(t, s, "s3-secret-789")
 	assert.NotContains(t, s, "web_search_config")
 	assert.NotContains(t, s, "parser_engine_config")
 	assert.NotContains(t, s, "storage_engine_config")
@@ -41,8 +40,6 @@ func TestTenantResponse_AdminGetsRedactedIntegrationConfigs(t *testing.T) {
 	assert.Equal(t, types.RedactedSecretPlaceholder, resp.WebSearchConfig.ProxyURL)
 	require.NotNil(t, resp.ParserEngineConfig)
 	assert.Equal(t, types.RedactedSecretPlaceholder, resp.ParserEngineConfig.MinerUAPIKey)
-	require.NotNil(t, resp.StorageEngineConfig.S3)
-	assert.Equal(t, types.RedactedSecretPlaceholder, resp.StorageEngineConfig.S3.SecretKey)
 }
 
 func TestTenantResponsesCrossTenant_RedactsEvenForOwnerContext(t *testing.T) {
@@ -64,13 +61,6 @@ func sampleSecretTenant() *types.Tenant {
 		ParserEngineConfig: &types.ParserEngineConfig{
 			MinerUAPIKey:          "parser-secret-123",
 			PaddleOCRVLCloudToken: "paddle-secret-456",
-		},
-		StorageEngineConfig: &types.StorageEngineConfig{
-			DefaultProvider: "s3",
-			S3: &types.S3EngineConfig{
-				AccessKey: "s3-access-id",
-				SecretKey: "s3-secret-789",
-			},
 		},
 	}
 }

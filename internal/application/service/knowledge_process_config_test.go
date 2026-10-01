@@ -395,20 +395,15 @@ func TestValidateProcessOverrides_NonMediaFileTypes(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestValidateProcessOverrides_ImageAllowsStorageFallback(t *testing.T) {
+// An image needs a VLM; where it is stored has no bearing on it.
+func TestValidateProcessOverrides_ImageWithVLM(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.WithValue(context.Background(), types.TenantInfoContextKey, &types.Tenant{
-		StorageEngineConfig: &types.StorageEngineConfig{
-			S3: &types.S3EngineConfig{AccessKey: "id"},
-		},
-	})
 	kb := &types.KnowledgeBase{
 		VLMConfig: types.VLMConfig{Enabled: true, ModelID: "vlm-1"},
 	}
-	kb.SetStorageProvider("s3")
 
-	err := ValidateProcessOverrides(ctx, kb, &types.KnowledgeProcessOverrides{}, []string{"png"})
+	err := ValidateProcessOverrides(context.Background(), kb, &types.KnowledgeProcessOverrides{}, []string{"png"})
 	require.NoError(t, err)
 }
 

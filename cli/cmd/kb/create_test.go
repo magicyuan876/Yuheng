@@ -172,39 +172,23 @@ func TestCreate_JSONOutput(t *testing.T) {
 	assert.Contains(t, got, `"name":"Eng"`)
 }
 
-func TestCreate_StorageProvider_InjectsRequest(t *testing.T) {
+func TestCreate_StorageBackend_InjectsRequest(t *testing.T) {
 	_, _ = iostreams.SetForTest(t)
 	svc := &fakeCreateSvc{resp: &sdk.KnowledgeBase{ID: "kb_s", Name: "n"}}
-	opts := &CreateOptions{Name: "n", StorageProvider: "Local"}
+	opts := &CreateOptions{Name: "n", StorageBackend: " team-s3 "}
 	require.NoError(t, runCreate(context.Background(), opts, &cmdutil.FormatOptions{Mode: cmdutil.FormatText}, svc))
 
-	require.NotNil(t, svc.got.StorageProviderConfig)
-	assert.Equal(t, "local", svc.got.StorageProviderConfig.Provider, "value should be lowercased + trimmed before send")
+	assert.Equal(t, "team-s3", svc.got.StorageBackendID, "the backend id is sent trimmed")
 }
 
-func TestCreate_StorageProvider_InvalidValueReturnsInputError(t *testing.T) {
-	_, _ = iostreams.SetForTest(t)
-	svc := &fakeCreateSvc{}
-	opts := &CreateOptions{Name: "n", StorageProvider: "azure"}
-	err := runCreate(context.Background(), opts, &cmdutil.FormatOptions{Mode: cmdutil.FormatText}, svc)
-	require.Error(t, err)
-
-	// A bad enum *value* (cobra accepted the string; the app rejected it) is an
-	// app-level input error → exit 5, consistent with every other enum flag
-	// (model --type, message search --mode).
-	var typed *cmdutil.Error
-	require.ErrorAs(t, err, &typed)
-	assert.Equal(t, cmdutil.CodeInputInvalidArgument, typed.Code)
-	assert.Equal(t, 5, cmdutil.ExitCode(err), "invalid --storage-provider must exit 5 (app-level input validation)")
-	assert.Contains(t, err.Error(), "--storage-provider")
-	assert.Nil(t, svc.got, "SDK must not be called when input validation fails")
-}
-
-func TestCreate_StorageProvider_OmittedWhenEmpty(t *testing.T) {
+func TestCreate_StorageBackend_OmittedWhenEmpty(t *testing.T) {
 	_, _ = iostreams.SetForTest(t)
 	svc := &fakeCreateSvc{resp: &sdk.KnowledgeBase{ID: "kb_n", Name: "n"}}
-	opts := &CreateOptions{Name: "n"} // no --storage-provider
+	opts := &CreateOptions{Name: "n"} // no --storage-backend
 	require.NoError(t, runCreate(context.Background(), opts, &cmdutil.FormatOptions{Mode: cmdutil.FormatText}, svc))
 
-	assert.Nil(t, svc.got.StorageProviderConfig, "empty flag must omit StorageProviderConfig (let server pick default)")
+	assert.Empty(t, svc.got.StorageBackendID, "an empty flag lets the server bind the workspace default")
+	body, err := json.Marshal(svc.got)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "storage_backend_id", "an empty id is not sent at all")
 }

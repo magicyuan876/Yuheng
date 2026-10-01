@@ -461,7 +461,7 @@ func TestDuplicateKnowledgeBase_CreatesSettingsOnlyDuplicate(t *testing.T) {
 		SummaryModelID:        "summary-1",
 		VLMConfig:             types.VLMConfig{Enabled: true, ModelID: "vlm-1"},
 		ASRConfig:             types.ASRConfig{Enabled: true, ModelID: "asr-1", Language: "zh"},
-		StorageProviderConfig: &types.StorageProviderConfig{Provider: "local"},
+		StorageBackendID:      "team-s3",
 		ExtractConfig: &types.ExtractConfig{
 			Enabled: true,
 			Text:    "extract entities",
@@ -502,8 +502,7 @@ func TestDuplicateKnowledgeBase_CreatesSettingsOnlyDuplicate(t *testing.T) {
 	assert.Equal(t, source.SummaryModelID, target.SummaryModelID)
 	assert.Equal(t, source.VLMConfig, target.VLMConfig)
 	assert.Equal(t, source.ASRConfig, target.ASRConfig)
-	require.NotNil(t, target.StorageProviderConfig)
-	assert.Equal(t, "local", target.StorageProviderConfig.Provider)
+	assert.Equal(t, "team-s3", target.StorageBackendID, "the copy writes to the source's backend")
 	require.NotNil(t, target.ExtractConfig)
 	assert.Equal(t, source.ExtractConfig.Text, target.ExtractConfig.Text)
 	require.NotNil(t, target.QuestionGenerationConfig)

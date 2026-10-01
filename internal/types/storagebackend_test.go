@@ -133,15 +133,27 @@ func TestStorageBackendValidate(t *testing.T) {
 	}
 }
 
-func TestStorageEngineConfigValidate(t *testing.T) {
-	assert.NoError(t, (*StorageEngineConfig)(nil).Validate())
-	assert.NoError(t, (&StorageEngineConfig{DefaultProvider: "local"}).Validate())
+func TestValidateS3AddressingStyle(t *testing.T) {
 	for _, style := range []string{"", "auto", "path", "virtual"} {
-		cfg := &StorageEngineConfig{S3: &S3EngineConfig{AddressingStyle: style}}
-		assert.NoError(t, cfg.Validate(), style)
+		assert.NoError(t, ValidateS3AddressingStyle(style), style)
 	}
-	bad := &StorageEngineConfig{S3: &S3EngineConfig{AddressingStyle: "bucket-first"}}
-	assert.Error(t, bad.Validate())
+	assert.Error(t, ValidateS3AddressingStyle("bucket-first"))
+}
+
+func TestStorageBackendConfigMergeSecrets(t *testing.T) {
+	stored := StorageBackendConfig{AccessKeyID: "stored-ak", SecretAccessKey: "stored-sk", Region: "us-east-1"}
+
+	kept := StorageBackendConfig{AccessKeyID: RedactedSecretPlaceholder, SecretAccessKey: RedactedSecretPlaceholder}.
+		MergeSecrets(stored)
+	assert.Equal(t, "stored-ak", kept.AccessKeyID, "the placeholder the client was shown keeps the stored key")
+	assert.Equal(t, "stored-sk", kept.SecretAccessKey)
+
+	cleared := StorageBackendConfig{}.MergeSecrets(stored)
+	assert.Empty(t, cleared.AccessKeyID, "empty keys select the default credential chain")
+	assert.Empty(t, cleared.SecretAccessKey)
+
+	replaced := StorageBackendConfig{AccessKeyID: "new-ak", SecretAccessKey: "new-sk"}.MergeSecrets(stored)
+	assert.Equal(t, "new-ak", replaced.AccessKeyID)
 }
 
 func TestStorageBackendRejectsTraversingPathPrefix(t *testing.T) {

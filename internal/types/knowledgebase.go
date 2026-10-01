@@ -87,8 +87,6 @@ type KnowledgeBase struct {
 	VLMConfig VLMConfig `yaml:"vlm_config"              json:"vlm_config"              gorm:"type:json"`
 	// ASR config (Automatic Speech Recognition)
 	ASRConfig ASRConfig `yaml:"asr_config"              json:"asr_config"              gorm:"type:json"`
-	// Storage provider config (new): only stores provider selection; credentials from workspace StorageEngineConfig
-	StorageProviderConfig *StorageProviderConfig `yaml:"storage_provider_config" json:"storage_provider_config"  gorm:"column:storage_provider_config;type:jsonb"`
 	// StorageBackendID is the storage backend this knowledge base's new files
 	// are written to. Required (a new knowledge base takes the workspace
 	// default). It decides nothing about files already stored: each of those
@@ -322,60 +320,6 @@ func (c ChunkingConfig) ResolveParserEngineRule(fileType string) *ParserEngineRu
 
 func normalizeParserFileType(fileType string) string {
 	return strings.TrimPrefix(strings.ToLower(strings.TrimSpace(fileType)), ".")
-}
-
-// StorageProviderConfig stores the KB-level storage provider selection.
-// Credentials are managed at the tenant level (StorageEngineConfig).
-type StorageProviderConfig struct {
-	Provider string `yaml:"provider" json:"provider"` // "local" or "s3"
-}
-
-func (c StorageProviderConfig) Value() (driver.Value, error) {
-	return json.Marshal(c)
-}
-
-func (c *StorageProviderConfig) Scan(value interface{}) error {
-	if value == nil {
-		return nil
-	}
-	b, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-	return json.Unmarshal(b, c)
-}
-
-// GetStorageProvider returns the effective storage provider for this KB.
-func (kb *KnowledgeBase) GetStorageProvider() string {
-	if kb == nil {
-		return ""
-	}
-	if kb.StorageProviderConfig != nil {
-		p := strings.ToLower(strings.TrimSpace(kb.StorageProviderConfig.Provider))
-		if p != "" {
-			return p
-		}
-	}
-	return ""
-}
-
-// EffectiveStorageProvider returns the KB's storage provider, falling back to
-// the supplied tenant default when the KB does not pin one. This mirrors the
-// selection logic in resolveFileService and is used by clone preflight checks
-// to detect cross-storage-backend clones (which are not supported).
-func (kb *KnowledgeBase) EffectiveStorageProvider(tenantDefault string) string {
-	if p := kb.GetStorageProvider(); p != "" {
-		return p
-	}
-	return strings.ToLower(strings.TrimSpace(tenantDefault))
-}
-
-// SetStorageProvider writes the provider to the new StorageProviderConfig field.
-func (kb *KnowledgeBase) SetStorageProvider(provider string) {
-	if kb == nil {
-		return
-	}
-	kb.StorageProviderConfig = &StorageProviderConfig{Provider: provider}
 }
 
 // SharesStorageBackendWith reports whether two knowledge bases write to the

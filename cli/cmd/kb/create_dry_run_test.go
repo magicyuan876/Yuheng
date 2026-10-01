@@ -81,19 +81,13 @@ func TestKBCreate_DryRun_EmitsPlan(t *testing.T) {
 	assert.Nil(t, env.Data, "data must be omitted on dry-run (no real result)")
 }
 
-// TestKBCreate_DryRun_RejectsInvalidStorageProvider: --dry-run must reject
-// the same invalid --storage-provider value the live path rejects. Before
-// the fix the enum check lived only in runCreate(), which HandleDryRun
-// short-circuited past — so --dry-run silently accepted "garbage".
-func TestKBCreate_DryRun_RejectsInvalidStorageProvider(t *testing.T) {
-	iostreams.SetForTest(t)
+// TestKBCreate_DryRun_EchoesStorageBackend: the plan names the backend the
+// live call would bind, so an agent can check it before committing.
+func TestKBCreate_DryRun_EchoesStorageBackend(t *testing.T) {
+	out, _ := iostreams.SetForTest(t)
 	f := kbDryRunFactory(t)
 	root := withRootHarness(NewCmdCreate(f),
-		"foo", "--storage-provider", "garbage", "--dry-run", "--format", "json")
-	err := root.Execute()
-	require.Error(t, err, "dry-run must reject invalid --storage-provider")
-
-	// The enum check returns input.invalid_argument (exit 5) — make sure the
-	// dry-run path preserves that exact mapping (same as the live path).
-	assert.Equal(t, 5, cmdutil.ExitCode(err), "invalid --storage-provider must map to exit 5")
+		"foo", "--storage-backend", "team-s3", "--dry-run", "--format", "json")
+	require.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), `"storage_backend":"team-s3"`)
 }

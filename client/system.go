@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 )
 
@@ -28,32 +27,6 @@ type ParserEngine struct {
 	Label       string `json:"label"`
 	Description string `json:"description"`
 	Available   bool   `json:"available"`
-}
-
-// StorageEngineStatusItem describes one storage engine's availability
-type StorageEngineStatusItem struct {
-	Name        string `json:"name"`
-	Allowed     bool   `json:"allowed"`
-	Available   bool   `json:"available"`
-	Description string `json:"description"`
-}
-
-// StorageEngineStatusResponse is the response for storage engine status
-type StorageEngineStatusResponse struct {
-	Engines          []StorageEngineStatusItem `json:"engines"`
-	AllowedProviders []string                  `json:"allowed_providers"`
-}
-
-// StorageCheckRequest is the body for storage engine connectivity check
-type StorageCheckRequest struct {
-	Provider string          `json:"provider"`
-	S3       json.RawMessage `json:"s3,omitempty"`
-}
-
-// StorageCheckResponse is the response for storage engine check
-type StorageCheckResponse struct {
-	OK      bool   `json:"ok"`
-	Message string `json:"message"`
 }
 
 // DeploymentCapability describes whether a deployment exposes a feature route.
@@ -141,36 +114,4 @@ func (c *Client) ReconnectDocReader(ctx context.Context, addr string) error {
 		return err
 	}
 	return parseResponse(resp, nil)
-}
-
-// GetStorageEngineStatus gets the availability status of all storage engines
-func (c *Client) GetStorageEngineStatus(ctx context.Context) (*StorageEngineStatusResponse, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/system/storage-engine-status", nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	var result struct {
-		Code int                          `json:"code"`
-		Data *StorageEngineStatusResponse `json:"data"`
-	}
-	if err := parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Data, nil
-}
-
-// CheckStorageEngine tests connectivity for a storage engine
-func (c *Client) CheckStorageEngine(ctx context.Context, req *StorageCheckRequest) (*StorageCheckResponse, error) {
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/system/storage-engine-check", req, nil)
-	if err != nil {
-		return nil, err
-	}
-	var result struct {
-		Code int                   `json:"code"`
-		Data *StorageCheckResponse `json:"data"`
-	}
-	if err := parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Data, nil
 }
