@@ -179,7 +179,7 @@ Endpoints on private networks (such as `rustfs:9000` or an internal MinIO) are b
 
 To use a directory instead, set `STORAGE_TYPE=local`. A deployment with several app replicas cannot use `local`; see [Backup and upgrade](../../01-getting-started/05-backup-and-upgrade.md) (Chinese).
 
-File paths that start with `s3://` in existing knowledge bases stay valid; the old `minio://`, `cos://`, `tos://`, `oss://`, `ks3://` and `obs://` prefixes are no longer recognized.
+These variables configure the deployment storage (the `env` row among the storage backends), which is synced on every start; if you change the storage location while files are still stored at the old one, the server refuses to start. See [Storage backends](../../03-features/19-storage-backends.md) (Chinese).
 
 ### Upgrading
 

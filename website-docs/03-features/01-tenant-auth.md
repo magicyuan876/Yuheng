@@ -67,8 +67,7 @@ type Tenant struct {
     WebSearchConfig         *WebSearchConfig     `json:"web_search_config" gorm:"type:jsonb"`
     ParserEngineConfig      *ParserEngineConfig  `json:"parser_engine_config" gorm:"type:jsonb"`
     Credentials             *CredentialsConfig   `json:"credentials" gorm:"type:jsonb"`
-    StorageEngineConfig     *StorageEngineConfig `json:"storage_engine_config" gorm:"type:jsonb"`
-    DefaultStorageBackendID *string              `json:"default_storage_backend_id,omitempty"`
+    DefaultStorageBackendID string               `json:"default_storage_backend_id" gorm:"not null;default:'env'"`
     ChatHistoryConfig       *ChatHistoryConfig   `json:"chat_history_config" gorm:"type:jsonb"`
     RetrievalConfig         *RetrievalConfig     `json:"retrieval_config" gorm:"type:jsonb"`
     APIPrincipalConfig      *APIPrincipalConfig  `json:"-" gorm:"type:jsonb"`
@@ -76,7 +75,7 @@ type Tenant struct {
 }
 ```
 
-租户是配额（`StorageQuota` / `StorageUsed`，默认 10GB）与各类租户级配置（检索引擎、Web 搜索、解析引擎、凭证、存储引擎、聊天历史等）的挂载点。
+租户是配额（`StorageQuota` / `StorageUsed`，默认 10GB）与各类租户级配置（检索引擎、Web 搜索、解析引擎、凭证、聊天历史等）的挂载点。存储没有租户级配置：`DefaultStorageBackendID` 指向一个存储后端（新租户为部署存储 `env`），见[存储后端](19-storage-backends.md)。
 
 ### 1.2 User（用户）
 

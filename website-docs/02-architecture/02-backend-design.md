@@ -76,7 +76,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 | `dig.Group` 值组 | 可由扩展追加的集合：检索引擎描述符 `retrieve_engines`（`retriever.EngineGroup`）、知识健康检测器 `finding_detectors`（`findings.DetectorGroup`）、扩展路由 `route_registrars`（`extension.RouteRegistrarGroup`） |
 | `dig.In` 参数结构体 | `router.RouterParams` 内嵌 `dig.In`，一次注入约 55 个 Handler/Service 依赖；`docs.Params` 把知识服务、存储、收藏、知识健康等都标为 `optional:"true"`，缺一项只让对应功能不可用并记入 `Module.Degraded` |
 | `container.Invoke` 执行副作用 | 注册即启动的后台组件：`registerPoolCleanup`、`registerWebSearchProviders`、`startDataSourceScheduler`、`startAuditLogRetention`、`startReviewSweep`、`startHousekeepingService`、`startTemporaryDocumentCleanup`、14 个 `chatpipeline.NewPluginXxx`（插件自注册到 EventManager）、`router.RunAsynqServer` 或 `router.RegisterSyncHandlers`、`recoverPendingWikiTasks` |
-| 适配器 Provide | 用闭包做接口转换：`func(s *service.StorageBackendService) interfaces.StorageBackendResolver { return s }`；`RetrieveEngineRegistry` 同实例同时暴露为 `StoreRegistry` |
+| 适配器 Provide | 用闭包做接口转换：`func(s *service.StorageBackendService) interfaces.StorageBackendService { return s }`；`RetrieveEngineRegistry` 同实例同时暴露为 `StoreRegistry` |
 
 ### 2.2 注册顺序与条件装配
 

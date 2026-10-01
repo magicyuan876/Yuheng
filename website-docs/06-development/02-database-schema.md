@@ -17,11 +17,11 @@ PostgreSQL 是 Yuheng **唯一**的数据库，生产与测试都是：
 ```text
 migrations/
 ├── embed.go       # //go:embed versioned/*.sql，把核心迁移编进二进制（migrations.Core()）
-├── versioned/     # 版本化迁移：000000–000089 与 000120–000132（.up.sql / .down.sql 成对）
+├── versioned/     # 版本化迁移：000000–000089 与 000120–000137（.up.sql / .down.sql 成对）
 └── paradedb/      # 00-init-db.sql（扩展与基础表初始化）、01-migrate-to-paradedb.sql（存量库切换）
 ```
 
-- `versioned/` 是唯一的增量历史，当前最新版本为 **000132**（`000132_api_key_hint`）；
+- `versioned/` 是唯一的增量历史，当前最新版本为 **000137**（`000137_resources_backend_required`）；
 - 000090–000119 **没有文件**：在线文档模块为了能独立合入，预留了 000120–000139 这段编号（见 `000120_docs_module.up.sql` 头部注释），后续的知识健康迁移也接在这段之后。golang-migrate 只要求版本号递增，不要求连续；
 - BM25 索引建在 `embeddings.content` 上，使用 `chinese_lindera` 分词器（`000002_embeddings`）。
 
@@ -57,6 +57,10 @@ migrations/
 | 000131 | 清理智能体收藏 | 删除 `user_resource_favorites` 中 `resource_type = 'agent'` 的行 |
 | 000132 | API Key 不再可还原 | 新增 `tenant_api_keys.key_hint`，删除 `api_key` 列；000065 留下的占位 Key（从未能认证）一并删除 |
 | 000133 | 删除空间级置顶列 | 删除 `knowledge_bases.is_pinned` / `pinned_at`（置顶自 000050 起按用户存在 `user_kb_pins`） |
+| 000134 | 存储配置只有一个来源 | 删除 `storage_backends.legacy_alias` 与每个空间的环境存储副本，新增全平台唯一的部署存储记录 `env`（`tenant_id` 为空）；空间默认、知识库与文档空间的存储绑定改为必填 |
+| 000135 | 删除空间存储配置 | DROP `tenants.storage_engine_config` |
+| 000136 | 删除知识库存储类型 | DROP `knowledge_bases.storage_provider_config` |
+| 000137 | 资源按后端定位 | `resources.storage_backend_id` 必填，DROP `resources.provider`，位置唯一索引改为 `(storage_backend_id, location_hash)` |
 
 ## 3. 最终表结构
 
@@ -66,7 +70,7 @@ migrations/
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
-| `tenants` | 租户（工作空间），多租户体系根 | `id`（SERIAL，起始 10000）、`name`、`retriever_engines`（JSONB）、`status`、`storage_quota`/`storage_used`、`context_config`/`conversation_config`/`web_search_config`/`credentials`（JSONB）、`default_storage_backend_id`（`agent_config` 为上游遗留的空列） |
+| `tenants` | 租户（工作空间），多租户体系根 | `id`（SERIAL，起始 10000）、`name`、`retriever_engines`（JSONB）、`status`、`storage_quota`/`storage_used`、`context_config`/`conversation_config`/`web_search_config`/`credentials`（JSONB）、`default_storage_backend_id`（必填，默认 `env`；`agent_config` 为上游遗留的空列） |
 | `users` | 登录用户 | `id`（UUID）、`username`（唯一）、`email`（唯一）、`password_hash`、`tenant_id`（FK→tenants，ON DELETE SET NULL）、`is_active`、`is_system_admin`、`can_access_all_tenants`、`preferences`（JSON） |
 | `auth_tokens` | 登录令牌 | `user_id`（FK→users，CASCADE）、`token`、`token_type`（access/refresh）、`expires_at`（TIMESTAMPTZ）、`is_revoked` |
 | `tenant_members` | 租户级 RBAC 成员关系 | `user_id`+`tenant_id`（软删除下唯一）、`role`（owner/admin/contributor/viewer）、`status`、`invited_by`、`joined_at` |
@@ -83,7 +87,7 @@ migrations/
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
 | `models` | AI 模型配置 | `tenant_id`（FK→tenants，CASCADE）、`name`/`display_name`、`type`（Embedding/Rerank/KnowledgeQA/VLLM/ASR）、`source`、`parameters`（JSONB，密钥加密）、`is_default`、`is_builtin`、`managed_by`、`status` |
-| `knowledge_bases` | 知识库 | `id`（UUID）、`tenant_id`、`name`、`type`（document/faq/wiki）、`chunking_config`/`image_processing_config`/`vlm_config`/`faq_config`/`asr_config`/`wiki_config`/`indexing_strategy`/`auto_tag_config`/`storage_provider_config`（JSONB）、`embedding_model_id`/`summary_model_id`、`vector_store_id`、`storage_backend_id`、`creator_id`、`is_temporary`、`activity_scope`、`review_interval_days`（0–3650，0 = 不复核） |
+| `knowledge_bases` | 知识库 | `id`（UUID）、`tenant_id`、`name`、`type`（document/faq/wiki）、`chunking_config`/`image_processing_config`/`vlm_config`/`faq_config`/`asr_config`/`wiki_config`/`indexing_strategy`/`auto_tag_config`（JSONB）、`embedding_model_id`/`summary_model_id`、`vector_store_id`、`storage_backend_id`（必填）、`creator_id`、`is_temporary`、`activity_scope`、`review_interval_days`（0–3650，0 = 不复核） |
 | `knowledges` | 知识条目（文档/网页/手工/FAQ 容器/文档镜像） | `id`、`tenant_id`、`knowledge_base_id`、`type`、`title`、`source`（VARCHAR(2048)）、`parse_status`（pending/processing/finalizing/completed/failed/deleting/cancelled）、`pending_subtasks_count`、`enable_status`、`file_name`/`file_type`/`file_size`/`file_path`/`file_hash`、`metadata`（内部入库状态，数据源条目含 `datasource_id` / `external_id`）、`custom_metadata`（用户元数据）、`folder_path`、`summary_status`、`channel`（web/api/feishu/notion/yuque/rss/ima/docs…）、`owner_id`、`reviewed_at`/`reviewed_by`、`processed_at`/`error_message`。没有 `tag_id` 列——标签走 `knowledge_tag_relations` |
 | `chunks` | 分块（检索最小单元） | `knowledge_base_id`、`knowledge_id`、`content`、`source_content`（解析器原始输出）、`content_revision`、`index_status`（ready/processing/failed）、`last_editor_id`、`context_header`、`chunk_index`、`start_at`/`end_at`、`pre_chunk_id`/`next_chunk_id`、`parent_chunk_id`、`chunk_type`（text/parent_text/image_ocr/image_caption/summary/faq/table_summary/wiki_page…）、`image_info`/`video_info`、`metadata`、`is_enabled`、`flags`、`status`、`content_hash`、`seq_id`、`tag_id`（FAQ 条目的单标签） |
 | `chunk_revisions` | 分块历史版本（000078） | `chunk_id`+`revision`（唯一）、`content`、`is_enabled`、`editor_id`、`edit_source`、`edited_at` |
@@ -139,8 +143,8 @@ migrations/
 | `data_sources` | 外部数据源连接（000029） | `tenant_id`、`knowledge_base_id`、`type`（feishu/lark/feishu_drive/lark_drive/notion/yuque/rss/gitlab/ima）、`config`（JSONB 凭据，加密）、`sync_schedule`（cron）、`sync_mode`（incremental/full）、`conflict_strategy`、`sync_deletions`、`last_sync_at`/`last_sync_cursor`/`last_sync_result` |
 | `sync_logs` | 每次同步的执行记录 | `data_source_id`（FK，CASCADE）、`status`、`started_at`/`finished_at`、各类计数、`error_message` |
 | `web_search_providers` | 联网搜索服务商配置（000030） | `tenant_id`、`name`、`provider`、`parameters`（JSONB）、`is_default`、`is_builtin` |
-| `storage_backends` | 对象存储后端（000068） | `tenant_id`、`name`（租户内唯一）、`provider`（local/s3）、`config`（JSONB）、`source`（user/system）、`legacy_alias`、`is_builtin` |
-| `resources` | 统一资源注册表（000069） | `handle`（短句柄，唯一）、`tenant_id`、`storage_backend_id`、`provider`、`physical_path`、`location_hash`、`mime_type`/`original_name`/`size`/`content_hash`、`lifecycle`（persistent/temporary）+`expires_at`、`state` |
+| `storage_backends` | 存储后端（000068、000134），存储配置的唯一来源 | `tenant_id`（部署存储 `env` 为空）、`name`（租户内唯一）、`provider`（local/s3）、`config`（JSONB，凭证加密；`env` 不存凭证）、`source`（user / env，`env` 全表唯一）、`is_builtin` |
+| `resources` | 统一资源注册表（000069、000137），文件位置的唯一记录 | `handle`（短句柄，唯一）、`tenant_id`、`storage_backend_id`（必填）、`physical_path`（后端内的原生位置）、`location_hash`（按后端唯一）、`mime_type`/`original_name`/`size`/`content_hash`、`lifecycle`（persistent/temporary）+`expires_at`、`state` |
 | `resource_bindings` | 资源 ↔ 属主（消息/知识/会话）多态绑定 | (`resource_id`,`owner_type`,`owner_id`,`relation`) 唯一 |
 | `resource_access_grants` | 资源临时访问令牌（`/r/:token`） | `token_hash`（唯一）、`resource_id`、`access_scope`、`expires_at`/`revoked_at` |
 | `task_pending_ops` | 通用持久待处理队列（000041，目前用于 Wiki） | `task_type`、`scope`+`scope_id`、`op`、`dedup_key`、`payload`、`fail_count`、`enqueued_at`/`claimed_at` |
@@ -154,7 +158,7 @@ migrations/
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
-| `docs_spaces` | 空间 | `slug`（租户内唯一）、`name`、`visibility`（private/open/public）、`default_role`（none/reader/writer）、`knowledge_base_id`（绑定的知识库）、`storage_backend_id`、`settings`、`quota_bytes`（0 = 不限，只有工作空间管理员可设） |
+| `docs_spaces` | 空间 | `slug`（租户内唯一）、`name`、`visibility`（private/open/public）、`default_role`（none/reader/writer）、`knowledge_base_id`（绑定的知识库）、`storage_backend_id`（必填）、`settings`、`quota_bytes`（0 = 不限，只有工作空间管理员可设） |
 | `docs_space_members` | 空间成员 | `space_id`、`principal_type`/`principal_id`（用户或组）、`role` |
 | `docs_pages` | 页面 | `short_id`（URL 标识，租户内唯一）、`space_id`、`parent_id`、`position`（分数索引，`COLLATE "C"`）、`title`、`content`（ProseMirror JSON，`ydoc` 的投影）、`ydoc`（Yjs 全量状态，协同的事实来源）、`ydoc_version`（乐观并发）、`text_content`、`tsv`（生成列，全文检索）、`is_locked`、`exclude_from_knowledge`、`knowledge_id`（镜像条目，NULL 表示未进入知识库）、`owner_id`、`superseded_by`（JSONB，被取代时的去向）、`source_refs`、`contributor_ids`、`creator_id`/`last_editor_id`、`content_updated_at` |
 | `docs_page_revisions` | 页面历史版本 | `page_id`、`version`、`title`、`content`、`text_content`、`editor_ids`、`reason` |
@@ -266,7 +270,7 @@ make migrate-goto version=120      # 迁移/回滚到指定版本
 
 ## 6. 如何新增一个迁移
 
-1. **创建文件**：`make migrate-create name=add_my_feature`，在 `migrations/versioned/` 下生成下一个版本号（当前最大为 `000132`，新迁移将是 `000133_add_my_feature.up.sql` / `.down.sql`）。由于 `embed.go` 用 `versioned/*.sql` 通配，新文件会自动编进二进制；
+1. **创建文件**：`make migrate-create name=add_my_feature`，在 `migrations/versioned/` 下生成下一个版本号（当前最大为 `000137`，新迁移将是 `000138_add_my_feature.up.sql` / `.down.sql`）。由于 `embed.go` 用 `versioned/*.sql` 通配，新文件会自动编进二进制；
 2. **编写 up SQL**：PostgreSQL 方言（JSONB、部分索引、TIMESTAMPTZ）。惯例：`IF NOT EXISTS` / `IF EXISTS` 保证可重入，开头结尾用 `RAISE NOTICE` 标记，文件头注释说明为什么这样设计；涉及 `embeddings` 表时参考既有迁移用 `current_setting('app.skip_embedding', true)` 门控；
 3. **编写 down SQL**：必须可逆，否则回滚链会断；
 4. **同步 GORM 模型**：在 `internal/types/`（或在线文档的 `internal/docs/model/`）对应 struct 增加字段。GORM 只做映射，**不使用 AutoMigrate**，schema 完全由 SQL 迁移驱动；

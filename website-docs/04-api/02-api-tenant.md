@@ -104,7 +104,6 @@ curl -X DELETE $BASE/api/v1/tenants/1 -H "Authorization: Bearer $TOKEN"
 | --- | --- | --- |
 | `web-search-config` | 网页搜索配置 | 读写都要 Admin+（API key 需 full-access 或 `manage_tenant_settings`），否则 403；开启集中管控后只有系统管理员能写 |
 | `parser-engine-config` | 空间级解析引擎覆盖 | 同上 |
-| `storage-engine-config` | 存储引擎配置（local / s3） | 同上 |
 | `chat-history-config` | 聊天历史索引配置 | 读 Viewer+，写 Admin+ |
 | `retrieval-config` | 全局检索配置 | 读 Viewer+，写 Admin+ |
 | `prompt-templates` | 系统提示词模板，按请求语言本地化 | 只读，不支持 PUT |
@@ -113,7 +112,6 @@ curl -X DELETE $BASE/api/v1/tenants/1 -H "Authorization: Bearer $TOKEN"
 
 - `web-search-config`：`max_results` 取 1-50。
 - `retrieval-config`：`vector_threshold`、`keyword_threshold` 取 0-1，`rerank_threshold` 取 -10 到 10，`embedding_top_k`、`rerank_top_k` 取 0-200。
-- `storage-engine-config`：`default_provider` 必须在 `STORAGE_ALLOW_LIST` 允许的列表内（缺省时取列表里第一个）。
 - `chat-history-config`：启用、设置了 `embedding_model_id` 且还没有关联知识库时，会自动建一个隐藏知识库并把它的 ID 写回配置；换了 embedding 模型则不沿用旧知识库。
 
 ### GET /api/v1/tenants/kv/:key

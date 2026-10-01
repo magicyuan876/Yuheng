@@ -258,7 +258,7 @@ flowchart TB
 | `api/vector-store.ts` / `api/storage-backend.ts` / `api/chunker/` | 向量库、存储后端、分块预览 |
 | `api/datasource/` | 数据源接入 |
 | `api/initialization/` | 知识库初始化与模型检测 |
-| `api/system/` | 系统信息、部署能力、上传上限、解析引擎、存储引擎状态、系统管理接口 |
+| `api/system/` | 系统信息、部署能力、上传上限、解析引擎、系统管理接口 |
 | `api/web-search-provider.ts` | Web 搜索 provider 配置 |
 | `api/wiki/` | 知识库 Wiki |
 | `api/message-suggestion.ts` | 推荐问题 |

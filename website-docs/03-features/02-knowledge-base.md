@@ -55,7 +55,7 @@ graph TB
     KB --> WIKI["WikiConfig (wiki_enabled 打开时)"]
     KB --> AT["AutoTagConfig (自动关联标签, 仅 document 类型)"]
     KB --> RV["ReviewIntervalDays (复核周期)"]
-    KB --> ST["StorageProviderConfig / StorageBackendID"]
+    KB --> ST["StorageBackendID (新文件写入的存储后端)"]
     KB --> VS["VectorStoreID (创建后不可改)"]
     CC --> PCR["ParserEngineRules (按文件类型选解析引擎)"]
     CC --> PC["父子分块 (parent_chunk_size / child_chunk_size)"]
@@ -132,8 +132,7 @@ graph TB
 
 ### 1.6 存储配置
 
-- **StorageProviderConfig**（新）：`provider ∈ {local, s3}`；
-- **StorageBackendID**：绑定具体存储后端实例，未绑定时用空间默认存储（见[存储后端](19-storage-backends.md)）；
+- **StorageBackendID**（必填）：新文件写入的存储后端实例，创建时不指定就绑定空间默认（见[存储后端](19-storage-backends.md)）。它只决定新文件写到哪里：已有文件按各自的资源记录读取，所以有文件的知识库也可以换实例。响应里另带 `storage_backend`（实例的 `id`、`name`、`provider`、`source`、`is_builtin`），只对知识库所属空间返回。
 
 ### 1.7 KB 计算字段
 

@@ -140,6 +140,10 @@ Next steps: run ./scripts/migrate.sh version ...
 | 000089 | 表 `custom_agents`、`agent_shares`、`tenant_disabled_shared_agents`、`mcp_tool_approvals`、`memory_*`（6 张）、`tenant_skills`、`tenant_skill_snapshots`、`im_channels`、`im_channel_sessions`、`embed_channels`；`sessions.agent_id`、`messages.agent_id` / `agent_tenant_id` / `agent_duration_ms`、`message_suggestion_sets.agent_id` / `agent_tenant_id`；并把 `sessions.agent_config` 改名为 `last_request_state`、`messages.agent_steps` 改名为 `turn_steps` | 自定义智能体、长期记忆、技能、IM 渠道绑定、嵌入渠道**全部丢失且不迁移**。其 `.down.sql` 只重建空表骨架，数据回不来；从 000089 往下回滚的路径也已不完整 |
 | 000121 | 列 `knowledge_bases.cos_config` | 先把存储 provider 拷进 `storage_provider_config`；列里遗留的腾讯云 COS 凭据被删除（不再有代码读取） |
 | 000123 | 列 `docs_pages.status`（`draft` / `published`） | 被 `exclude_from_knowledge` 取代：原来的草稿页变为「排除出知识库」，已发布页不变。旧版本无 `status` 语义 |
+| 000134 | 列 `storage_backends.legacy_alias`；每个空间的环境存储副本与别名记录（`legacy_alias` 或 `source = env` 的行） | 换成一条全平台共享的部署存储记录 `env`；原来指向副本的空间默认、知识库、文档空间绑定与资源记录都改指 `env`。空间注册的别名配置（来自旧的空间存储配置）随之删除。本版本面向重建部署，没有为旧数据保留兼容 |
+| 000135 | 列 `tenants.storage_engine_config` | 空间级的存储配置（含明文 S3 密钥）删除，存储只按存储后端实例配置 |
+| 000136 | 列 `knowledge_bases.storage_provider_config` | 知识库只按 `storage_backend_id` 绑定存储后端 |
+| 000137 | 列 `resources.provider`；索引 `idx_resources_tenant_location` | 文件位置只记后端 ID 与后端内位置，位置按后端唯一；旧版本写入的位置哈希不再参与去重 |
 
 另外：000044 的 `.down.sql` 会 `DROP TABLE audit_logs`，为防止误用，它要求会话里显式设置 `yuheng.allow_destructive_migration = 'true'` 才会执行。
 

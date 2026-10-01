@@ -200,24 +200,27 @@ type FileService interface {
 
 ### 3.2 支持的存储后端
 
-工厂函数 `NewFileServiceFromStorageConfig()`（`internal/application/service/file/factory.go`）根据 `types.StorageEngineConfig.DefaultProvider` 选择后端，只有 `local` 与 `s3` 两个分支（compose 默认 `STORAGE_TYPE=s3`，指向内置 RustFS）：
+驱动由 `file.NewDriver(*types.StorageBackend)`（`internal/application/service/file/factory.go`）按存储后端记录的 `provider` 构造，只有 `local` 与 `s3` 两种（compose 默认 `STORAGE_TYPE=s3`，指向内置 RustFS）。驱动只认自己的原生位置，不知道资源句柄：
 
-| Provider | 路径前缀 | 实现文件 | 说明 | 关键配置 |
+| Provider | 原生位置 | 实现文件 | 说明 | 关键配置 |
 |----------|----------|----------|------|----------|
-| `local` | `local://` | `file/local.go` | 单机本地磁盘 | `LocalEngineConfig.PathPrefix`，基目录取 `LOCAL_STORAGE_BASE_DIR`，外链签名取 `APP_EXTERNAL_URL` |
-| `s3` | `s3://` | `file/s3.go` | 任何 S3 兼容服务（RustFS、MinIO、AWS S3；阿里云 OSS / 腾讯云 COS / 火山引擎 TOS / 华为云 OBS 通过各自的 S3 端点） | `Endpoint/Region/AccessKey/SecretKey/BucketName/PathPrefix/UseSSL/AddressingStyle`；两个密钥都留空时走 AWS 默认凭据链；云厂商端点需 `AddressingStyle=virtual` |
-| `dummy` | `dummy://` | `file/dummy.go` | 测试用空实现，不经工厂创建 | 无 |
+| `local` | `local://<相对路径>` | `file/local.go` | 单机本地磁盘 | 根目录 `LOCAL_STORAGE_BASE_DIR`，实例的 `path_prefix` 是其下的子目录；驱动不签发外链 |
+| `s3` | `s3://<桶>/<键>` | `file/s3.go` | 任何 S3 兼容服务（RustFS、MinIO、AWS S3；阿里云 OSS / 腾讯云 COS / 火山引擎 TOS / 华为云 OBS 通过各自的 S3 端点） | `endpoint/region/access_key_id/secret_access_key/bucket_name/path_prefix/use_ssl/addressing_style`；两个密钥都留空时走 AWS 默认凭据链；云厂商端点需 `addressing_style=virtual` |
 
 ### 3.3 对象 Key 组织规则
 
 - 正式文件：`{tenantID}/{knowledgeID}/{uuid或纳秒时间戳}{ext}`，例如 `local://12345/kb-001/1722045600000000000.pdf`。
-- 导出/临时/克隆产物：`{tenantID}/exports/{fileName}_{timestamp}{ext}`。
+- 导出/临时/克隆产物：`{tenantID}/exports/{fileName}_{timestamp}{ext}`。KB 范围的文件代理只给借阅方读这个区域。
 - 路径安全：`secutils.SafePathUnderBase`（防目录穿越）、`secutils.SafeFileName`、对象存储侧 `utils.SafeObjectKey`。
 
-### 3.4 两个包装层
+### 3.4 FileStore：读按资源记录，写按绑定
 
-- **`backend_scoped.go`**：多存储后端部署时给路径加实例前缀，形如 `storage://{backendID}/{innerPath}`，`wrap/unwrap` 编解码并拒绝跨后端操作。KB 可通过 `StorageBackendID` 绑定到具体后端实例。
-- **`resource_catalog.go`**：把物理路径注册为稳定的 `resource://{uuid}` 引用，支持 `Bind`（资源与 knowledge 等 owner 关联）、`MarkDeleted`、`CreateAccessGrant`（生成临时访问令牌，产出 `/r/{token}` 形式的 URL）。应用层持有 `resource://` 引用即可无感迁移底层存储。
+`interfaces.FileStore`（`internal/application/service/storage_store.go`）是应用层唯一的存储入口：
+
+- **写**：`Writer(backendID)`、`ForKnowledgeBase(kb)`、`ForTenantDefault(tenantID)` 返回一个写向指定后端的 `FileService`。它保存文件后登记一条资源记录（后端 ID + 原生位置），对外只返回 `resource://<handle>`；知识库的文件写向知识库绑定的后端，聊天图片、会话附件、临时文档写向空间默认后端。
+- **读与删**：`Open`、`URL`、`Delete`、`LocalPath` 只接受 `resource://` 引用，按引用对应的资源记录找到后端和位置，与调用者的空间、知识库当前的绑定都无关——所以换绑定不会让已有文件失联。驱动按（后端 ID，`updated_at`）缓存，后端配置一变就重建。部署存储 `env` 的密钥在建驱动时从环境变量读取。
+- **外链**：`URL` 在设置了 `APP_EXTERNAL_URL` 时签发 `/r/{token}` 能力短链（`resource.go` 的 `CreateAccessGrant`），否则由 S3 兼容后端预签名；本机目录后端没有外链。
+- **docreader 共享卷**：`LocalPath` 把本机目录后端上的引用映射成 docreader 容器里的路径（`DOCREADER_SHARED_DATA_DIR` 下，含实例的 `path_prefix`），大视频按路径交接而不经 gRPC 传输。
 
 ## 4. 异步任务机制（Asynq + Redis）
 

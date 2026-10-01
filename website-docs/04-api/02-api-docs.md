@@ -106,7 +106,7 @@ curl $BASE/api/v1/docs/spaces -H "Authorization: Bearer $TOKEN"
 | `visibility` | string | 否 | `private`（默认）/ `open` / `public`；`public` 需部署开启公开分享，否则 403 |
 | `default_role` | string | 否 | 开放、公开空间的默认角色 `reader`（默认）/ `writer`；私有空间固定为 `none` |
 | `knowledge_base_id` | string | 否 | 绑定的知识库，必须属于本工作区 |
-| `storage_backend_id` | string | 否 | 附件使用的存储后端，必须属于本工作区 |
+| `storage_backend_id` | string | 否 | 新附件、导入与导出写入的存储后端，须为本工作区可用的启用实例；缺省用空间默认 |
 | `settings` | object | 否 | 自由 JSON 对象，最多 16 KiB |
 
 响应：201 `{"success":true,"data":{SpaceView}}`。显式给的 slug 已被占用返回 409；知识库或存储后端不在本工作区返回 400。
@@ -191,7 +191,7 @@ curl -X PUT $BASE/api/v1/docs/spaces/<sid>/members -H "Authorization: Bearer $TO
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `knowledge_base_id` | string | 缺省不变，空字符串解绑 |
-| `storage_backend_id` | string | 缺省不变，空字符串解绑 |
+| `storage_backend_id` | string | 缺省不变，空字符串改回空间默认；已有附件留在原实例上、照常可读 |
 
 响应：200 `{"success":true,"data":{SpaceView}}`。改绑、解绑后的镜像迁移由后台同步完成，见功能页 6.1。
 

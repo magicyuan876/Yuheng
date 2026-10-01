@@ -274,7 +274,7 @@ yuheng link --kb a32a63ff-fb36-4874-bcaa-30f48570a694
 |---|---|---|
 | list | `list` | 列出可见知识库；`--pinned` 只看置顶，`--limit/-L`（默认 30） |
 | view | `view <kb-id>` | 按 ID 查看 |
-| create | `create <name>` | 创建；`--description`、`--embedding-model`、`--chat-model`（创建即可用）、`--storage-provider` |
+| create | `create <name>` | 创建；`--description`、`--embedding-model`、`--chat-model`（创建即可用）、`--storage-backend <id>`（缺省用空间默认） |
 | update | `update <kb-id>` | 改名/描述：`--name`、`--description`（在 `kb/edit.go`） |
 | delete | `delete <kb-id>` | 删除（exit-10 确认保护，`-y` 跳过） |
 | pin / unpin | `pin <kb-id>` / `unpin <kb-id>` | 置顶/取消置顶（幂等：已处于目标状态则 no-op） |

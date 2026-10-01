@@ -19,7 +19,7 @@ Yuheng 是给 AI Agent 用的知识层，本身不是 Agent 框架：它负责�
 - 健康检查：`GET /health`（无需认证，存活探针），返回 `{"status":"ok"}`。
 - 就绪检查：`GET /ready`（无需认证，就绪探针），检查数据库、Redis（未配置时为 `disabled`）与启动时的迁移结果，全部正常返回 200 `{"status":"ok","checks":{...}}`，否则 503 `{"status":"unavailable","checks":{...}}`。
 - Swagger UI：`GET /swagger/index.html`（路由 `/swagger/*any`），仅在非 `release` 模式（`GIN_MODE != release`）下注册，生产部署默认没有。它由 handler 注释生成（`docs/swagger.json`），列出全部端点的参数与 schema，可在浏览器里直接试调；本章与 swagger 不一致时以 swagger 为准。
-- 认证之外的特殊路径：`GET|HEAD /r/:token`（短时效资源授权 URL）、`GET /files`（认证后文件代理）、`GET|HEAD /api/v1/files/presigned`（HMAC 签名 URL，无需认证）、`GET /api/v1/files/presigned-preview`（Admin 诊断）、`/api/v1/docs/public/*` 与 `/api/v1/docs/public-spaces/*`（在线文档的公开分享链接，无需认证，见[在线文档](../03-features/07-docs.md)）。
+- 认证之外的特殊路径：`GET|HEAD /r/:token`（短时效资源授权 URL）、`GET /files`（认证后文件代理，只接受 `resource://` 引用）、`GET /api/v1/files/presigned-preview`（Admin 诊断）、`/api/v1/docs/public/*` 与 `/api/v1/docs/public-spaces/*`（在线文档的公开分享链接，无需认证，见[在线文档](../03-features/07-docs.md)）。
 
 ```
 BASE=http://localhost:8080
@@ -68,7 +68,7 @@ X-API-Key: <api_key>
 
 ```mermaid
 flowchart TD
-    A["客户端请求"] --> B{"路径在免认证白名单?<br/>(login/register/oidc/presigned...)"}
+    A["客户端请求"] --> B{"路径在免认证白名单?<br/>(login/register/oidc...)"}
     B -- "是" --> H["直接进入 Handler"]
     B -- "否" --> C{"Authorization: Bearer <JWT>?"}
     C -- "有效" --> D{"X-Tenant-ID 请求头?"}
@@ -204,7 +204,7 @@ X-Accel-Buffering: no
 
 使用前需要知道的几件事：
 
-- **需要具备外链能力**：直链来自存储后端预签名，或 `APP_EXTERNAL_URL` + `/r/<token>`。两者都没有时（如 local 存储且未设 `APP_EXTERNAL_URL`），该引用保持 `resource://` 原样，客户端仍可回退到 `/files`；
+- **需要具备外链能力**：设了 `APP_EXTERNAL_URL` 时直链一律是 `<APP_EXTERNAL_URL>/r/<token>`，对任何存储后端都有效；没设时只有 S3 兼容后端能给出预签名直链。都不具备时（如本机目录后端且未设 `APP_EXTERNAL_URL`），该引用保持 `resource://` 原样，客户端仍可回退到 `/files`；
 - **直链是限时匿名可读的**（Yuheng 签发的 grant 2 小时，存储后端预签名时长由存储决定），任何拿到链接的人在过期前都能读取，不要写进日志或转发给不该看的人；
 - **限定知识库的 API Key 用 `public` 会返回 403**：这类 Key 本身就被禁止访问 `/files` 代理，能拿到匿名直链等于绕过同一道限制；
 - **同一文件的直链在有效期内复用**，重复请求不会反复签发凭证，客户端与 CDN 缓存因此能命中。
@@ -237,5 +237,5 @@ X-Accel-Buffering: no
 | 模型与初始化 | [02-api-model-system.md](./02-api-model-system.md) | `/models`、`/initialization`、`/evaluation` |
 | 系统与平台管理 | [02-api-system.md](./02-api-system.md) | `/system`、`/system/admin` |
 | 基础设施与数据源 | [02-api-infra.md](./02-api-infra.md) | `/vector-stores`、`/storage-backends`、`/web-search-providers`、`/datasource` |
-| 文件服务 | [02-api-files.md](./02-api-files.md) | `/files`、`/api/v1/files/presigned`、`/r/:token` |
+| 文件服务 | [02-api-files.md](./02-api-files.md) | `/files`、`/r/:token`、外链预览 |
 | 在线文档 | [02-api-docs.md](./02-api-docs.md)，概念见[在线文档](../03-features/07-docs.md) | `/docs`、`/groups`，匿名的 `/docs/public`、`/docs/public-spaces` |

@@ -86,26 +86,7 @@ curl -X POST $BASE/api/v1/system/docreader/reconnect -H "Authorization: Bearer $
   -H 'Content-Type: application/json' -d '{"addr":"docreader:50051"}'
 ```
 
-### GET /api/v1/system/storage-engine-status
-
-用途：对象存储引擎可用性。权限：Viewer+。
-
-响应：200 `{"code":0,"msg":"success","data":{"engines":[{name,allowed,available,description}],"allowed_providers":[...]}}`（`engines` 只列出 `local` 与 `s3`）
-
-```bash
-curl $BASE/api/v1/system/storage-engine-status -H "Authorization: Bearer $TOKEN"
-```
-
-### POST /api/v1/system/storage-engine-check
-
-用途：校验存储配置（SSRF 防护后探测）。权限：PlatformManaged。请求体：`provider`（必填，`local` 或 `s3`）+ `s3` 配置对象（`endpoint`、`region`、`access_key_id`、`secret_access_key`、`bucket_name`、`path_prefix`、`use_ssl`、`addressing_style`）。
-
-响应：200 `{"code":0,"data":{"ok","message"}}`
-
-```bash
-curl -X POST $BASE/api/v1/system/storage-engine-check -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"provider":"s3","s3":{"endpoint":"http://rustfs:9000","region":"us-east-1","bucket_name":"yuheng","access_key_id":"rustfsadmin","secret_access_key":"rustfsadmin","addressing_style":"path"}}'
-```
+存储的可用性与连通性不在这一组：存储按实例配置，测试走 `POST /api/v1/storage-backends/test` 与 `POST /api/v1/storage-backends/:id/test`，见[基础设施](./02-api-infra.md)。
 
 ## 系统管理（/api/v1/system/admin，SystemAdmin 专属）
 

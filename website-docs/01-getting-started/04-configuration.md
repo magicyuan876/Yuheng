@@ -150,12 +150,12 @@ flowchart LR
 | `APP_EXTERNAL_URL` / `FRONTEND_BASE_URL` | 空 | 文件引用外链的外部可达 URL（配合 `RESOURCE_URL_MODE=public`，详见 [图片与文件的对外访问](../03-features/21-file-access.md)） / 前端外部 origin（用于生成邀请等绝对链接） |
 | `RESOURCE_URL_MODE` | handle | API 响应里文件引用的默认形式：`handle` 返回内部 `resource://`，`public` 返回可直接加载的限时外链。单次请求可用 `?resource_urls=` 覆盖，详见 [API 总览](../04-api/01-api-overview.md) |
 
-`APP_EXTERNAL_URL` 决定 `resource://` 引用能否改写成外部可加载的链接，二选一：
+`APP_EXTERNAL_URL` 决定 `resource://` 引用能否改写成外部可加载的链接：
 
-1. 存储后端本身公网可达（对象存储用公网 endpoint，或把 `S3_ENDPOINT` 设成公网 host），此时 `resource://` 回退到后端预签名 URL，不需要本变量；
-2. 设置 `APP_EXTERNAL_URL`，`resource://` 图片被改写成 `<APP_EXTERNAL_URL>/r/<token>` 走 Yuheng 自身（需要 nginx 代理 `/r/`，官方前端镜像已内置该 location）。
+1. 设置了 `APP_EXTERNAL_URL` 时，`resource://` 一律被改写成 `<APP_EXTERNAL_URL>/r/<token>` 走 Yuheng 自身，对任何存储后端都有效（需要 nginx 代理 `/r/`，官方前端镜像已内置该 location）；
+2. 没设置时，只有 S3 兼容后端能给出预签名 URL，而且它的端点必须对客户端可达（公网 endpoint，或把 `S3_ENDPOINT` 设成公网 host）。
 
-默认的自带 RustFS 内网部署（`rustfs:9000`）与 `local` 后端都只能走第二种。`scripts/deploy.sh` 会交互式地帮你填这个变量。本变量为空时，服务启动会打印一次 WARN；改写结果若不是 http(s) URL 会保留原引用并记录可操作的告警，而不是发出外部无法访问的链接。
+默认的自带 RustFS 内网部署（`rustfs:9000`）与本机目录后端都只能走第一种。`scripts/deploy.sh` 会交互式地帮你填这个变量。本变量为空时，服务启动会打印一次 WARN；改写结果若不是 http(s) URL 会保留原引用并记录可操作的告警，而不是发出外部无法访问的链接。
 
 四种 URL 形式与取法见[图片与文件的对外访问](../03-features/21-file-access.md)。
 
@@ -197,9 +197,10 @@ flowchart LR
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `STORAGE_TYPE` | s3（compose 与 `.env.example`；变量完全未设置时代码回退为 local，例如 Helm 与源码运行） | `local` / `s3`（任何 S3 兼容服务）；`dummy` 仅用于测试 |
-| `STORAGE_ALLOW_LIST` | 空 | 允许用户选择的存储类型白名单（逗号分隔） |
-| `LOCAL_STORAGE_BASE_DIR` | /data/files | 本地存储根目录 |
+| `STORAGE_TYPE` | s3（compose 与 `.env.example`；变量完全未设置时代码回退为 local，例如源码运行） | 部署存储的类型：`local` / `s3`（任何 S3 兼容服务）。不受支持或被 `STORAGE_ALLOW_LIST` 排除时服务拒绝启动 |
+| `STORAGE_ALLOW_LIST` | 空 | 允许的存储类型白名单（逗号分隔），同时约束部署存储与空间注册的实例 |
+| `LOCAL_STORAGE_BASE_DIR` | /data/files | 本地存储根目录；每个本机目录实例是它下面的 `path_prefix` 子目录 |
+| `LOCAL_STORAGE_PATH_PREFIX` | 空 | 部署存储为 `local` 时在根目录下使用的子目录 |
 | `S3_ENDPOINT` | http://rustfs:9000（compose） | S3 兼容服务地址；可带 `http://` / `https://`；空表示 AWS S3 |
 | `S3_REGION` | us-east-1（compose） | 区域，`STORAGE_TYPE=s3` 时必填 |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | 取 `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY`（compose） | 访问密钥，要么都填、要么都不填 |
@@ -208,6 +209,8 @@ flowchart LR
 | `S3_USE_SSL` | false（compose）；未设置时 true | endpoint 不带协议头时是否用 HTTPS |
 | `S3_ADDRESSING_STYLE` | auto | `auto` / `path` / `virtual`。`auto`：endpoint 为空或 `amazonaws.com` 用 virtual-hosted，其他 endpoint（RustFS、MinIO）用 path-style；阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS 必须设 `virtual` |
 | `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` | rustfsadmin | 自带 RustFS（默认启动）的账号，上线前务必更换；另有 `RUSTFS_PORT` / `RUSTFS_CONSOLE_PORT` / `RUSTFS_BIND` |
+
+这组变量描述的是**部署存储**：存储后端表里那条 `id = env` 的记录。服务每次启动按它们重写这条记录（只写类型与位置，不写密钥——`S3_ACCESS_KEY` / `S3_SECRET_KEY` 只从环境变量读，轮换后重启即生效）。如果位置变量（`STORAGE_TYPE`、端点、区域、桶、路径前缀）与记录不同，而记录上还存着文件，服务拒绝启动：那些文件都按记录里的位置解析。详见[存储后端](../03-features/19-storage-backends.md)。
 
 各服务的 endpoint 与寻址方式对照表见[安装部署](02-installation.md)。原有的 `MINIO_*` / `COS_*` / `TOS_*` / `OSS_*` / `OBS_*` / `KS3_*` 变量已不再生效，请改用 `S3_*`。
 

@@ -528,21 +528,18 @@ type FileService interface {
 }
 ```
 
-多后端解析（租户级 `storage_backends` 表配置 → FileService 实例）经 `internal/types/interfaces/storagebackend.go`：
+应用层不直接用驱动，而是经 `interfaces.FileStore`（`internal/types/interfaces/file.go`）：读按资源记录找到后端，写按绑定选后端；驱动由它按 `storage_backends` 的记录构造并缓存：
 
 ```go
-// internal/types/interfaces/storagebackend.go
-type StorageBackendService interface {
-    Create(ctx context.Context, backend *types.StorageBackend) error
-    Update(ctx context.Context, backend *types.StorageBackend) error
-    Delete(ctx context.Context, tenantID uint64, id string) error
-    SetDefault(ctx context.Context, tenantID uint64, id string) error
-    Test(ctx context.Context, backend *types.StorageBackend) error
-}
-
-type StorageBackendResolver interface {
-    ResolveFileService(ctx context.Context, tenant *types.Tenant, backendID, provider, localBaseDir string) (FileService, string, error)
-    ResolveBackend(ctx context.Context, tenant *types.Tenant, backendID, provider string) (*types.StorageBackend, error)
+// internal/types/interfaces/file.go
+type FileStore interface {
+    Writer(ctx context.Context, backendID string) (FileService, error)
+    ForKnowledgeBase(ctx context.Context, kb *types.KnowledgeBase) (FileService, error)
+    ForTenantDefault(ctx context.Context, tenantID uint64) (FileService, error)
+    Open(ctx context.Context, ref string) (io.ReadCloser, *types.StoredResource, error)
+    URL(ctx context.Context, ref string, ttl time.Duration) (string, bool, error)
+    Delete(ctx context.Context, ref string) error
+    LocalPath(ctx context.Context, ref string) (string, bool)
 }
 ```
 
@@ -560,22 +557,24 @@ MinIO、腾讯云 COS、火山引擎 TOS、阿里云 OSS、华为云 OBS、金�
 ### 新增步骤
 
 1. 在 `internal/application/service/file/` 新建 `mystore.go`，实现 `FileService` 全部方法（`CheckConnectivity` 用于前端"测试连接"按钮，即 `StorageBackendService.Test`）；
-2. **注册点：`internal/application/service/file/factory.go` 的 `NewFileServiceFromStorageConfig()`** — 在 provider switch 中加 case：
+2. **注册点：`internal/application/service/file/factory.go` 的 `NewDriver()`** — 在 provider switch 中加 case，按存储后端记录的 `config` 构造驱动：
 
 ```go
-switch p {
-case "local":  // NewLocalFileService(...)
-case "s3":     // NewS3FileService(...)
+switch backend.Provider {
+case types.StorageProviderLocal: // NewLocalFileService(...)
+case types.StorageProviderS3:    // NewS3FileService(...)
 // ... 在此追加：
 case "mystore":
-    return NewMyStoreFileService(cfg), p, nil
+    return NewMyStoreFileService(backend.Config), nil
 default:
-    return nil, p, fmt.Errorf("unsupported storage provider: %s", p)
+    return nil, fmt.Errorf("unsupported storage provider %q", backend.Provider)
 }
 ```
 
-3. 若新 provider 需要新的配置字段（endpoint/bucket/region 等），扩展 `internal/types` 中的 `StorageEngineConfig` / `StorageBackend.config`（JSONB）；
-4. 前端存储后端管理页增加对应 provider 的表单项；租户配置落在 `storage_backends` 表（`provider` 列即 switch 的 key）。
+驱动只处理自己的原生位置（如 `mystore://...`）；资源登记、按记录读取、外链都由 `FileStore` 负责，驱动不用管。
+
+3. 若新 provider 需要新的配置字段，扩展 `internal/types/storagebackend.go` 的 `StorageBackendConfig` 与 `ValidateForProvider`，并把 provider 名加进 `internal/storageallowlist`；
+4. 前端存储后端管理页增加对应 provider 的表单项；配置落在 `storage_backends` 表（`provider` 列即 switch 的 key）。
 
 ---
 

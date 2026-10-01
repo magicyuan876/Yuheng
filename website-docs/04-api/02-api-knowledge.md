@@ -23,7 +23,7 @@
 | `summary_model_id` | string | 否 | 摘要模型 ID |
 | `chunking_config` | object | 否 | 分块配置（chunk_size/overlap/separators/strategy…） |
 | `image_processing_config` / `vlm_config` / `asr_config` | object | 否 | 图像处理、VLM、语音识别配置 |
-| `storage_provider_config` / `storage_backend_id` | object / string | 否 | 存储配置；`storage_backend_id` 绑定具体存储后端实例 |
+| `storage_backend_id` | string | 否 | 新文件写入的存储后端；缺省绑定空间默认。响应里另有 `storage_backend`（`{id,name,provider,source,is_builtin}`），只对知识库所属空间返回；共享给其他空间时这两个字段都不返回 |
 | `vector_store_id` | string | 否 | 检索引擎实例绑定，仅创建时可设（非法返回 code 2200，不可用返回 2201） |
 | `faq_config` / `wiki_config` / `extract_config` / `indexing_strategy` | object | 否 | 类型相关配置 |
 | `question_generation_config` / `auto_tag_config` | object | 否 | 问题生成、自动打标配置 |
@@ -221,12 +221,12 @@ curl $BASE/api/v1/knowledge-bases/kb-1/move-targets -H "Authorization: Bearer $T
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `file_path` | string | 是 | `provider://...` 存储路径（禁止 `..`） |
+| `file_path` | string | 是 | `resource://<handle>` 引用；须属于 KB 属主空间、位于其 `exports/` 区域 |
 
-响应：200 文件流（`Content-Type` 按扩展名推断；`Cache-Control: private`）。
+响应：200 文件流（`Content-Type` 按资源记录推断；`Cache-Control: private`）。
 
 ```bash
-curl "$BASE/api/v1/knowledge-bases/kb-1/files?file_path=local://1/exports/chart.png" \
+curl "$BASE/api/v1/knowledge-bases/kb-1/files?file_path=resource://AbCdEfGhIjKlMnOpQrStUv" \
   -H "Authorization: Bearer $TOKEN" -o chart.png
 ```
 

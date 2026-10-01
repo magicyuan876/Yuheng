@@ -458,7 +458,7 @@ sequenceDiagram
 
 ### 7.2 modelcontext：存储资源句柄别名
 
-`internal/modelcontext/resources.go` 解决另一类问题：`resource://`、`s3://` 等高熵存储句柄以及 wiki `summary/<uuid>` slug 进入模型上下文后，模型复述时容易篡改 URL。编码阶段把它们替换为 `res://0001` 形态的低熵别名；流式输出经 `stream.go` 的解码器还原（`Flush` 保证跨 chunk 别名不截断丢失），工具调用参数在解码后同样回填真实句柄。
+`internal/modelcontext/resources.go` 解决另一类问题：`resource://` 存储句柄以及 wiki `summary/<uuid>` slug 这类高熵标识 进入模型上下文后，模型复述时容易篡改 URL。编码阶段把它们替换为 `res://0001` 形态的低熵别名；流式输出经 `stream.go` 的解码器还原（`Flush` 保证跨 chunk 别名不截断丢失），工具调用参数在解码后同样回填真实句柄。
 
 ## 8. 跨库并发检索与融合（HybridSearch）
 

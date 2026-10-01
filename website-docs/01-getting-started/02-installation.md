@@ -176,7 +176,7 @@ OSS、COS、TOS、OBS 拒绝 path-style 请求，必须显式设为 `virtual`。
 
 改用本机目录时设 `STORAGE_TYPE=local`。多副本部署不能用 `local`，见[备份、升级与多副本](./05-backup-and-upgrade.md)。
 
-已有知识库里以 `s3://` 开头的文件路径仍然有效；`minio://`、`cos://`、`tos://`、`oss://`、`ks3://`、`obs://` 这些旧协议头不再被识别。
+这些变量配置的是部署存储（存储后端里那条 `env` 记录），每次启动同步；改了存储位置而旧位置上还有文件时服务会拒绝启动，见[存储后端](../03-features/19-storage-backends.md)。
 
 ### 版本升级
 

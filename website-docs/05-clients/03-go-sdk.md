@@ -282,7 +282,6 @@ SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、组�
 | `GetDeploymentCapabilities` | 获取部署能力快照（`GET /api/v1/system/capabilities`） |
 | `ListParserEngines` / `CheckParserEngines` | 文档解析引擎列表/检测 |
 | `ReconnectDocReader` | 重连 docreader 服务 |
-| `GetStorageEngineStatus` / `CheckStorageEngine` | 存储引擎状态/检测 |
 
 ### 其他
 

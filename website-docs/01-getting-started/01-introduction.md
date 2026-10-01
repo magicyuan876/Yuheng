@@ -45,7 +45,7 @@ Yuheng 本身**不是智能体框架**：它不运行智能体、不编排工具
 
 | 概念 | 说明 |
 | --- | --- |
-| 租户 Tenant | 即「工作空间」。持有存储配额（`StorageQuota`，默认 10GB）、检索参数（`RetrievalConfig`）、上下文配置（`ContextConfig`）、联网搜索、解析引擎与存储引擎配置。所有知识库、模型、会话都归属某个工作空间 |
+| 租户 Tenant | 即「工作空间」。持有存储配额（`StorageQuota`，默认 10GB）、检索参数（`RetrievalConfig`）、上下文配置（`ContextConfig`）、联网搜索、解析引擎配置，以及默认存储后端。所有知识库、模型、会话都归属某个工作空间 |
 | 用户 User | 全局唯一的用户名与邮箱，`TenantID` 指向其主工作空间；`IsSystemAdmin` 标记平台级系统管理员，`CanAccessAllTenants` 标记可跨空间访问的超管 |
 | 成员 TenantMember | 用户与工作空间的多对多关系，携带角色与状态（`active` / `invited` / `suspended`） |
 | 角色 TenantRole | 四级：`owner`（完全控制）> `admin`（管理成员、模型与集成）> `contributor`（创建知识库）> `viewer`（只读） |

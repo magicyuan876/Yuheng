@@ -55,7 +55,7 @@ S3_ADDRESSING_STYLE=path
 
 ### 3. 检查 Bucket 与凭据
 
-1. 在 **设置 → 存储引擎** 里对当前后端点「测试」，或调用 `POST /api/v1/system/storage-engine-check`，根据返回的 `message` 定位问题。存储配置的完整说明见[存储后端](../website-docs/03-features/19-storage-backends.md)
+1. 在 **设置 → 存储引擎** 里对当前后端点「测试」，或调用 `POST /api/v1/storage-backends/:id/test`（未保存的配置用 `POST /api/v1/storage-backends/test`），根据返回的 `error` 定位问题。存储配置的完整说明见[存储后端](../website-docs/03-features/19-storage-backends.md)
 2. 确认 `S3_BUCKET_NAME` 对应的 bucket 可读写。bucket 不存在时，首次使用会自动创建
 3. 使用云厂商（阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS）时，`S3_ADDRESSING_STYLE` 必须设为 `virtual`，否则请求会被拒绝
 
@@ -241,7 +241,9 @@ API Key 是独立的机器主体，不等同于某个用户：它要么是全量
 Yuheng 支持**多实例存储后端**（迁移 `000068_storage_backends`）。一个空间可注册多个存储实例（`local` / `s3`，MinIO、RustFS、AWS S3、阿里云 OSS、腾讯云 COS 等都用 `s3` 接入），不同知识库绑定到不同实例，空间维度还有一个默认实例：
 
 - 在 **设置 → 存储引擎** 创建/测试/设为默认（需 Admin+，开启集中管控后创建与修改仅限系统管理员；API Key 需 `manage_storage_backends` 能力）。
-- 未显式绑定的新知识库使用空间默认实例；响应中的 `access_key_id` / `secret_access_key` 会被掩码，更新时提交掩码占位符不会覆盖库中真实凭据。
+- 部署本身的存储（`STORAGE_TYPE`、`S3_*` 配置的那套）是一条共享给所有空间的只读记录 `env`，新空间默认用它。
+- 未显式绑定的新知识库与文档空间使用空间默认实例；有文件的知识库也可以改绑，已有文件留在原实例上照常可读，只有新文件写到新实例。
+- 响应中的 `access_key_id` / `secret_access_key` 会被掩码，更新时提交掩码占位符不会覆盖库中真实凭据。
 - 若创建知识库时提示存储引擎不可用，请确认目标 provider 在 `STORAGE_ALLOW_LIST` 允许范围内。详见[存储后端](../website-docs/03-features/19-storage-backends.md)与[存储后端 API](../website-docs/04-api/02-api-infra.md)。
 
 ## 25. 后台解析/入库任务积压或需要排查失败任务怎么办？
