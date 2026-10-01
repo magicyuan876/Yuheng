@@ -42,13 +42,6 @@ vi.mock("@/stores/chatResources", () => ({
     ],
   }),
 }));
-vi.mock("@/stores/editorResources", () => ({
-  useEditorResourcesStore: () => ({
-    ensureStorageEngine: async () => {},
-    storageConfig: null,
-    resolveUsableStorageProvider: (provider?: string) => provider || "local",
-  }),
-}));
 vi.mock("@/stores/ui", () => ({
   useUIStore: () => reactive({ kbEditorInitialSection: null, showSettingsModal: false }),
 }));
@@ -135,6 +128,11 @@ test("shows a post-create hint after the first successful save", async () => {
   await flushPromises();
 
   assert.equal(createKnowledgeBase.mock.calls.length, 1);
+  // Storage is a backend id or nothing (the server then binds the workspace
+  // default); no provider name travels with it.
+  const payload = createKnowledgeBase.mock.calls[0][0] as Record<string, unknown>;
+  assert.ok(!("storage_provider_config" in payload), "no storage provider is sent");
+  assert.ok(!("storage_backend_id" in payload), "an untouched storage panel leaves the default to the server");
   assert.deepEqual(wrapper.emitted("success"), [["kb-new"]]);
   // The editor stays open, now in edit mode, with the follow-up hint in the
   // footer and the follow-up description under the new knowledge base's id.

@@ -429,10 +429,9 @@
                 <div v-if="!isFAQ && formData && currentSection === 'storage'" class="mb-8 last:mb-0">
                   <KBStorageSettings
                     :storage-backend-id="formData.storageBackendId"
-                    :storage-provider="formData.storageProvider"
+                    :bound-storage-backend-id="initialStorageBackendId"
                     :has-files="editorMode === 'edit' && hasFiles"
                     @update:storage-backend-id="handleStorageBackendUpdate"
-                    @update:storage-provider="handleStorageProviderUpdate"
                   />
                 </div>
 
@@ -773,7 +772,6 @@ import { updateKBConfig, type KBModelConfigRequest } from "@/api/initialization"
 import { useChatResourcesStore } from "@/stores/chatResources";
 import { selectInitialModelId } from "@/utils/modelDefaults";
 import { copyWithToast } from "@/utils/clipboard";
-import { useEditorResourcesStore } from "@/stores/editorResources";
 import { useUIStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import KBModelConfig from "./settings/KBModelConfig.vue";
@@ -800,7 +798,6 @@ import SegmentedRadio from "./components/SegmentedRadio.vue";
 const uiStore = useUIStore();
 const authStore = useAuthStore();
 const chatResources = useChatResourcesStore();
-const editorResources = useEditorResourcesStore();
 const { t } = useI18n();
 
 // Props
@@ -854,9 +851,8 @@ const saving = ref(false);
 const loading = ref(false);
 const allModels = ref<any[]>([]);
 const hasFiles = ref(false);
-const initialStorageProvider = ref<string>("");
-/** Tenant-wide default from Settings → Storage engine (used when creating a KB). */
-const tenantDefaultStorageProvider = ref("local");
+/** The storage binding the knowledge base was loaded with, to show what a rebind means. */
+const initialStorageBackendId = ref("");
 const initialIndexingStrategy = ref<any>(null);
 const dsCount = ref(0);
 // Identifier of the user who created this KB. Empty for a KB created
@@ -1073,8 +1069,9 @@ const initFormData = (type: "document" | "faq" = "document") => {
       languages: [] as string[],
       tableMetadataInstructions: "",
     },
+    // Empty means "the workspace default": the server binds a new knowledge
+    // base to it, and the storage panel preselects it once it has loaded.
     storageBackendId: "" as string,
-    storageProvider: "" as string,
     multimodalConfig: {
       enabled: false,
       vllmModelId: "",
@@ -1204,7 +1201,6 @@ const loadKBData = async (kbIdOverride?: string) => {
         tableMetadataInstructions: kb.chunking_config?.table_metadata_instructions || "",
       },
       storageBackendId: (kb.storage_backend_id || "") as string,
-      storageProvider: (kb.storage_provider_config?.provider || "local") as string,
       multimodalConfig: {
         enabled: !!kb.vlm_config?.enabled,
         vllmModelId: kb.vlm_config?.model_id || "",
@@ -1271,7 +1267,7 @@ const loadKBData = async (kbIdOverride?: string) => {
         status: kb.vector_store_status,
       },
     };
-    initialStorageProvider.value = formData.value.storageProvider;
+    initialStorageBackendId.value = formData.value.storageBackendId;
     initialIndexingStrategy.value = { ...formData.value.indexingStrategy };
   } catch (error) {
     console.error("Failed to load knowledge base data:", error);
@@ -1390,41 +1386,11 @@ const handleAddASRModel = () => {
   uiStore.openSettings("models", "asr");
 };
 
-const handleStorageProviderUpdate = (value: string) => {
-  if (formData.value) {
-    formData.value.storageProvider =
-      editorMode.value === "create"
-        ? editorResources.resolveUsableStorageProvider(value || tenantDefaultStorageProvider.value)
-        : value || tenantDefaultStorageProvider.value || "local";
-  }
-};
-
 const handleStorageBackendUpdate = (value: string) => {
   if (formData.value) {
     formData.value.storageBackendId = value;
   }
 };
-
-async function loadTenantDefaultStorageProvider(force = false) {
-  try {
-    await editorResources.ensureStorageEngine(force);
-    tenantDefaultStorageProvider.value = editorResources.resolveUsableStorageProvider(
-      editorResources.storageConfig?.default_provider,
-    );
-  } catch {
-    tenantDefaultStorageProvider.value = editorResources.resolveUsableStorageProvider();
-  }
-}
-
-/** Resolved storage provider for create payload (never silently default to local before tenant config loads). */
-function resolvedStorageProvider(): string {
-  const explicit = formData.value?.storageProvider?.trim();
-  if (editorMode.value === "create") {
-    return editorResources.resolveUsableStorageProvider(explicit || tenantDefaultStorageProvider.value);
-  }
-  if (explicit) return explicit;
-  return tenantDefaultStorageProvider.value || "local";
-}
 
 const handleVectorStoreIdUpdate = (id: string) => {
   if (formData.value) {
@@ -1562,16 +1528,11 @@ const buildSubmitData = () => {
     language: formData.value.asrConfig?.language || "",
   };
 
-  // storage_backend_id is authoritative. The provider still goes along because
-  // the backend falls back to it when no instance id is sent (see
-  // applyAndValidateStorageBackend in internal/application/service/knowledgebase.go).
+  // The storage binding is a backend id; without one the server binds the
+  // workspace default.
   if (formData.value.storageBackendId) {
     data.storage_backend_id = formData.value.storageBackendId;
   }
-  const storageProvider = resolvedStorageProvider();
-  data.storage_provider_config = {
-    provider: storageProvider,
-  };
 
   // 添加知识图谱配置 — now synced via indexingStrategy.graphEnabled
   // extract_config is sent below along with indexing_strategy
@@ -1648,30 +1609,6 @@ const buildSubmitData = () => {
 // 提交表单
 const handleSubmit = async () => {
   if (!validateForm()) {
-    return;
-  }
-
-  // 编辑模式下，若已有文件且存储引擎发生了变化，弹窗确认
-  if (
-    editorMode.value === "edit" &&
-    hasFiles.value &&
-    formData.value &&
-    initialStorageProvider.value &&
-    formData.value.storageProvider !== initialStorageProvider.value
-  ) {
-    const dialog = DialogPlugin.confirm({
-      header: t("common.confirm"),
-      body: t("knowledgeEditor.messages.storageChangeConfirm"),
-      confirmBtn: t("common.confirm"),
-      cancelBtn: t("common.cancel"),
-      onConfirm: () => {
-        dialog.destroy();
-        doSubmit();
-      },
-      onCancel: () => {
-        dialog.destroy();
-      },
-    });
     return;
   }
 
@@ -1765,7 +1702,6 @@ const doSubmit = async () => {
           enabled: !!data.vlm_config?.enabled,
         },
         storageBackendId: formData.value?.storageBackendId || "",
-        storageProvider: data.storage_provider_config?.provider || "local",
         nodeExtract: {
           enabled: data.extract_config?.enabled || false,
           text: data.extract_config?.text || "",
@@ -1850,8 +1786,7 @@ const resetState = () => {
   currentSection.value = "basic";
   formData.value = null;
   hasFiles.value = false;
-  initialStorageProvider.value = "";
-  tenantDefaultStorageProvider.value = "local";
+  initialStorageBackendId.value = "";
   initialIndexingStrategy.value = null;
   saving.value = false;
   loading.value = false;
@@ -1881,16 +1816,14 @@ watch(
         currentSection.value = uiStore.kbEditorInitialSection;
       }
 
-      // 加载模型列表与空间默认存储引擎（创建 KB 时即使用，不依赖是否打开「存储引擎」Tab）
-      await Promise.all([loadAllModels(), loadTenantDefaultStorageProvider()]);
+      await loadAllModels();
 
       // 根据模式加载数据
       if (props.mode === "edit" && props.kbId) {
         await loadKBData();
       } else {
-        // 创建模式：初始化空表单，并预填空间默认存储引擎
+        // 创建模式：初始化空表单（存储留空即使用空间默认存储实例）
         formData.value = initFormData(props.initialType || "document");
-        formData.value.storageProvider = tenantDefaultStorageProvider.value;
         hasFiles.value = false;
         applyDefaultModelsIfEmpty();
       }

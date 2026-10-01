@@ -860,8 +860,8 @@ export default {
       instanceLabel: "스토리지 인스턴스",
       instanceDesc:
         "같은 스토리지 유형에 서로 다른 Endpoint, Bucket 또는 자격 증명을 가진 여러 인스턴스를 구성할 수 있습니다.",
-      migrateHint:
-        "이 지식베이스에는 이미 파일이 있어 스토리지 마이그레이션 절차를 통해서만 인스턴스를 변경할 수 있습니다.",
+      rebindHint:
+        "이 지식베이스에는 이미 파일이 있습니다. 기존 파일은 원래 위치에 남아 계속 읽을 수 있으며, 이후 추가되는 파일만 선택한 인스턴스에 저장됩니다.",
       manageInstances: "스토리지 인스턴스 관리",
       localStorage: "로컬 스토리지",
       loading: "로딩 중...",
@@ -2940,8 +2940,6 @@ export default {
       buildDataFailed: "데이터 구축 실패",
       updateSuccess: "설정 저장 성공",
       indexModeRequired: "FAQ 인덱스 방식을 선택해주세요",
-      storageChangeConfirm:
-        "지식베이스에 파일이 있습니다. 스토리지 엔진을 변경하면 이전 파일에 접근할 수 없게 될 수 있습니다. 계속하시겠습니까?",
     },
     share: {
       description: "스페이스 구성원이 접근하고 사용할 수 있도록 지식베이스를 스페이스에 공유합니다.",
@@ -4342,10 +4340,6 @@ export default {
     noGeneratedQuestions: "검색 보조 질문 없음",
     notInitialized:
       "이 지식베이스는 아직 초기화되지 않았습니다. 설정 페이지에서 모델 정보를 먼저 구성한 후 파일을 업로드하세요",
-    missingStorageEngine:
-      "이 지식베이스에 스토리지 엔진이 선택되지 않았습니다. 콘텐츠를 업로드하기 전에 설정 페이지에서 스토리지 엔진을 구성하세요.",
-    missingStorageEngineUpload: "콘텐츠를 업로드하기 전에 스토리지 엔진을 구성하세요",
-    goToStorageSettings: "설정으로 이동",
     getInfoFailed: "지식베이스 정보를 가져오는 데 실패하여 파일을 업로드할 수 없습니다",
     missingId: "지식베이스 ID가 없습니다",
     deleteFailed: "삭제 실패, 나중에 다시 시도하세요!",

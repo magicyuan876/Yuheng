@@ -89,8 +89,8 @@ export function createKnowledgeBase(data: {
   // store. Immutable after creation — UpdateKnowledgeBase intentionally
   // does not accept this field.
   vector_store_id?: string;
-  // Concrete tenant-owned storage instance. When omitted, the tenant default
-  // backend is bound by the server at creation time.
+  // The storage backend new files go to. When omitted, the server binds the
+  // workspace default.
   storage_backend_id?: string;
   vlm_config?: {
     enabled: boolean;
@@ -98,7 +98,6 @@ export function createKnowledgeBase(data: {
     description_language?: string;
     custom_instructions?: string;
   };
-  storage_provider_config?: { provider: string };
   asr_config?: {
     enabled: boolean;
     model_id?: string;

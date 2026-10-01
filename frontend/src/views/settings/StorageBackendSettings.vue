@@ -404,7 +404,7 @@ import SettingDrawer from "@/components/settings/SettingDrawer.vue";
 import SettingsInput from "./SettingsInput.vue";
 import { providerLogo } from "./providerLogos";
 import { S3_PRESETS, applyS3Preset, type S3Preset } from "./s3Presets";
-import type { S3AddressingStyle } from "@/api/system";
+import type { S3AddressingStyle } from "@/api/storage-backend";
 import {
   createStorageBackend,
   deleteStorageBackend,
@@ -513,9 +513,9 @@ function backendMeta(backend: StorageBackend): string {
 // 平台共享的实例只读：列出来是为了让空间在建库时能选，配置是平台的。
 const canEdit = (backend: StorageBackend) =>
   backend.source !== "env" && (backend.is_builtin ? authStore.isSystemAdmin : authStore.hasRole("admin"));
-// 共享中的实例必须先取消共享再删 —— 取消共享那一步才会做跨空间引用检查。
+// 共享中的实例须先由系统管理员取消共享再删除；部署存储（env）由环境变量决定，不可删除。
 const canDelete = (backend: StorageBackend) =>
-  authStore.hasRole("admin") && backend.source !== "env" && !backend.legacy_alias && !backend.is_builtin;
+  authStore.hasRole("admin") && backend.source !== "env" && !backend.is_builtin;
 const canShare = (backend: StorageBackend) => authStore.isSystemAdmin && backend.source !== "env";
 const canSetDefault = (backend: StorageBackend) => backend.id !== defaultID.value && authStore.hasRole("admin");
 // 测试连接对所有可见用户开放，因此每张卡至少有一个动作。
@@ -596,7 +596,7 @@ async function load() {
   try {
     const [list, types] = await Promise.all([listStorageBackends(), listStorageBackendTypes()]);
     backends.value = list.data || [];
-    defaultID.value = list.default_storage_backend_id || "";
+    defaultID.value = list.default_storage_backend_id;
     providers.value = types.data || [];
   } finally {
     loading.value = false;

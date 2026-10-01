@@ -146,7 +146,7 @@
               <span :class="cn(valueClass, 'font-medium tabular-nums')">{{ stat.value }}</span>
             </div>
           </section>
-          <section v-if="kbInfo.vector_store_source || kbInfo.storage_provider_config?.provider" :class="sectionClass">
+          <section v-if="kbInfo.vector_store_source || kbInfo.storage_backend" :class="sectionClass">
             <h4 :class="sectionTitleClass">
               {{ t("knowledgeBase.infoCard.binding") }}
             </h4>
@@ -161,10 +161,11 @@
                 />
               </span>
             </div>
-            <div v-if="kbInfo.storage_provider_config?.provider" :class="rowClass">
+            <div v-if="kbInfo.storage_backend" :class="rowClass">
               <span :class="labelClass">{{ t("knowledgeBase.infoCard.fileStorage") }}</span>
-              <span :class="cn(valueClass, 'text-muted-foreground font-mono text-[11px]')">
-                {{ kbInfo.storage_provider_config.provider }}
+              <span :class="valueClass">
+                {{ kbInfo.storage_backend.name }}
+                <span class="text-muted-foreground font-mono text-[11px]">{{ kbInfo.storage_backend.provider }}</span>
               </span>
             </div>
           </section>

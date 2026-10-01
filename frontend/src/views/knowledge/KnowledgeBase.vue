@@ -253,15 +253,6 @@ onUnmounted(() => {
   stopWikiStatusPolling();
   clearWikiStatusProbes();
 });
-const missingStorageEngine = computed(() => {
-  if (!kbInfo.value || isFAQ.value) return false;
-  // storage_backend_id names the bound storage instance; the backend also
-  // mirrors its provider into storage_provider_config. Either being present
-  // means uploads have somewhere to go and should not be blocked.
-  if (kbInfo.value.storage_backend_id) return false;
-  const spc = kbInfo.value.storage_provider_config;
-  return !spc || !spc.provider;
-});
 const parserEngines = computed<ParserEngineInfo[]>(() => editorResources.parserEngines);
 
 const supportedFileTypes = computed<Set<string>>(() => {
@@ -1740,10 +1731,6 @@ const ensureDocumentKbReady = () => {
     MessagePlugin.warning(t("knowledgeBase.notInitialized"));
     return false;
   }
-  if (missingStorageEngine.value) {
-    MessagePlugin.warning(t("knowledgeBase.missingStorageEngineUpload"));
-    return false;
-  }
   return true;
 };
 
@@ -2564,17 +2551,6 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
             }}</span>
             <span class="text-primary ml-0.5 whitespace-nowrap group-hover:underline"
               >{{ $t("knowledgeBase.goToParserSettings") }} →</span
-            >
-          </p>
-          <p
-            v-if="missingStorageEngine"
-            class="group text-warning m-0 mt-0.5 flex cursor-pointer items-center gap-1 text-xs leading-[1.4] transition-colors hover:text-[var(--td-warning-color-active)]"
-            @click="handleOpenKBSettings"
-          >
-            <InfoIcon class="size-3 shrink-0" />
-            <span>{{ $t("knowledgeBase.missingStorageEngine") }}</span>
-            <span class="text-primary ml-0.5 whitespace-nowrap group-hover:underline"
-              >{{ $t("knowledgeBase.goToStorageSettings") }} →</span
             >
           </p>
         </div>

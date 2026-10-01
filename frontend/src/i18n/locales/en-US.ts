@@ -457,10 +457,6 @@ export default {
     staleGeneratedQuestions: "Generated from an earlier version; regenerate if needed",
     noGeneratedQuestions: "No retrieval questions",
     notInitialized: "Knowledge base is not initialized. Please configure models in settings before uploading files",
-    missingStorageEngine:
-      "This knowledge base has no storage engine selected. Please configure a storage engine in settings before uploading content.",
-    missingStorageEngineUpload: "Please configure a storage engine before uploading content",
-    goToStorageSettings: "Go to Settings",
     getInfoFailed: "Failed to get knowledge base information, file upload is not possible",
     missingId: "Knowledge base ID is missing",
     deleteFailed: "Delete failed. Please try again later!",
@@ -1861,8 +1857,6 @@ export default {
       buildDataFailed: "Failed to construct submission data",
       updateSuccess: "Configuration saved successfully",
       indexModeRequired: "Please select an indexing mode for FAQ knowledge bases",
-      storageChangeConfirm:
-        "This knowledge base already has files. Changing the storage engine may make old files inaccessible. Do you want to proceed?",
     },
     document: {
       title: "Document Management",
@@ -3945,7 +3939,8 @@ export default {
       instanceLabel: "Storage instance",
       instanceDesc:
         "The same storage type can have multiple instances with different endpoints, buckets, or credentials.",
-      migrateHint: "This knowledge base already contains files; use the storage migration flow to switch instances.",
+      rebindHint:
+        "This knowledge base already has files. They stay where they are and remain readable; only files added from now on go to the selected instance.",
       manageInstances: "Manage storage instances",
       localStorage: "Local storage",
       loading: "Loading...",

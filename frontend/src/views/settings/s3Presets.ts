@@ -1,4 +1,4 @@
-import type { S3AddressingStyle } from "@/api/system";
+import type { S3AddressingStyle } from "@/api/storage-backend";
 
 /**
  * Quick-fill presets for the S3 form. The backend knows exactly one S3 provider and

@@ -228,51 +228,6 @@ export function reconnectDocReader(addr: string): Promise<ParserEnginesResponse 
   return post("/api/v1/system/docreader/reconnect", { addr });
 }
 
-// ---- 存储引擎配置（空间级，供文档/图片存储与 docreader 使用） ----
-
-/**
- * How the S3 client addresses a bucket. "auto" (also the empty value) picks
- * virtual-hosted style for amazonaws.com or no endpoint and path style for any
- * other endpoint; "virtual" is required by Aliyun OSS, Tencent COS, Volcengine
- * TOS and Huawei OBS; MinIO and RustFS need "path".
- */
-export type S3AddressingStyle = "" | "auto" | "path" | "virtual";
-
-export interface StorageEngineConfig {
-  default_provider: string; // "local" | "s3"
-  local: { path_prefix: string };
-  s3: {
-    endpoint: string; // optional for standard AWS S3
-    region: string;
-    access_key: string; // both keys empty => AWS default credential chain
-    secret_key: string;
-    bucket_name: string;
-    path_prefix: string;
-    use_ssl: boolean;
-    addressing_style: S3AddressingStyle;
-  };
-}
-
-export interface StorageEngineStatusItem {
-  name: string;
-  allowed?: boolean;
-  available: boolean;
-  description: string;
-}
-
-export interface GetStorageEngineStatusResponse {
-  engines: StorageEngineStatusItem[];
-  allowed_providers?: string[];
-}
-
-export function getStorageEngineConfig(): Promise<{ data: StorageEngineConfig }> {
-  return get("/api/v1/tenants/kv/storage-engine-config");
-}
-
-export function getStorageEngineStatus(): Promise<{ data: GetStorageEngineStatusResponse }> {
-  return get("/api/v1/system/storage-engine-status");
-}
-
 // ---- System Admin Management ----
 
 export interface SystemAdminUser {

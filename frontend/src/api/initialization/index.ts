@@ -57,9 +57,11 @@ export interface KBModelConfigRequest {
   multimodal: {
     enabled: boolean;
   };
-  /** 存储引擎选择："local" | "s3"，影响文档上传与文档内图片存储 */
+  /**
+   * 存储实例 ID：此后新增的文件写入该实例；已有文件仍从各自所在的实例读取，
+   * 所以已有文件的知识库也可以更换。
+   */
   storageBackendId?: string;
-  storageProvider?: string;
   nodeExtract: {
     enabled: boolean;
     text: string;

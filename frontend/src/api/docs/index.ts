@@ -29,7 +29,8 @@ export interface DocsSpace {
   visibility: SpaceVisibility;
   default_role: SpaceRole;
   knowledge_base_id?: string | null;
-  storage_backend_id?: string | null;
+  /** Where the space's new attachments go; every space has one. */
+  storage_backend_id: string;
   settings?: Record<string, unknown>;
   creator_id?: string | null;
   created_at: string;
@@ -88,7 +89,8 @@ export interface CreateSpaceRequest {
   visibility?: SpaceVisibility;
   default_role?: SpaceRole;
   knowledge_base_id?: string | null;
-  storage_backend_id?: string | null;
+  /** Omit for the workspace default. */
+  storage_backend_id?: string;
   settings?: Record<string, unknown>;
 }
 
@@ -111,6 +113,10 @@ export interface SpaceMemberInput {
 export interface BindKnowledgeBaseRequest {
   /** Omit to leave unchanged; empty string clears the binding. */
   knowledge_base_id?: string;
+  /**
+   * Omit to leave unchanged; empty string rebinds the space to the workspace
+   * default. Existing attachments stay where they are and remain readable.
+   */
   storage_backend_id?: string;
 }
 

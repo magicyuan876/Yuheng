@@ -18,7 +18,7 @@
           </p>
         </div>
         <div class="w-[45%] min-w-[300px]">
-          <Select v-model="localID" :disabled="!!props.hasFiles" @update:model-value="handleChange">
+          <Select v-model="localID" @update:model-value="handleChange">
             <SelectTrigger class="w-full" style="min-width: 260px">
               <!-- The trigger shows the backend name only, as the old select's label did; without
                    a slot Reka would copy the whole item, badges included, into the trigger. -->
@@ -38,8 +38,8 @@
               </SelectItem>
             </SelectContent>
           </Select>
-          <p v-if="props.hasFiles" class="text-warning my-2 text-xs">
-            {{ $t("kbSettings.storage.migrateHint") }}
+          <p v-if="rebinding" class="text-warning my-2 text-xs">
+            {{ $t("kbSettings.storage.rebindHint") }}
           </p>
           <p v-else-if="selected" class="text-muted-foreground my-2 text-xs">
             {{
@@ -71,10 +71,16 @@ import { usePlatformInfraAccess } from "@/composables/usePlatformInfraAccess";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const props = defineProps<{ storageBackendId?: string; storageProvider?: string; hasFiles?: boolean }>();
+// The binding decides only where new files go: each stored file is read
+// through its own record, which remembers its backend. So a knowledge base
+// with files may be rebound, and the panel says what that means instead of
+// locking the choice.
+// boundStorageBackendId is the binding the knowledge base was opened with;
+// the panel is remounted whenever the editor switches sections, so it cannot
+// remember that itself.
+const props = defineProps<{ storageBackendId?: string; boundStorageBackendId?: string; hasFiles?: boolean }>();
 const emit = defineEmits<{
   "update:storageBackendId": [value: string];
-  "update:storageProvider": [value: string];
 }>();
 const uiStore = useUIStore();
 // 集中管控模式下存储配置归系统管理员，入口对其他人隐藏；不 gate 的话这个链接会
@@ -85,18 +91,22 @@ const loading = ref(false),
   defaultID = ref(""),
   localID = ref(props.storageBackendId || "");
 const selected = computed(() => backends.value.find((item) => item.id === localID.value));
+const rebinding = computed(
+  () => !!props.hasFiles && !!props.boundStorageBackendId && localID.value !== props.boundStorageBackendId,
+);
 
 function handleChange() {
   emit("update:storageBackendId", localID.value);
-  emit("update:storageProvider", selected.value?.provider || props.storageProvider || "");
 }
 async function load() {
   loading.value = true;
   try {
     const response = await listStorageBackends();
     backends.value = (response.data || []).filter((item) => item.status === "active");
-    defaultID.value = response.default_storage_backend_id || "";
-    if (!localID.value) localID.value = defaultID.value || backends.value[0]?.id || "";
+    defaultID.value = response.default_storage_backend_id;
+    // A new knowledge base starts on the workspace default, which is what the
+    // server would bind anyway; showing it makes the choice visible.
+    if (!localID.value) localID.value = defaultID.value;
     if (localID.value) handleChange();
   } finally {
     loading.value = false;

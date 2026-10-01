@@ -563,7 +563,7 @@
                     <Tooltip
                       v-if="
                         kb.vlm_config?.enabled ||
-                        (kb.storage_provider_config?.provider && kb.storage_provider_config.provider !== 'local')
+                        (kb.storage_backend?.provider && kb.storage_backend.provider !== 'local')
                       "
                     >
                       <TooltipTrigger as-child>
@@ -839,7 +839,7 @@
                     <Tooltip
                       v-if="
                         kb.vlm_config?.enabled ||
-                        (kb.storage_provider_config?.provider && kb.storage_provider_config.provider !== 'local')
+                        (kb.storage_backend?.provider && kb.storage_backend.provider !== 'local')
                       "
                     >
                       <TooltipTrigger as-child>
@@ -1298,6 +1298,7 @@ import { onMounted, onUnmounted, ref, computed, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { MessagePlugin } from "tdesign-vue-next";
 import { deleteKnowledgeBase, duplicateKnowledgeBase, togglePinKnowledgeBase } from "@/api/knowledge-base";
+import type { StorageBackendRef } from "@/api/storage-backend";
 import { useChatResourcesStore } from "@/stores/chatResources";
 import { formatStringDate } from "@/utils/index";
 import { useUIStore } from "@/stores/ui";
@@ -1468,7 +1469,7 @@ interface KB {
   showMore?: boolean;
   vlm_config?: { enabled?: boolean; model_id?: string };
   extract_config?: { enabled?: boolean };
-  storage_provider_config?: { provider?: string };
+  storage_backend?: StorageBackendRef;
   question_generation_config?: { enabled?: boolean; question_count?: number };
   knowledge_count?: number;
   chunk_count?: number;

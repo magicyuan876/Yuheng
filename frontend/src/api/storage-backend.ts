@@ -1,5 +1,12 @@
 import { get, post, put, del } from "@/utils/request";
-import type { S3AddressingStyle } from "@/api/system";
+
+/**
+ * How the S3 client addresses a bucket. "auto" (also the empty value) picks
+ * virtual-hosted style for amazonaws.com or no endpoint and path style for any
+ * other endpoint; "virtual" is required by Aliyun OSS, Tencent COS, Volcengine
+ * TOS and Huawei OBS; MinIO and RustFS need "path".
+ */
+export type S3AddressingStyle = "" | "auto" | "path" | "virtual";
 
 export interface StorageBackendConfig {
   endpoint?: string;
@@ -18,9 +25,13 @@ export interface StorageBackend {
   name: string;
   provider: string;
   config: StorageBackendConfig;
+  /**
+   * "env" is the deployment's own storage: one read-only row, configured by
+   * the environment and shared with every workspace. Everything else is a
+   * backend some workspace registered.
+   */
   source: "user" | "env";
   status: "active" | "disabled";
-  legacy_alias?: boolean;
   /** 平台共享：所有空间可见可选用，配置与凭据仅系统管理员可见/可改。 */
   is_builtin?: boolean;
   created_at?: string;
@@ -30,7 +41,20 @@ export interface StorageBackend {
 export interface StorageBackendListResponse {
   success: boolean;
   data: StorageBackend[];
-  default_storage_backend_id?: string | null;
+  /** The workspace default; always set (a new workspace starts on "env"). */
+  default_storage_backend_id: string;
+}
+
+/**
+ * How a knowledge base response names its storage backend: enough to show
+ * and pick it, nothing about where it is.
+ */
+export interface StorageBackendRef {
+  id: string;
+  name: string;
+  provider: string;
+  source: "user" | "env";
+  is_builtin: boolean;
 }
 
 export const listStorageBackends = (): Promise<StorageBackendListResponse> => get("/api/v1/storage-backends");
@@ -46,7 +70,7 @@ export const testStorageBackendByID = (id: string) => post(`/api/v1/storage-back
 
 /**
  * 设置存储实例的平台共享状态。仅系统管理员可调用。
- * 取消共享时，若 owner 之外的空间仍有默认存储、知识库或活跃资源绑定，后端返回 400。
+ * 取消共享时，若 owner 之外的空间仍有默认存储、知识库、文档空间或活跃资源绑定，后端返回 400。
  */
 export const setStorageBackendSharing = (id: string, shared: boolean) =>
   put(`/api/v1/storage-backends/${id}/sharing`, { shared });
