@@ -134,7 +134,7 @@ func TestBuildKBResponse_StripsVectorStoreIDForSharedKB(t *testing.T) {
 		SummaryModelID:   "s",
 		VectorStoreID:    &storeID,
 	}
-	got := buildKBResponse(kb, types.SharedStoreDisplay(), nil)
+	got := buildKBResponse(kb, types.SharedStoreDisplay(), kbStorageView{Hidden: true}, nil)
 	m, ok := got.(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected map result, got %T", got)
@@ -174,7 +174,7 @@ func TestBuildKBResponse_KeepsVectorStoreIDForOwnerKB(t *testing.T) {
 		EngineType: "elasticsearch",
 		Status:     "available",
 	}
-	got := buildKBResponse(kb, view, nil)
+	got := buildKBResponse(kb, view, kbStorageView{}, nil)
 	m, ok := got.(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected map result, got %T", got)
@@ -184,5 +184,81 @@ func TestBuildKBResponse_KeepsVectorStoreIDForOwnerKB(t *testing.T) {
 	}
 	if m["vector_store_name"] != "prod-es" {
 		t.Fatalf("owner KB must surface store name, got %v", m["vector_store_name"])
+	}
+}
+
+// stubStorageBackendRepo serves a fixed set of visible backends.
+type stubStorageBackendRepo struct {
+	interfaces.StorageBackendRepository
+	backends []*types.StorageBackend
+}
+
+func (r *stubStorageBackendRepo) GetByID(_ context.Context, _ uint64, id string) (*types.StorageBackend, error) {
+	for _, b := range r.backends {
+		if b.ID == id {
+			return b, nil
+		}
+	}
+	return nil, nil
+}
+
+func (r *stubStorageBackendRepo) List(context.Context, uint64) ([]*types.StorageBackend, error) {
+	return r.backends, nil
+}
+
+// The owner sees which backend its knowledge base writes to — name,
+// provider and kind, never the location — in both the single and the list
+// response.
+func TestKBResponseNamesTheStorageBackend(t *testing.T) {
+	h := &KnowledgeBaseHandler{storageBackends: &stubStorageBackendRepo{backends: []*types.StorageBackend{{
+		ID: "env", Name: "Deployment storage", Provider: "s3", Source: types.StorageBackendSourceEnv, IsBuiltin: true,
+		Config: types.StorageBackendConfig{BucketName: "secret-bucket"},
+	}}}}
+	kb := &types.KnowledgeBase{ID: "kb-1", Name: "kb", TenantID: 1, StorageBackendID: "env"}
+
+	single := buildKBResponse(kb, types.DefaultStoreDisplay(), h.kbStorageBackend(context.Background(), kb, 1), nil)
+	list := h.buildKBListResponse(context.Background(), []*types.KnowledgeBase{kb}, 1)
+	for name, got := range map[string]interface{}{"single": single, "list": list[0]} {
+		serialized, err := json.Marshal(got)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var body struct {
+			StorageBackendID string                   `json:"storage_backend_id"`
+			StorageBackend   *types.StorageBackendRef `json:"storage_backend"`
+		}
+		if err := json.Unmarshal(serialized, &body); err != nil {
+			t.Fatal(err)
+		}
+		want := types.StorageBackendRef{
+			ID: "env", Name: "Deployment storage", Provider: "s3", Source: "env", IsBuiltin: true,
+		}
+		if body.StorageBackend == nil || *body.StorageBackend != want {
+			t.Fatalf("%s: storage_backend = %+v, want %+v", name, body.StorageBackend, want)
+		}
+		if body.StorageBackendID != "env" {
+			t.Fatalf("%s: storage_backend_id = %q", name, body.StorageBackendID)
+		}
+		if strings.Contains(string(serialized), "secret-bucket") {
+			t.Fatalf("%s: the backend's location leaked: %s", name, serialized)
+		}
+	}
+}
+
+// A borrower of a shared knowledge base learns nothing about the owner's
+// storage: neither the backend id nor its reference.
+func TestKBResponseHidesStorageFromBorrowers(t *testing.T) {
+	h := &KnowledgeBaseHandler{storageBackends: &stubStorageBackendRepo{backends: []*types.StorageBackend{{
+		ID: "owner-s3", Name: "Owner S3", Provider: "s3",
+	}}}}
+	kb := &types.KnowledgeBase{ID: "kb-1", Name: "kb", TenantID: 42, StorageBackendID: "owner-s3"}
+
+	list := h.buildKBListResponse(context.Background(), []*types.KnowledgeBase{kb}, 1)
+	single := buildKBResponse(kb, types.SharedStoreDisplay(), h.kbStorageBackend(context.Background(), kb, 1), nil)
+	for name, got := range map[string]interface{}{"list": list[0], "single": single} {
+		serialized, _ := json.Marshal(got)
+		if strings.Contains(string(serialized), "owner-s3") || strings.Contains(string(serialized), "Owner S3") {
+			t.Fatalf("%s: shared KB response leaked the owner's storage: %s", name, serialized)
+		}
 	}
 }

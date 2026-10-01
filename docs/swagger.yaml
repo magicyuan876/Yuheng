@@ -1115,6 +1115,12 @@ definitions:
         description: ShareCount indicates the number of organizations this knowledge
           base is shared with (not stored in database)
         type: integer
+      storage_backend:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageBackendRef'
+        description: |-
+          StorageBackend names the bound backend in API responses (not stored in
+          database): filled for the owning workspace, absent for everyone else.
       storage_backend_id:
         description: |-
           StorageBackendID is the storage backend this knowledge base's new files
@@ -2567,6 +2573,19 @@ definitions:
         type: string
       use_ssl:
         type: boolean
+    type: object
+  github_com_magicyuan876_yuheng_internal_types.StorageBackendRef:
+    properties:
+      id:
+        type: string
+      is_builtin:
+        type: boolean
+      name:
+        type: string
+      provider:
+        type: string
+      source:
+        type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.StorageEngineConfig:
     properties:

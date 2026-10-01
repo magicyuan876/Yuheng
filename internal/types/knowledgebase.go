@@ -95,6 +95,9 @@ type KnowledgeBase struct {
 	// is read through its own resource row, so the binding may change while
 	// the knowledge base has files.
 	StorageBackendID string `yaml:"storage_backend_id" json:"storage_backend_id" gorm:"type:varchar(36);not null"`
+	// StorageBackend names the bound backend in API responses (not stored in
+	// database): filled for the owning workspace, absent for everyone else.
+	StorageBackend *StorageBackendRef `yaml:"-" json:"storage_backend,omitempty" gorm:"-"`
 	// VectorStoreID references the VectorStore this knowledge base is bound to.
 	// When nil, the KB falls back to the workspace's effective engines derived from
 	// the RETRIEVE_DRIVER environment variable (env store flow).

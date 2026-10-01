@@ -29,6 +29,8 @@ type KnowledgeBaseHandler struct {
 	kbShareService     interfaces.KBShareService
 	asynqClient        interfaces.TaskEnqueuer
 	vectorStoreService interfaces.VectorStoreService // enriches KB responses with bound store display
+	// storageBackends names the bound storage backend in KB responses.
+	storageBackends interfaces.StorageBackendRepository
 	// userService 仅在 list 类接口里用于批量回填 creator_name；
 	// 真正的鉴权由 RBAC 中间件 + Lookup 完成，这里不参与决策。
 	userService interfaces.UserService
@@ -41,6 +43,7 @@ func NewKnowledgeBaseHandler(
 	kbShareService interfaces.KBShareService,
 	asynqClient interfaces.TaskEnqueuer,
 	vectorStoreService interfaces.VectorStoreService,
+	storageBackends interfaces.StorageBackendRepository,
 	userService interfaces.UserService,
 ) *KnowledgeBaseHandler {
 	return &KnowledgeBaseHandler{
@@ -49,6 +52,7 @@ func NewKnowledgeBaseHandler(
 		kbShareService:     kbShareService,
 		asynqClient:        asynqClient,
 		vectorStoreService: vectorStoreService,
+		storageBackends:    storageBackends,
 		userService:        userService,
 	}
 }
@@ -69,13 +73,17 @@ func NewKnowledgeBaseHandler(
 // from the response so the owner-tenant's store inventory cannot be
 // correlated across multiple shared KBs. Name / engine type / status are
 // already empty in the SharedStoreDisplay payload; suppressing the UUID
-// completes the cross-tenant metadata hiding.
+// completes the cross-tenant metadata hiding. storage applies the same rule
+// to the storage backend (see kbStorageView).
 func buildKBResponse(
 	kb *types.KnowledgeBase,
 	storeView types.StoreDisplay,
+	storage kbStorageView,
 	extras map[string]interface{},
 ) interface{} {
-	b, err := json.Marshal(kb)
+	withStorage := *kb
+	withStorage.StorageBackend = storage.Ref
+	b, err := json.Marshal(&withStorage)
 	if err != nil {
 		return kb
 	}
@@ -85,6 +93,10 @@ func buildKBResponse(
 	}
 	if storeView.Source == types.StoreSourceShared {
 		delete(m, "vector_store_id")
+	}
+	if storage.Hidden {
+		delete(m, "storage_backend_id")
+		delete(m, "storage_backend")
 	}
 	if storeView.Name != "" {
 		m["vector_store_name"] = storeView.Name
@@ -123,6 +135,7 @@ func (h *KnowledgeBaseHandler) buildKBListResponse(
 ) []interface{} {
 	defaultView := h.envDefaultStoreView(ctx)
 	storeViews := h.batchResolveKBStoreViews(ctx, kbs, callerTenantID)
+	storageRefs := h.visibleStorageBackends(ctx, callerTenantID)
 	out := make([]interface{}, 0, len(kbs))
 	for _, kb := range kbs {
 		var view types.StoreDisplay
@@ -139,7 +152,11 @@ func (h *KnowledgeBaseHandler) buildKBListResponse(
 				view = v
 			}
 		}
-		out = append(out, buildKBResponse(kb, view, nil))
+		storage := kbStorageView{Hidden: kb.TenantID != callerTenantID}
+		if !storage.Hidden {
+			storage.Ref = storageRefs[kb.StorageBackendID]
+		}
+		out = append(out, buildKBResponse(kb, view, storage, nil))
 	}
 	return out
 }
@@ -163,7 +180,7 @@ func (h *KnowledgeBaseHandler) buildKBListResponse(
 func sharedKBRow(
 	info *types.SharedKnowledgeBaseInfo, extras map[string]interface{},
 ) map[string]interface{} {
-	kbView := buildKBResponse(info.KnowledgeBase, types.SharedStoreDisplay(), nil)
+	kbView := buildKBResponse(info.KnowledgeBase, types.SharedStoreDisplay(), kbStorageView{Hidden: true}, nil)
 	row := map[string]interface{}{
 		"knowledge_base":   kbView,
 		"share_id":         info.ShareID,
@@ -177,6 +194,57 @@ func sharedKBRow(
 		row[k] = v
 	}
 	return row
+}
+
+// visibleStorageBackends loads, in one query, every storage backend the
+// caller's workspace can see, keyed by id, for the list endpoint's
+// storage_backend references. A failure degrades to responses without them.
+func (h *KnowledgeBaseHandler) visibleStorageBackends(
+	ctx context.Context, callerTenantID uint64,
+) map[string]*types.StorageBackendRef {
+	if h.storageBackends == nil {
+		return nil
+	}
+	backends, err := h.storageBackends.List(ctx, callerTenantID)
+	if err != nil {
+		logger.Warnf(ctx, "[kb.list] storage backend lookup failed; omitting storage_backend: %v", err)
+		return nil
+	}
+	refs := make(map[string]*types.StorageBackendRef, len(backends))
+	for _, backend := range backends {
+		refs[backend.ID] = types.NewStorageBackendRef(backend)
+	}
+	return refs
+}
+
+// kbStorageView is what a KB response says about the knowledge base's
+// storage backend. Ref, emitted as storage_backend, names the bound backend
+// (name, provider, kind) so a client renders the binding without a second
+// request. Hidden is set for a caller outside the owning workspace — the
+// boundary resolveKBStoreView keeps for vector stores: the binding is the
+// owner's infrastructure, so even its id is withheld.
+type kbStorageView struct {
+	Ref    *types.StorageBackendRef
+	Hidden bool
+}
+
+// kbStorageBackend builds the storage view of one knowledge base for the
+// caller.
+func (h *KnowledgeBaseHandler) kbStorageBackend(
+	ctx context.Context, kb *types.KnowledgeBase, callerTenantID uint64,
+) kbStorageView {
+	if kb.TenantID != callerTenantID {
+		return kbStorageView{Hidden: true}
+	}
+	if h.storageBackends == nil || kb.StorageBackendID == "" {
+		return kbStorageView{}
+	}
+	backend, err := h.storageBackends.GetByID(ctx, callerTenantID, kb.StorageBackendID)
+	if err != nil {
+		logger.Warnf(ctx, "[kb.view] storage backend lookup failed; omitting storage_backend: %v", err)
+		return kbStorageView{}
+	}
+	return kbStorageView{Ref: types.NewStorageBackendRef(backend)}
 }
 
 // envDefaultStoreView returns the env-fallback store display enriched with
@@ -395,7 +463,8 @@ func (h *KnowledgeBaseHandler) CreateKnowledgeBase(c *gin.Context) {
 	callerTenantID := c.GetUint64(types.TenantIDContextKey.String())
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data":    buildKBResponse(kb, h.resolveKBStoreView(ctx, kb, callerTenantID), nil),
+		"data": buildKBResponse(kb, h.resolveKBStoreView(ctx, kb, callerTenantID),
+			h.kbStorageBackend(ctx, kb, callerTenantID), nil),
 	})
 }
 
@@ -507,7 +576,8 @@ func (h *KnowledgeBaseHandler) GetKnowledgeBase(c *gin.Context) {
 		// Include my_permission in data so frontend can show role (e.g. "只读") instead of "--" for shared KBs
 		extras = map[string]interface{}{"my_permission": permission}
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": buildKBResponse(kb, storeView, extras)})
+	storage := h.kbStorageBackend(c.Request.Context(), kb, tenantID)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": buildKBResponse(kb, storeView, storage, extras)})
 }
 
 // ListKnowledgeBases godoc
@@ -688,7 +758,8 @@ func (h *KnowledgeBaseHandler) TogglePinKnowledgeBase(c *gin.Context) {
 	callerTenantID := c.GetUint64(types.TenantIDContextKey.String())
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    buildKBResponse(kb, h.resolveKBStoreView(ctx, kb, callerTenantID), nil),
+		"data": buildKBResponse(kb, h.resolveKBStoreView(ctx, kb, callerTenantID),
+			h.kbStorageBackend(ctx, kb, callerTenantID), nil),
 	})
 }
 
@@ -764,7 +835,8 @@ func (h *KnowledgeBaseHandler) UpdateKnowledgeBase(c *gin.Context) {
 	callerTenantID := c.GetUint64(types.TenantIDContextKey.String())
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    buildKBResponse(kb, h.resolveKBStoreView(ctx, kb, callerTenantID), nil),
+		"data": buildKBResponse(kb, h.resolveKBStoreView(ctx, kb, callerTenantID),
+			h.kbStorageBackend(ctx, kb, callerTenantID), nil),
 	})
 }
 
@@ -1064,10 +1136,11 @@ func (h *KnowledgeBaseHandler) DuplicateKnowledgeBase(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": DuplicateKnowledgeBaseResponse{
-			SourceID:      sourceID,
-			TargetID:      targetKB.ID,
-			Message:       "Knowledge base duplicate created",
-			KnowledgeBase: buildKBResponse(targetKB, h.resolveKBStoreView(ctx, targetKB, callerTenantID), nil),
+			SourceID: sourceID,
+			TargetID: targetKB.ID,
+			Message:  "Knowledge base duplicate created",
+			KnowledgeBase: buildKBResponse(targetKB, h.resolveKBStoreView(ctx, targetKB, callerTenantID),
+				h.kbStorageBackend(ctx, targetKB, callerTenantID), nil),
 		},
 	})
 }

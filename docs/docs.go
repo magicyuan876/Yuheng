@@ -20007,6 +20007,14 @@ const docTemplate = `{
                     "description": "ShareCount indicates the number of organizations this knowledge base is shared with (not stored in database)",
                     "type": "integer"
                 },
+                "storage_backend": {
+                    "description": "StorageBackend names the bound backend in API responses (not stored in\ndatabase): filled for the owning workspace, absent for everyone else.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageBackendRef"
+                        }
+                    ]
+                },
                 "storage_backend_id": {
                     "description": "StorageBackendID is the storage backend this knowledge base's new files\nare written to. Required (a new knowledge base takes the workspace\ndefault). It decides nothing about files already stored: each of those\nis read through its own resource row, so the binding may change while\nthe knowledge base has files.",
                     "type": "string"
@@ -21904,6 +21912,26 @@ const docTemplate = `{
                 },
                 "use_ssl": {
                     "type": "boolean"
+                }
+            }
+        },
+        "github_com_magicyuan876_yuheng_internal_types.StorageBackendRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "is_builtin": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
                 }
             }
         },

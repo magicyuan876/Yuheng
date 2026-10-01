@@ -219,6 +219,27 @@ func (c StorageBackendConfig) LocationKey(provider string) string {
 	}, "|")
 }
 
+// StorageBackendRef names a storage backend inside another resource's
+// response (a knowledge base's): what a client needs to show the binding and
+// offer the choice, and nothing about where the backend is or how it is
+// reached. Clients use it instead of matching storage_backend_id against a
+// separately fetched list.
+type StorageBackendRef struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Provider  string `json:"provider"`
+	Source    string `json:"source"`
+	IsBuiltin bool   `json:"is_builtin"`
+}
+
+// NewStorageBackendRef projects a backend row to its reference form.
+func NewStorageBackendRef(b *StorageBackend) *StorageBackendRef {
+	if b == nil {
+		return nil
+	}
+	return &StorageBackendRef{ID: b.ID, Name: b.Name, Provider: b.Provider, Source: b.Source, IsBuiltin: b.IsBuiltin}
+}
+
 func NewStorageBackendResponse(backend *StorageBackend) StorageBackend {
 	return NewStorageBackendResponseWithSharedDetail(backend, true)
 }
