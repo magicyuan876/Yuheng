@@ -166,13 +166,11 @@
                           ? knowledgeIcon
                           : item.icon == 'docs'
                             ? docsIcon
-                            : item.icon == 'organization'
-                              ? organizationIcon
-                              : item.icon == 'logout'
-                                ? logoutIcon
-                                : item.icon == 'setting'
-                                  ? settingIcon
-                                  : prefixIcon,
+                            : item.icon == 'logout'
+                              ? logoutIcon
+                              : item.icon == 'setting'
+                                ? settingIcon
+                                : prefixIcon,
                       )
                     "
                     alt=""
@@ -184,12 +182,6 @@
                     :class="menuItemState(item) === 'active' ? 'text-primary' : 'text-foreground'"
                     :title="item.title"
                     >{{ item.title }}</span
-                  >
-                  <span
-                    v-if="item.path === 'organizations' && orgStore.totalPendingJoinRequestCount > 0"
-                    class="text-warning ml-1.5 h-[18px] min-w-[18px] shrink-0 rounded-[9px] bg-[rgba(250,173,20,0.2)] px-[5px] text-center text-xs leading-[18px] font-semibold"
-                    :title="t('organization.settings.pendingJoinRequestsBadge')"
-                    >{{ orgStore.totalPendingJoinRequestCount }}</span
                   >
                 </template>
               </div>
@@ -398,8 +390,6 @@ import {
 import { logout as logoutApi } from "@/api/auth";
 import { useMenuStore } from "@/stores/menu";
 import { useAuthStore } from "@/stores/auth";
-import { useDeploymentCapabilitiesStore } from "@/stores/deploymentCapabilities";
-import { useOrganizationStore } from "@/stores/organization";
 import { useUIStore } from "@/stores/ui";
 import { useCommandPaletteStore } from "@/stores/commandPalette";
 import { MessagePlugin, DialogPlugin } from "tdesign-vue-next";
@@ -427,8 +417,6 @@ const chatResources = useChatResourcesStore();
 const { t } = useI18n();
 const usemenuStore = useMenuStore();
 const authStore = useAuthStore();
-const deploymentCapabilities = useDeploymentCapabilitiesStore();
-const orgStore = useOrganizationStore();
 const uiStore = useUIStore();
 const commandPaletteStore = useCommandPaletteStore();
 
@@ -521,8 +509,6 @@ const isMenuItemActive = (itemPath: string): boolean => {
       );
     case "docs":
       return currentRoute === "docsSpaceList" || currentRoute === "docsSpace" || currentRoute === "docsSpaceSettings";
-    case "organizations":
-      return currentRoute === "organizationList";
     case "creatChat":
       return currentRoute === "kbCreatChat" || currentRoute === "globalCreatChat";
     case "settings":
@@ -602,11 +588,7 @@ const getIconActiveState = (itemPath: string) => {
 // 分离上下两部分菜单（使用 visibleMenuArr 以便 lite 模式过滤 logout）
 const topMenuItems = computed<MenuItem[]>(() => {
   return (visibleMenuArr.value as unknown as MenuItem[]).filter(
-    (item: MenuItem) =>
-      item.path === "knowledge-bases" ||
-      item.path === "docs" ||
-      item.path === "organizations" ||
-      item.path === "creatChat",
+    (item: MenuItem) => item.path === "knowledge-bases" || item.path === "docs" || item.path === "creatChat",
   );
 });
 
@@ -1135,10 +1117,6 @@ onMounted(async () => {
     ensureSessionInSidebar(initialChatId);
     await syncActiveBucketFromChat(initialChatId);
   }
-  // 若组织列表未加载则拉取一次，用于侧栏「待审批」角标
-  if (deploymentCapabilities.isSupported("organizations") && orgStore.organizations.length === 0) {
-    orgStore.fetchOrganizations();
-  }
 });
 
 onUnmounted(() => {
@@ -1175,7 +1153,6 @@ const prefixIcon = ref("prefixIcon.svg");
 const logoutIcon = ref("logout.svg");
 const settingIcon = ref("setting.svg");
 const docsIcon = ref("docs.svg");
-const organizationIcon = ref("organization.svg");
 const pathPrefix = ref(route.name);
 const getIcon = (path: string) => {
   // 根据当前路由状态更新所有图标
@@ -1184,16 +1161,12 @@ const getIcon = (path: string) => {
   const settingsActiveState = getIconActiveState("settings");
   const docsActiveState =
     route.name === "docsSpaceList" || route.name === "docsSpace" || route.name === "docsSpaceSettings";
-  const organizationsActiveState = route.name === "organizationList";
 
   // 知识库图标：只在知识库页面显示绿色
   knowledgeIcon.value = kbActiveState.isKbActive ? "zhishiku-green.svg" : "zhishiku.svg";
 
   // 在线文档图标：只在文档页面显示绿色
   docsIcon.value = docsActiveState ? "docs-green.svg" : "docs.svg";
-
-  // 组织图标：只在组织页面显示绿色
-  organizationIcon.value = organizationsActiveState ? "organization-green.svg" : "organization.svg";
 
   // 对话图标：只在对话创建页面显示绿色，其他情况显示默认
   prefixIcon.value = creatChatActiveState.isCreatChatActive ? "prefixIcon-green.svg" : "prefixIcon.svg";
@@ -1216,9 +1189,6 @@ const handleMenuClick = async (path: string) => {
     }
   } else if (path === "docs") {
     router.push("/platform/docs");
-  } else if (path === "organizations") {
-    // 组织菜单项：跳转到组织列表
-    router.push("/platform/organizations");
   } else if (path === "settings") {
     // 设置菜单项：打开设置弹窗并跳转路由
     uiStore.openSettings();

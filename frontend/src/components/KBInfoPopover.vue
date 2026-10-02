@@ -97,23 +97,6 @@
                 <span class="text-placeholder text-[11px]">{{ accessPermissionSummary }}</span>
               </span>
             </div>
-            <div v-if="currentSharedKb" :class="rowClass">
-              <span :class="labelClass">{{ t("knowledgeBase.accessInfo.fromOrg") }}</span>
-              <span :class="valueClass">
-                「{{ currentSharedKb.org_name }}」 · {{ t("knowledgeBase.accessInfo.sharedAt") }}
-                {{ formatStringDate(new Date(currentSharedKb.shared_at)) }}
-              </span>
-            </div>
-            <div v-else-if="effectiveKBPermission" :class="rowClass">
-              <span :class="labelClass">{{ t("knowledgeBase.infoCard.source") }}</span>
-              <span :class="valueClass">{{ t("knowledgeList.detail.sourceTypeKbShare") }}</span>
-            </div>
-            <div v-if="(kbInfo.share_count ?? 0) > 0" :class="rowClass">
-              <span :class="labelClass">{{ t("knowledgeBase.infoCard.sharedTo") }}</span>
-              <span :class="valueClass">
-                {{ t("knowledgeList.sharedToOrgs", { count: kbInfo.share_count }) }}
-              </span>
-            </div>
           </section>
           <section v-if="capabilities.length" :class="sectionClass">
             <h4 :class="sectionTitleClass">
@@ -184,7 +167,6 @@ import VectorStoreBadge from "@/components/VectorStoreBadge.vue";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useOrganizationStore } from "@/stores/organization";
 import { useAuthStore } from "@/stores/auth";
 import { formatStringDate } from "@/utils";
 
@@ -224,13 +206,11 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
-const orgStore = useOrganizationStore();
 const authStore = useAuthStore();
 
 // "Owner" here mirrors the per-page guards: the original creator
-// (creator_id) — not "in my tenant". creator_id is empty for a
-// tenant-owned KB (created through an API key); those fall through to
-// the role/share check.
+// (creator_id). creator_id is empty for a workspace-owned KB (created
+// through an API key); those fall through to the role check.
 const isOwner = computed<boolean>(() => {
   const kb = props.kbInfo;
   if (!kb) return false;
@@ -240,49 +220,33 @@ const isOwner = computed<boolean>(() => {
   return creatorId === userId;
 });
 
-const currentSharedKb = computed(() => {
-  const id = props.kbInfo?.id;
-  if (!id) return null;
-  return orgStore.sharedKnowledgeBases?.find?.((s: any) => s.knowledge_base?.id === id) ?? null;
-});
-
-const isViaShare = computed<boolean>(() => !!currentSharedKb.value);
-
-const effectiveKBPermission = computed<string>(() => {
-  const id = props.kbInfo?.id || "";
-  return orgStore.getKBPermission?.(id) || props.kbInfo?.my_permission || "";
-});
+// What the viewer may do with this knowledge base, by the rule the detail
+// page applies (KnowledgeBase.vue canEdit / canManage): the creator and
+// workspace Admin+ edit and manage it, everyone else reads it. The badge
+// names the subject — "Owner" for the creator, otherwise the workspace role
+// — and the hint spells out what that role buys on this knowledge base.
+const canManage = computed<boolean>(() => isOwner.value || authStore.hasRole("admin"));
 
 const accessRoleLabel = computed<string>(() => {
-  if (!isViaShare.value && isOwner.value) return t("knowledgeBase.accessInfo.roleOwner");
-  const perm = effectiveKBPermission.value;
-  if (perm) return t(`organization.role.${perm}`);
-  return "--";
+  if (isOwner.value) return t("knowledgeBase.accessInfo.roleOwner");
+  const role = authStore.currentTenantRole;
+  return role ? t(`tenantMember.role.${role}`) : "--";
 });
 
-const accessPermissionSummary = computed<string>(() => {
-  if (!isViaShare.value && isOwner.value) return t("knowledgeBase.accessInfo.permissionOwner");
-  const perm = effectiveKBPermission.value;
-  if (perm === "admin") return t("knowledgeBase.accessInfo.permissionAdmin");
-  if (perm === "editor") return t("knowledgeBase.accessInfo.permissionEditor");
-  if (perm === "viewer") return t("knowledgeBase.accessInfo.permissionViewer");
-  return "--";
-});
+const accessPermissionSummary = computed<string>(() =>
+  canManage.value ? t("knowledgeBase.accessInfo.permissionOwner") : t("knowledgeBase.accessInfo.permissionViewer"),
+);
 
-type RoleTheme = "success" | "primary" | "warning" | "default";
+type RoleTheme = "success" | "primary" | "default";
 const roleTagTheme = computed<RoleTheme>(() => {
-  if (!isViaShare.value && isOwner.value) return "success";
-  const perm = effectiveKBPermission.value;
-  if (perm === "admin") return "primary";
-  if (perm === "editor") return "warning";
-  return "default";
+  if (isOwner.value) return "success";
+  return canManage.value ? "primary" : "default";
 });
 
 // The solid (dark) tag variant the role badge used, one class list per theme.
 const roleTagClass: Record<RoleTheme, string> = {
   success: "bg-success text-primary-foreground",
   primary: "bg-primary text-primary-foreground",
-  warning: "bg-warning text-primary-foreground",
   default: "bg-[var(--td-bg-color-component)] text-foreground",
 };
 

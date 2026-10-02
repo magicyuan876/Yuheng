@@ -1,7 +1,6 @@
 import { ref, watch, onMounted, computed } from "vue";
 import { knowledgeSemanticSearch } from "@/api/knowledge-base";
 import { searchMessages, type MessageSearchGroupItem } from "@/api/chat-history";
-import { useOrganizationStore } from "@/stores/organization";
 import { useChatResourcesStore } from "@/stores/chatResources";
 import { useMenuStore } from "@/stores/menu";
 
@@ -70,7 +69,7 @@ export function useCmdkSearch(options: {
   const loading = ref(false);
   const hasSearched = ref(false);
 
-  // All KBs the current user can see (own + shared). Loaded lazily & cached.
+  // The workspace's knowledge bases. Loaded lazily & cached.
   const knowledgeBases = ref<CmdkKb[]>([]);
   const kbsLoaded = ref(false);
   let kbsLoadingPromise: Promise<void> | null = null;
@@ -80,7 +79,6 @@ export function useCmdkSearch(options: {
   const totalChunks = ref(0);
   const totalMessages = ref(0);
 
-  const orgStore = useOrganizationStore();
   const menuStore = useMenuStore();
 
   const ensureKbs = async (): Promise<void> => {
@@ -90,21 +88,11 @@ export function useCmdkSearch(options: {
       try {
         const chatResources = useChatResourcesStore();
         await chatResources.ensureKnowledgeBases();
-        const own: CmdkKb[] = chatResources.rawKnowledgeBases.map((kb: any) => ({
+        knowledgeBases.value = chatResources.rawKnowledgeBases.map((kb: any) => ({
           id: String(kb.id),
           name: kb.name || "",
           type: kb.type,
         }));
-        const ownIds = new Set(own.map((k) => k.id));
-        const sharedList: CmdkKb[] = (orgStore.sharedKnowledgeBases || [])
-          .filter((s: any) => s?.knowledge_base != null)
-          .map((s: any) => ({
-            id: String(s.knowledge_base.id),
-            name: s.knowledge_base.name || "",
-            type: s.knowledge_base.type,
-          }))
-          .filter((k: CmdkKb) => !ownIds.has(k.id));
-        knowledgeBases.value = [...own, ...sharedList];
         kbsLoaded.value = true;
       } catch (e) {
         console.error("[cmdk] failed to load knowledge bases", e);

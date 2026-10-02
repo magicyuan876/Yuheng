@@ -25,7 +25,7 @@ export interface ApiKeyCapabilityGroup {
 export const TENANT_API_KEY_CAPABILITY_GROUPS: readonly ApiKeyCapabilityGroup[] = [
   { key: "knowledge", capabilities: ["retrieve", "chat", "ingest", "manage_kbs", "message_history"] },
   { key: "dataSources", capabilities: ["manage_datasources"] },
-  { key: "collaboration", capabilities: ["manage_members", "manage_spaces"] },
+  { key: "collaboration", capabilities: ["manage_members"] },
   { key: "docs", capabilities: ["docs_read", "docs_write", "docs_admin"] },
   {
     key: "tenant",

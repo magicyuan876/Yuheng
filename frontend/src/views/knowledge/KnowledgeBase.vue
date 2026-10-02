@@ -9,13 +9,11 @@ import ContextualGuide from "@/components/ContextualGuide.vue";
 import KBInfoPopover from "@/components/KBInfoPopover.vue";
 import KBSwitcherDropdown from "@/components/KBSwitcherDropdown.vue";
 import { useUIStore } from "@/stores/ui";
-import { useOrganizationStore } from "@/stores/organization";
 import { useAuthStore } from "@/stores/auth";
 import { useChatResourcesStore } from "@/stores/chatResources";
 import { useEditorResourcesStore } from "@/stores/editorResources";
 import KnowledgeBaseEditorModal from "./KnowledgeBaseEditorModal.vue";
 const uiStore = useUIStore();
-const orgStore = useOrganizationStore();
 const authStore = useAuthStore();
 const chatResources = useChatResourcesStore();
 const editorResources = useEditorResourcesStore();
@@ -325,80 +323,29 @@ const isOwner = computed(() => {
   return creatorId === userId;
 });
 
-// Current KB's shared record (when accessed via organization share)
-const currentSharedKb = computed(
-  () => orgStore.sharedKnowledgeBases.find((s) => s.knowledge_base?.id === kbId.value) ?? null,
-);
+// Can edit: the KB creator (any role) or workspace Admin+. hasRole("contributor")
+// is intentionally NOT here — being a Contributor in a workspace does not by
+// itself grant edit on someone else's KB. The backend enforces the same rule.
+const canEdit = computed(() => isOwner.value || authStore.hasRole("admin"));
 
-// Accessed via organization share: when the KB shows up in our
-// sharedKnowledgeBases list it means we reached it through a shared space,
-// not because we own/manage it in our tenant. In that case the user's local
-// tenant role does NOT grant edit/manage — only the share grant does.
-// Without this guard a local tenant Admin would see edit/upload entries on
-// a read-only shared KB and get 403'd by the backend on click.
-//
-// Note: tenant_id comparison alone is unreliable — a user can be a member of
-// both the source and receiving tenants, and currentTenantId reflects the
-// active switcher rather than "how this KB became visible to me". Presence
-// in the share list is the authoritative signal.
-const isViaShare = computed(() => !!currentSharedKb.value);
-
-// Can edit: when accessed via an organization share, ONLY the share grant
-// counts — even if the current user happens to be the original creator of
-// the KB. The backend's RBAC middleware authorizes based on the active
-// tenant, not on creator_id, so a creator viewing their own KB from a
-// different tenant context will be 403'd on write. Otherwise: KB creator
-// (any role) or tenant Admin+ in the home tenant.
-//
-// hasRole('contributor') is intentionally NOT here — being a Contributor
-// in a tenant does not by itself grant edit on someone else's KB.
-const canEdit = computed(() => {
-  if (isViaShare.value) return orgStore.canEditKB(kbId.value, false);
-  if (isOwner.value) return true;
-  if (authStore.hasRole("admin")) return true;
-  return orgStore.canEditKB(kbId.value, false);
-});
-
-// Can manage (delete, settings, etc.): same isViaShare-first rule. For
-// shared KBs only an 'admin' share grant qualifies — editor/viewer (and
-// even being the creator viewed via share) never grant delete/settings.
-const canManage = computed(() => {
-  if (isViaShare.value) return orgStore.canManageKB(kbId.value, false);
-  if (isOwner.value) return true;
-  if (authStore.hasRole("admin")) return true;
-  return orgStore.canManageKB(kbId.value, false);
-});
+// Can manage (delete, settings, etc.): the same two subjects. Kept separate
+// from canEdit so the two gates can diverge again without touching every
+// consumer.
+const canManage = computed(() => isOwner.value || authStore.hasRole("admin"));
 
 // The activity feed exposes owner-side actor and configuration summaries.
-// It lives in KB settings (KnowledgeBaseEditorModal) for Owner/Admin in the home tenant.
+// It lives in KB settings (KnowledgeBaseEditorModal) for Owner/Admin.
 
 // Can mutate knowledge (move / batch-delete): the backend gate for these
-// two endpoints is g.Contributor(), so the caller MUST be Contributor+
-// in their tenant on top of having KB edit permission. Without the extra
-// role check, an org-share-editor whose tenant role is Viewer would see
-// the "Move" / "Batch manage" entries and 403 on click. For shared KBs
-// the local tenant role is irrelevant — canEdit already encodes the share
-// grant, so trust it.
-const canMutateKnowledge = computed(() => {
-  if (!canEdit.value) return false;
-  if (isViaShare.value) return true;
-  if (isOwner.value) return true;
-  if (authStore.hasRole("admin")) return true;
-  return authStore.hasRole("contributor");
-});
-
-// Effective permission: from direct org share list or from GET /knowledge-bases/:id
-const effectiveKBPermission = computed(() => orgStore.getKBPermission(kbId.value) || kbInfo.value?.my_permission || "");
+// two endpoints is g.Contributor(), so the caller MUST be Contributor+ on
+// top of having KB edit permission. Without the extra role check a Viewer
+// would see the "Move" / "Batch manage" entries and 403 on click.
+const canMutateKnowledge = computed(() => canEdit.value && authStore.hasRole("contributor"));
 
 // Downloading returns the original source file, which is intentionally more
-// restrictive than viewing parsed content or using the preview tab. A tenant
-// Viewer can never download; for cross-tenant KBs the effective share
-// permission must additionally be Editor or Admin.
-const canDownloadKnowledge = computed(() => {
-  if (!authStore.hasRole("contributor")) return false;
-  const permission = effectiveKBPermission.value;
-  return !permission || permission === "owner" || permission === "admin" || permission === "editor";
-});
+// restrictive than viewing parsed content or using the preview tab: a
+// workspace Viewer can never download.
+const canDownloadKnowledge = computed(() => authStore.hasRole("contributor"));
 
 const knowledgeList = ref<Array<{ id: string; name: string; type?: string }>>([]);
 const {
@@ -1167,26 +1114,11 @@ const loadKnowledgeBaseInfo = async (targetKbId: string, force = false) => {
 const loadKnowledgeList = async () => {
   try {
     await chatResources.ensureKnowledgeBases();
-    const myKbs = chatResources.rawKnowledgeBases.map((item: any) => ({
+    knowledgeList.value = chatResources.rawKnowledgeBases.map((item: any) => ({
       id: String(item.id),
       name: item.name,
       type: item.type || "document",
     }));
-
-    // Also include shared knowledge bases from orgStore
-    const sharedKbs = (orgStore.sharedKnowledgeBases || [])
-      .filter((s) => s.knowledge_base != null)
-      .map((s) => ({
-        id: String(s.knowledge_base.id),
-        name: s.knowledge_base.name,
-        type: s.knowledge_base.type || "document",
-      }));
-
-    // Merge and deduplicate by id (my KBs take precedence)
-    const myKbIds = new Set(myKbs.map((kb) => kb.id));
-    const uniqueSharedKbs = sharedKbs.filter((kb) => !myKbIds.has(kb.id));
-
-    knowledgeList.value = [...myKbs, ...uniqueSharedKbs];
   } catch (error) {
     console.error("Failed to load knowledge list:", error);
   }

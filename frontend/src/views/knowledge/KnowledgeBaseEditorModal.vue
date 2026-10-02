@@ -684,11 +684,6 @@
                   <DataSourceSettings :kb-id="activeKbId" @count="dsCount = $event" />
                 </div>
 
-                <!-- 共享设置（仅编辑模式） -->
-                <div v-if="editorMode === 'edit' && activeKbId && currentSection === 'share'" class="mb-8 last:mb-0">
-                  <KBShareSettings :kb-id="activeKbId" :can-share="canShareKB" />
-                </div>
-
                 <!-- 活动记录（仅编辑模式，KB 所属租户内 Owner/Admin） -->
                 <div
                   v-if="editorMode === 'edit' && activeKbId && canViewActivity && currentSection === 'activity'"
@@ -756,7 +751,6 @@ import {
   Loader2Icon,
   NetworkIcon,
   SettingsIcon,
-  Share2Icon,
   SlidersHorizontalIcon,
   AudioLinesIcon,
   type LucideIcon,
@@ -782,7 +776,6 @@ import KBVectorStoreSettings from "./settings/KBVectorStoreSettings.vue";
 import KBAdvancedSettings from "./settings/KBAdvancedSettings.vue";
 import ModelSelector from "@/components/ModelSelector.vue";
 import GraphSettings from "./settings/GraphSettings.vue";
-import KBShareSettings from "./settings/KBShareSettings.vue";
 import DataSourceSettings from "./settings/DataSourceSettings.vue";
 import KnowledgeBaseActivitySettings from "./settings/KnowledgeBaseActivitySettings.vue";
 import { useI18n } from "vue-i18n";
@@ -856,22 +849,10 @@ const initialStorageBackendId = ref("");
 const initialIndexingStrategy = ref<any>(null);
 const dsCount = ref(0);
 // Identifier of the user who created this KB. Empty for a KB created
-// through an API key; such a KB has no "owner" and only tenant Admin+ can
-// mutate its share settings.
+// through an API key; such a KB has no "owner" and only workspace Admin+
+// can manage it.
 const kbCreatorId = ref<string>("");
 const kbTenantId = ref<number>(0);
-
-// Backend gate for /knowledge-bases/:id/shares (POST/PUT/DELETE) is
-// g.OwnedKBOrAdmin(): only the KB creator or tenant Admin+ may mutate
-// shares. Org-admins on a shared KB do NOT pass this guard, so they
-// would only see 403s if we let them try. Mirror the matrix here so
-// the buttons disappear instead of failing.
-const canShareKB = computed(() => {
-  if (!activeKbId.value) return false;
-  const userId = authStore.user?.id || "";
-  if (kbCreatorId.value && userId && kbCreatorId.value === userId) return true;
-  return authStore.hasRole("admin");
-});
 
 const isKbOwner = computed(() => {
   const userId = authStore.user?.id || "";
@@ -917,7 +898,6 @@ const navIcons: Record<string, LucideIcon> = {
   "chart-bubble": NetworkIcon,
   setting: SettingsIcon,
   "cloud-download": CloudDownloadIcon,
-  share: Share2Icon,
   history: HistoryIcon,
 };
 
@@ -955,9 +935,6 @@ const navItems = computed(() => {
       });
     }
   }
-  if (editorMode.value === "edit" && activeKbId.value) {
-    items.push({ key: "share", icon: "share", label: t("knowledgeEditor.sidebar.share") });
-  }
   if (canViewActivity.value) {
     items.push({ key: "activity", icon: "history", label: t("knowledgeEditor.sidebar.activity") });
   }
@@ -983,11 +960,6 @@ const navGroups = computed(() => {
       key: "data",
       label: t("knowledgeEditor.navGroups.data"),
       items: pickItems(["storage", "datasource"]),
-    },
-    {
-      key: "integration",
-      label: t("knowledgeEditor.navGroups.integration"),
-      items: pickItems(["share"]),
     },
     {
       key: "management",

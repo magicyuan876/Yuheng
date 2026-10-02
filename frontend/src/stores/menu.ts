@@ -1,7 +1,6 @@
 import { reactive, ref, computed, watch } from "vue";
 import { defineStore } from "pinia";
 import i18n from "@/i18n";
-import { useAuthStore } from "@/stores/auth";
 import { useDeploymentCapabilitiesStore } from "@/stores/deploymentCapabilities";
 import type { DeploymentCapabilityKey } from "@/config/deploymentCapabilities";
 
@@ -31,13 +30,6 @@ export const useMenuStore = defineStore("menuStore", () => {
     },
     { title: "", titleKey: "menu.knowledgeBase", icon: "zhishiku", path: "knowledge-bases" },
     { title: "", titleKey: "menu.docs", icon: "docs", path: "docs", requiredCapability: "docs" },
-    {
-      title: "",
-      titleKey: "menu.organizations",
-      icon: "organization",
-      path: "organizations",
-      requiredCapability: "organizations",
-    },
     { title: "", titleKey: "menu.settings", icon: "setting", path: "settings" },
     { title: "", titleKey: "menu.logout", icon: "logout", path: "logout" },
   ]);
@@ -67,21 +59,11 @@ export const useMenuStore = defineStore("menuStore", () => {
     },
   );
 
-  // 共享空间 (organizations) 仅对当前空间的 admin / owner 暴露入口。
-  // viewer / contributor 即便在共享空间里拥有资源，也无需自行管理共享关系，
-  // 入口在侧栏只会徒增噪音；后端 RBAC 才是权限的最终来源（见 middleware/rbac.go）。
+  // An entry whose feature this deployment does not ship (e.g. the docs
+  // module) is hidden rather than left to 404.
   const visibleMenuArr = computed(() => {
-    const authStore = useAuthStore();
     const deploymentCapabilities = useDeploymentCapabilitiesStore();
-    return menuArr.filter((item) => {
-      if (item.path === "organizations" && !authStore.hasRole("admin")) {
-        return false;
-      }
-      if (!deploymentCapabilities.isSupported(item.requiredCapability)) {
-        return false;
-      }
-      return true;
-    });
+    return menuArr.filter((item) => deploymentCapabilities.isSupported(item.requiredCapability));
   });
 
   const chatMenuIndex = menuArr.findIndex((item) => item.path === "creatChat");

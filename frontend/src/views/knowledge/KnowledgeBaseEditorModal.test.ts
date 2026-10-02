@@ -60,7 +60,6 @@ vi.mock("./settings/KBVectorStoreSettings.vue", () => ({ default: { render: () =
 vi.mock("./settings/KBAdvancedSettings.vue", () => ({ default: { render: () => null } }));
 vi.mock("@/components/ModelSelector.vue", () => ({ default: { render: () => null } }));
 vi.mock("./settings/GraphSettings.vue", () => ({ default: { render: () => null } }));
-vi.mock("./settings/KBShareSettings.vue", () => ({ default: { render: () => null } }));
 vi.mock("./settings/DataSourceSettings.vue", () => ({ default: { render: () => null } }));
 vi.mock("./settings/KnowledgeBaseActivitySettings.vue", () => ({ default: { render: () => null } }));
 vi.mock("@/components/KbCreateContextualGuide.vue", () => ({ default: { render: () => null } }));

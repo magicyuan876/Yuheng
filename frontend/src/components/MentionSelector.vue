@@ -144,21 +144,6 @@
                         })
                       }}
                     </span>
-                    <span v-if="detailCache[item.id].data.org_name || item.orgName" :class="detailLineClass">
-                      <img
-                        src="@/assets/img/organization-green.svg"
-                        :class="detailIconImgClass"
-                        alt=""
-                        aria-hidden="true"
-                      />
-                      <span :class="detailLabelClass">{{ $t("mentionDetail.belongsToOrg") }}</span>
-                      <span
-                        :class="detailLinkClass"
-                        @click.stop="handleOrgClick(detailCache[item.id].data.org_name || item.orgName)"
-                      >
-                        {{ detailCache[item.id].data.org_name || item.orgName }}
-                      </span>
-                    </span>
                   </div>
                 </template>
               </div>
@@ -279,18 +264,6 @@
                         {{ detailCache[item.id].data.knowledge_base_name || item.kbName }}
                       </span>
                     </span>
-                    <span v-if="item.orgName" :class="detailLineClass">
-                      <img
-                        src="@/assets/img/organization-green.svg"
-                        :class="detailIconImgClass"
-                        alt=""
-                        aria-hidden="true"
-                      />
-                      <span :class="detailLabelClass">{{ $t("mentionDetail.belongsToOrg") }}</span>
-                      <span :class="detailLinkClass" @click.stop="handleOrgClick(item.orgName)">
-                        {{ item.orgName }}
-                      </span>
-                    </span>
                   </div>
                 </template>
               </div>
@@ -316,7 +289,6 @@ import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { getKnowledgeBaseById } from "@/api/knowledge-base";
 import { getKnowledgeDetails } from "@/api/knowledge-base";
-import { useOrganizationStore } from "@/stores/organization";
 import type { MentionItem, MentionItemType } from "@/types/mention";
 import type { Component } from "vue";
 import {
@@ -370,9 +342,8 @@ const detailNameClass = "text-sm leading-5 font-semibold break-words";
 const detailDescClass = "m-0 mb-2 line-clamp-4 text-xs leading-normal break-words text-muted-foreground";
 const detailMetaClass = "flex flex-col items-start gap-[5px] text-xs text-placeholder";
 const detailLineClass = "inline-flex w-full items-center gap-1 leading-normal";
-const detailIconImgClass = "mr-0.5 inline-block size-3.5 shrink-0 object-contain align-middle opacity-70";
 const detailLabelClass = "inline-flex shrink-0 items-center leading-normal text-placeholder";
-// The org / knowledge-base name is a link: underlined, brand-coloured on hover.
+// The knowledge-base name is a link: underlined, brand-coloured on hover.
 const detailLinkClass =
   "inline-flex max-w-[160px] cursor-pointer items-center truncate leading-normal underline decoration-placeholder transition-[color,text-decoration-color] duration-200 hover:text-primary hover:decoration-primary";
 
@@ -397,7 +368,6 @@ const emit = defineEmits(["select", "update:activeIndex", "loadMore"]);
 
 const router = useRouter();
 const { t } = useI18n();
-const orgStore = useOrganizationStore();
 const menuRef = ref<HTMLElement | null>(null);
 const listRef = ref<HTMLElement | null>(null);
 const detailCache = ref<Record<string, DetailState>>({});
@@ -565,19 +535,6 @@ async function fetchFileDetail(item: { id: string }) {
 function handleKbClick(kbId: string | undefined) {
   if (!kbId) return;
   router.push(`/platform/knowledge-bases/${kbId}`);
-}
-
-function handleOrgClick(orgName: string) {
-  if (!orgName) return;
-  // 从共享知识库列表中找到对应的组织 ID
-  const sharedKb = orgStore.sharedKnowledgeBases.find((s: any) => s.org_name === orgName);
-  if (sharedKb?.organization_id) {
-    // 跳转到组织列表页（目前组织详情页可能不存在，先跳转到列表页）
-    router.push("/platform/organizations");
-  } else {
-    // 如果找不到组织 ID，也跳转到组织列表页
-    router.push("/platform/organizations");
-  }
 }
 
 const onScroll = (e: Event) => {

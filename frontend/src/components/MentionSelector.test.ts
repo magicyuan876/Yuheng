@@ -15,7 +15,6 @@ import MentionSelector from "./MentionSelector.vue";
 
 // The detail cards navigate and fetch; neither is exercised here.
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock("@/stores/organization", () => ({ useOrganizationStore: () => ({ sharedKnowledgeBases: [] }) }));
 vi.mock("@/api/knowledge-base", () => ({
   getKnowledgeBaseById: vi.fn(() => new Promise(() => {})),
   getKnowledgeDetails: vi.fn(() => new Promise(() => {})),

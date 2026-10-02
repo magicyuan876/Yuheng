@@ -88,7 +88,6 @@ const EXTRA_PREFIXES = [
   "system.globalSettings.runtime.queueNames.",
   "system.globalSettings.runtime.queueDescriptions.",
   "system.globalSettings.runtime.tasks.taskTypes.",
-  "organization.role.",
   "inviteRegister.",
   "modelSettings.builtinModels.",
 ] as const;

@@ -553,7 +553,7 @@ function targetSubject(entry: KnowledgeBaseActivity): string {
     return t("knowledgeEditor.activity.titleWithCount", { title: label, count });
   }
   if (label) return label;
-  // Aggregate / clone / share events carry no human-readable name — fall back
+  // Aggregate / clone events carry no human-readable name — fall back
   // to the localized object-type label so the column always has a meaningful
   // primary subject instead of being blank or showing a raw identifier.
   return targetLabel(entry.target_type);
@@ -564,11 +564,6 @@ function targetDiff(entry: KnowledgeBaseActivity): string {
   // Data source: the connector type is more identifying than a row count.
   if (entry.target_type === "data_source" && value.type) {
     return String(value.type);
-  }
-  // Share: surface the granted permission rather than the opaque share id.
-  if (entry.target_type === "knowledge_base_share" && value.permission) {
-    const key = `knowledgeEditor.activity.detailValues.${String(value.permission)}`;
-    return te(key) ? t(key) : String(value.permission);
   }
   if (entry.action.startsWith("faq.import_")) {
     if (entry.action === "faq.import_started" && value.total !== undefined && value.total !== null) {

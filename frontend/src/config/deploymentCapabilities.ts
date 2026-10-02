@@ -1,5 +1,4 @@
 export const DEPLOYMENT_CAPABILITY_KEYS = [
-  "organizations",
   "settings.websearch",
   "settings.vectorstore",
   "settings.storage",

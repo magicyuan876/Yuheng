@@ -10,7 +10,6 @@ export interface MentionItem {
   count?: number;
   kbName?: string;
   kbId?: string;
-  orgName?: string;
 }
 
 export interface MentionRequestItem {

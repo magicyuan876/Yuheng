@@ -3,20 +3,11 @@
  * header (Group) already communicates.
  */
 
-export type ListCardSectionKey =
-  | "pinned"
-  | "mine"
-  | "tenantOthers"
-  | "builtin"
-  | "sharedByMe"
-  | "sharedEditable"
-  | "sharedReadonly"
-  | "created"
-  | "joined";
+export type ListCardSectionKey = "pinned" | "mine" | "tenantOthers" | "builtin";
 
-export type ResourceOriginVariant = "mine" | "tenant" | "creator" | "space" | "shared";
+export type ResourceOriginVariant = "mine" | "tenant" | "creator";
 
-/** ResourceOriginBadge on KB / Agent cards. */
+/** ResourceOriginBadge on KB cards. */
 export function shouldShowResourceOriginBadge(opts: {
   section: ListCardSectionKey | null;
   variant: ResourceOriginVariant;
@@ -32,18 +23,5 @@ export function shouldShowResourceOriginBadge(opts: {
   if (section === "builtin") return false;
   if (section === "tenantOthers" && variant === "creator" && !hasCreator) return false;
 
-  return true;
-}
-
-/** Owner / role tag on organization cards. */
-export function shouldShowOrgRelationTag(opts: {
-  spaceSelection: "all" | "created" | "joined";
-  isOwner: boolean;
-  myRole?: string;
-}): boolean {
-  if (opts.spaceSelection === "created") return false;
-  if (opts.spaceSelection === "joined" && !opts.myRole) return false;
-  if (opts.spaceSelection === "all" && opts.isOwner) return false;
-  if (opts.spaceSelection === "all" && !opts.isOwner && !opts.myRole) return false;
   return true;
 }

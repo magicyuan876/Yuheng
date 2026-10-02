@@ -2,13 +2,12 @@
 // filter, free-text query) reflected in the route's query string so the
 // URL is shareable, bookmarkable and survives a browser back/forward.
 //
-// Why a composable instead of inlining: KnowledgeBaseList
-// share the same three filters and the same URL-encoding rules. Centralising
-// here means changing the schema (e.g. renaming `scope` -> `view`) is a
-// one-line change for both pages.
+// Why a composable instead of inlining: the schema and its URL-encoding rules
+// live in one place, so a change (e.g. renaming `scope` -> `view`) is a
+// one-line change for every list view that adopts it.
 //
 // Schema:
-//   ?scope=<all|mine|shared|orgId>
+//   ?scope=<mine|favorites|recents>
 //   ?creator=<all|mine|others>
 //   ?q=<text>
 //

@@ -62,7 +62,6 @@ export interface APIPrincipalTestToken {
 //  - 'manage_web_search': manage web-search providers
 //  - 'run_evaluations': run/read evaluation jobs
 //  - 'manage_members': manage tenant members and invitations
-//  - 'manage_spaces': manage organization/space collaboration
 //  - 'manage_tenant_settings': read/update tenant integration settings (API principal mode, headers, tenant KV)
 //  - 'docs_read' / 'docs_write' / 'docs_admin': the online-documents module
 //  - 'system_*': platform control plane; honoured on platform keys only
@@ -79,7 +78,6 @@ export type TenantAPIKeyCapability =
   | "manage_web_search"
   | "run_evaluations"
   | "manage_members"
-  | "manage_spaces"
   | "manage_tenant_settings"
   | "docs_read"
   | "docs_write"

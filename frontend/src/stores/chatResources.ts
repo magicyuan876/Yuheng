@@ -3,7 +3,6 @@ import { ref, computed } from "vue";
 import { listKnowledgeBases, getKnowledgeBaseById } from "@/api/knowledge-base";
 import { listModels, type ModelConfig } from "@/api/model";
 import { listWebSearchProviders, type WebSearchProviderEntity } from "@/api/web-search-provider";
-import { useOrganizationStore } from "@/stores/organization";
 
 /** 空间级资源缓存 TTL */
 const CACHE_TTL_MS = 60_000;
@@ -84,8 +83,6 @@ export const useChatResourcesStore = defineStore("chatResources", () => {
         const data = res?.data && Array.isArray(res.data) ? res.data : [];
         rawKnowledgeBases.value = data;
         loadedAt.value.knowledgeBases = Date.now();
-        const orgStore = useOrganizationStore();
-        await orgStore.fetchSharedKnowledgeBases({ force });
         return data;
       } finally {
         if (kbAllGen === gen) kbAllInflight = null;
@@ -122,8 +119,7 @@ export const useChatResourcesStore = defineStore("chatResources", () => {
 
   /** 并行预取对话输入栏及列表页常用的空间级资源 */
   async function prefetchChatInput(force = false): Promise<void> {
-    const orgStore = useOrganizationStore();
-    await Promise.all([ensureKnowledgeBases(force), ensureModels(force), orgStore.fetchOrganizations({ force })]);
+    await Promise.all([ensureKnowledgeBases(force), ensureModels(force)]);
   }
 
   /** 单个知识库详情（侧栏 + 详情页共用，去重并发请求） */

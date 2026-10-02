@@ -625,7 +625,7 @@ const sendMsg = async (value, modelId = "", mentionedItems = [], imageFiles = []
   scrollToBottom(true);
 
   // Get knowledge_base_ids from settings store (selected by user via @mention)
-  // Merge @mentioned KB/file IDs so retrieval uses the same targets user @mentioned (including shared KBs)
+  // Merge @mentioned KB/file IDs so retrieval uses the same targets the user @mentioned
   const sidebarKbIds = useSettingsStoreInstance.settings.selectedKnowledgeBases || [];
   const sidebarFileIds = useSettingsStoreInstance.settings.selectedFiles || [];
   const kbIdSet = new Set(sidebarKbIds);

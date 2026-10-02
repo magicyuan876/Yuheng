@@ -19,7 +19,7 @@
 import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { CircleHelpIcon, DatabaseIcon, Share2Icon } from "@lucide/vue";
+import { CircleHelpIcon, DatabaseIcon } from "@lucide/vue";
 
 import type { VectorStoreSource, VectorStoreStatus } from "@/api/knowledge-base";
 
@@ -47,8 +47,6 @@ const iconComponent = computed<Component>(() => {
       // distinction is purely organizational (configured at process
       // start vs. created in the UI), so they share the same icon.
       return DatabaseIcon;
-    case "shared":
-      return Share2Icon;
     case "unavailable":
     default:
       return CircleHelpIcon;
@@ -64,8 +62,6 @@ const toneClass = computed(() => {
       return "bg-[var(--td-brand-color-1,#ecf2fe)] text-[var(--td-brand-color-7,#0052d9)]";
     case "user":
       return "bg-[var(--td-success-color-1,#e8f8f2)] text-[var(--td-success-color-7,#00754a)]";
-    case "shared":
-      return "bg-[var(--td-warning-color-1,#fff1e9)] text-[var(--td-warning-color-7,#b85b00)]";
     default:
       return "bg-[var(--td-bg-color-component,#f5f7fa)] text-foreground";
   }
@@ -73,7 +69,6 @@ const toneClass = computed(() => {
 
 const displayName = computed(() => {
   if (effectiveSource.value === "env") return t("vectorStoreBadge.systemDefault");
-  if (effectiveSource.value === "shared") return t("vectorStoreBadge.sharedFromOrg");
   return props.name || t("vectorStoreBadge.unknownStore");
 });
 </script>

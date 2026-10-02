@@ -1384,8 +1384,8 @@ const props = defineProps<{
   view?: "browser" | "graph";
   // canEdit 由父组件 KnowledgeBase.vue 透传（与 canEdit computed 同源）。
   // 控制写操作按钮（编辑、移动、Lint 自动修复等）的可见性，
-  // 对应后端 g.OwnedWikiKBOrAdmin() 守卫（KB creator OR Admin+ OR
-  // org-share editor）。父组件没传时按 false 兜底，避免漏 gate。
+  // 对应后端 g.OwnedWikiKBOrAdmin() 守卫（KB creator OR Admin+）。
+  // 父组件没传时按 false 兜底，避免漏 gate。
   canEdit?: boolean;
   // Opens the lint report as soon as the browser mounts. The knowledge-health
   // view links here for the wiki's structural check instead of running the
@@ -1399,8 +1399,9 @@ const emit = defineEmits<{
   (e: "view-graph", slug: string): void;
 }>();
 
-// Wiki content can reference objects owned by the KB's source tenant (shared
-// KBs), which the tenant-scoped /files proxy rejects as cross-tenant.
+// Files referenced by wiki content are fetched through the knowledge-base
+// file proxy, which authorises by access to this KB (see
+// ProtectedFileAccessContext).
 const kbFileAccess = computed<ProtectedFileAccessContext>(() => ({
   mode: "knowledgeBase",
   kbId: props.knowledgeBaseId,

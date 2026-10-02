@@ -3,7 +3,7 @@
  *
  * 后端按访问主体拆分文件代理，鉴权模型互不相同：
  *   - `/files`                                   → 登录态 Bearer + X-Tenant-ID
- *   - `/api/v1/knowledge-bases/:id/files`        → 知识库访问权限（跨租户共享库）
+ *   - `/api/v1/knowledge-bases/:id/files`        → 知识库访问权限
  *   - `/api/v1/sessions/:id/messages/:mid/files` → 会话消息归属
  *
  * 选哪条代理由渲染组件声明的作用域决定，这里把"作用域 → 代理 URL"收敛成
@@ -21,7 +21,7 @@ const MESSAGE_FILE_PROXY_PATH_RE = /^\/api\/v1\/sessions\/[^/]+\/messages\/[^/]+
 export type ProtectedFileAccessContext =
   /** 登录态用户：Bearer + 选中租户。 */
   | { mode: "tenant" }
-  /** 知识库作用域：登录态用户读取共享库中归属其他租户的对象。 */
+  /** 知识库作用域：按知识库访问权限鉴权，供按知识库渲染的内容（如 wiki）使用。 */
   | { mode: "knowledgeBase"; kbId: string }
   /** 消息作用域：登录态用户读取会话回复里引用的源空间资源。 */
   | { mode: "message"; sessionId: string; messageId: string };

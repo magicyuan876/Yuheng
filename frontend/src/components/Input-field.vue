@@ -12,7 +12,6 @@ import { useUIStore } from "@/stores/ui";
 import { useMenuStore } from "@/stores/menu";
 import { searchKnowledge, batchQueryKnowledge, listKnowledgeTags } from "@/api/knowledge-base";
 import { stopSession } from "@/api/chat";
-import { useOrganizationStore } from "@/stores/organization";
 import MentionSelector from "./MentionSelector.vue";
 import { getCaretCoordinates } from "@/utils/caret";
 import { getRootZoom, rectToCssPx, cssViewportSize } from "@/utils/zoom";
@@ -27,7 +26,6 @@ const route = useRoute();
 const router = useRouter();
 const settingsStore = useSettingsStore();
 const uiStore = useUIStore();
-const orgStore = useOrganizationStore();
 const menuStore = useMenuStore();
 const chatResources = useChatResourcesStore();
 const { chatModels: availableModels } = storeToRefs(chatResources);
@@ -153,24 +151,8 @@ const selectedTags = computed(() => settingsStore.settings.selectedTags || []);
 const knowledgeBases = computed(() => chatResources.validKnowledgeBases);
 const fileList = ref<Array<{ id: string; name: string }>>([]);
 
-// 选中的知识库：包含自己的 + 组织共享的（用于展示已选列表与 org 角标）
-const selectedKbs = computed(() => {
-  const own = knowledgeBases.value.filter((kb) => selectedKbIds.value.includes(kb.id));
-  const sharedList = orgStore.sharedKnowledgeBases || [];
-  const sharedMapped = sharedList
-    .filter((s: any) => s.knowledge_base != null && selectedKbIds.value.includes(s.knowledge_base.id))
-    .map((s: any) => ({
-      id: s.knowledge_base.id,
-      name: s.knowledge_base.name,
-      type: s.knowledge_base.type || "document",
-      knowledge_count: s.knowledge_base.knowledge_count,
-      chunk_count: s.knowledge_base.chunk_count,
-      org_name: s.org_name || "",
-    }));
-  const ownIds = new Set(own.map((kb) => kb.id));
-  const sharedOnly = sharedMapped.filter((kb: any) => !ownIds.has(kb.id));
-  return [...own, ...sharedOnly];
-});
+// 选中的知识库（用于展示已选列表）
+const selectedKbs = computed(() => knowledgeBases.value.filter((kb) => selectedKbIds.value.includes(kb.id)));
 
 const selectedFiles = computed(() => {
   // If we have file details in fileList, use them.
@@ -189,22 +171,11 @@ const allSelectedItems = computed(() => {
     kbType: kb.type,
   }));
 
-  // 用户选择的文件（根据 fileIdToKbId + 共享列表补全 org_name，用于角标）
-  const sharedKbOrgMap: Record<string, string> = {};
-  (orgStore.sharedKnowledgeBases || []).forEach((s: any) => {
-    if (s.knowledge_base?.id != null && s.org_name) {
-      sharedKbOrgMap[String(s.knowledge_base.id)] = s.org_name;
-    }
-  });
-  const files = selectedFiles.value.map((f: { id: string; name: string }) => {
-    const kbId = fileIdToKbId.value[f.id];
-    const org_name = kbId ? sharedKbOrgMap[String(kbId)] || "" : "";
-    return {
-      ...f,
-      type: "file" as const,
-      org_name,
-    };
-  });
+  // 用户选择的文件
+  const files = selectedFiles.value.map((f: { id: string; name: string }) => ({
+    ...f,
+    type: "file" as const,
+  }));
 
   const tags = selectedTags.value.map((tag: any) => ({
     id: tag.id,
@@ -296,18 +267,15 @@ const inputPlaceholder = computed(() => {
   return t("input.placeholder");
 });
 
-// 加载知识库列表（自己的 + 共享的，用于 @ 提及等）
+// 加载知识库列表（用于 @ 提及等），并剔除已不可见的已选知识库
 const loadKnowledgeBases = async (force = false) => {
   try {
     await chatResources.ensureKnowledgeBases(force);
     const validKbs = knowledgeBases.value;
 
     const validKbIds = new Set(validKbs.map((kb: any) => kb.id));
-    const sharedKbIds = new Set(
-      (orgStore.sharedKnowledgeBases || []).map((s: any) => s.knowledge_base?.id).filter(Boolean),
-    );
     const currentSelectedIds = settingsStore.settings.selectedKnowledgeBases || [];
-    const validSelectedIds = currentSelectedIds.filter((id: string) => validKbIds.has(id) || sharedKbIds.has(id));
+    const validSelectedIds = currentSelectedIds.filter((id: string) => validKbIds.has(id));
 
     if (validSelectedIds.length !== currentSelectedIds.length) {
       settingsStore.selectKnowledgeBases(validSelectedIds);
@@ -530,7 +498,6 @@ const updateModelDropdownPosition = () => {
 
   // 垂直定位：紧贴按钮，使用合理的高度避免空白
   const preferredDropdownHeight = 280; // 优选高度（紧凑且够用）
-  const maxDropdownHeight = 360; // 最大高度
   const minDropdownHeight = 200; // 最小高度
   const topMargin = 20; // 顶部留白
   const spaceBelow = vh - rect.bottom; // 下方剩余空间
@@ -612,24 +579,6 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
   let tagItems: MentionItem[] = [];
   if (!append) {
     const availableKbs: any[] = [...knowledgeBases.value];
-    const sharedList = orgStore.sharedKnowledgeBases || [];
-    const sharedKbsForMention = sharedList
-      .filter((s: any) => s.knowledge_base != null)
-      .map((s: any) => ({
-        id: s.knowledge_base.id,
-        name: s.knowledge_base.name,
-        type: s.knowledge_base.type || "document",
-        knowledge_count: s.knowledge_base.knowledge_count,
-        chunk_count: s.knowledge_base.chunk_count,
-        org_name: s.org_name || "",
-      }));
-    const ownIds = new Set(availableKbs.map((kb: any) => kb.id));
-    sharedKbsForMention.forEach((kb: any) => {
-      if (!ownIds.has(kb.id)) {
-        availableKbs.push(kb);
-        ownIds.add(kb.id);
-      }
-    });
 
     const kbs = availableKbs.filter((kb: any) => !q || (kb.name && kb.name.toLowerCase().includes(q.toLowerCase())));
     kbItems = await Promise.all(
@@ -648,7 +597,6 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
           type: "kb" as const,
           kbType: kbType === "faq" ? ("faq" as const) : ("document" as const),
           count,
-          orgName: kb.org_name || undefined,
         };
       }),
     );
@@ -693,24 +641,14 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
     if (res.data && Array.isArray(res.data)) {
       const files = res.data;
       const rawTotal = typeof res.total === "number" ? res.total : undefined;
-      const apiPageSize = res.data.length;
-      const sharedKbOrgMap: Record<string, string> = {};
-      (orgStore.sharedKnowledgeBases || []).forEach((s: any) => {
-        if (s.knowledge_base?.id != null && s.org_name) {
-          sharedKbOrgMap[String(s.knowledge_base.id)] = s.org_name;
-        }
-      });
       fileItems = files.map((f: any) => {
         const kbId = f.knowledge_base_id ?? f.kb_id;
-        const kbIdStr = kbId != null ? String(kbId) : "";
-        const fileOrgName = kbIdStr ? sharedKbOrgMap[kbIdStr] : undefined;
         return {
           id: f.id,
           name: f.title || f.file_name,
           type: "file" as const,
           kbName: f.knowledge_base_name || "",
           kbId: kbId || undefined,
-          orgName: fileOrgName || undefined,
         };
       });
       if (!append) {
@@ -1414,17 +1352,6 @@ defineExpose({
             <span class="flex items-center justify-center text-inherit">
               <component :is="getMentionIcon(item)" class="size-3" />
             </span>
-            <span
-              v-if="item.org_name"
-              class="bg-secondary pointer-events-none absolute -right-px -bottom-px flex size-2 items-center justify-center rounded-full shadow-[0_0_0_1px_rgba(0,0,0,0.06)]"
-            >
-              <img
-                :src="getImgSrc(item.type === 'file' ? 'organization-grey.svg' : 'organization-green.svg')"
-                class="size-[5px] object-contain"
-                alt=""
-                aria-hidden="true"
-              />
-            </span>
           </span>
           <span class="max-w-[100px] truncate text-current" :title="item.name">{{ item.name }}</span>
           <span
@@ -1729,11 +1656,6 @@ defineExpose({
     </Teleport>
   </div>
 </template>
-<script lang="ts">
-const getImgSrc = (url: string) => {
-  return new URL(`/src/assets/img/${url}`, import.meta.url).href;
-};
-</script>
 <style>
 /*
  * Kept as CSS because a keyframes rule cannot be a utility: the stop button's

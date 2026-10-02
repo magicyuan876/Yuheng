@@ -36,14 +36,6 @@ vi.mock("tdesign-vue-next", () => ({
 // The stores are replaced by the few members the manager reads, with a user
 // who created the knowledge base and so may edit and manage it.
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "u1" }, hasRole: () => false }) }));
-vi.mock("@/stores/organization", () => ({
-  useOrganizationStore: () => ({
-    sharedKnowledgeBases: [],
-    canEditKB: () => false,
-    canManageKB: () => false,
-    fetchSharedKnowledgeBases: vi.fn(),
-  }),
-}));
 vi.mock("@/stores/ui", () => ({
   useUIStore: () => ({ clearSelectedTagIds: vi.fn(), toggleSelectedTagId: vi.fn(), openKBSettings: vi.fn() }),
 }));

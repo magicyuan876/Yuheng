@@ -12,13 +12,13 @@ import {
 } from "./deploymentCapabilities";
 
 test("capability filtering is fail-open unless backend explicitly disables a feature", () => {
-  assert.equal(isDeploymentCapabilitySupported({}, "organizations"), true);
+  assert.equal(isDeploymentCapabilitySupported({}, "docs"), true);
 
   const capabilities: DeploymentCapabilityMap = {
-    organizations: { supported: false, reason: "route_not_registered" },
+    docs: { supported: false, reason: "route_not_registered" },
     "settings.storage": { supported: true },
   };
-  assert.equal(isDeploymentCapabilitySupported(capabilities, "organizations"), false);
+  assert.equal(isDeploymentCapabilitySupported(capabilities, "docs"), false);
   assert.equal(isDeploymentCapabilitySupported(capabilities, "settings.storage"), true);
 });
 

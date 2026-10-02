@@ -56,16 +56,11 @@ export function listKnowledgeBases(params?: {
 //                       reports the underlying engine (e.g. "postgres").
 //   - source 'user'   → KB is bound to a tenant-owned VectorStore.
 //                       vector_store_id / name / engine_type are real.
-//   - source 'shared' → KB belongs to a different tenant and is
-//                       readable via cross-organization sharing. The
-//                       server strips vector_store_id and engine_type
-//                       to avoid leaking the owner tenant's store
-//                       inventory; only this source marker arrives.
 //   - status 'unavailable' → the binding cannot be reached right now
 //                       (deleted row, registry miss, transient infra
 //                       failure). Operators recover via the global
 //                       Vector Stores settings page.
-export type VectorStoreSource = "env" | "user" | "shared" | "unavailable";
+export type VectorStoreSource = "env" | "user" | "unavailable";
 export type VectorStoreStatus = "available" | "unavailable";
 
 export interface KnowledgeBaseStoreView {

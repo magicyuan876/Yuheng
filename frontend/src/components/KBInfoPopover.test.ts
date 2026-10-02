@@ -11,10 +11,12 @@ import KBInfoPopover from "./KBInfoPopover.vue";
 // TDesign: the trigger's warning state, and the card's sections opening on
 // click with the role badge tinted by the viewer's access.
 
-vi.mock("@/stores/organization", () => ({
-  useOrganizationStore: () => ({ sharedKnowledgeBases: [], getKBPermission: () => "" }),
+// The viewer is a Contributor who created knowledge base "kb1" and nothing
+// else: on their own card the badge reads "Owner", on a colleague's card it
+// reads their workspace role and the hint says they can only read it.
+vi.mock("@/stores/auth", () => ({
+  useAuthStore: () => ({ user: { id: "u1" }, currentTenantRole: "contributor", hasRole: () => false }),
 }));
-vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "u1" } }) }));
 
 const mounted: VueWrapper[] = [];
 
@@ -69,4 +71,20 @@ test("clicking the trigger opens the card; the creator's role badge is the succe
   // The value cell wraps the badge and reads "VLM" too, so look for any match.
   const vlm = Array.from(card.querySelectorAll("span")).filter((el) => el.textContent?.trim() === "VLM");
   assert.ok(vlm.some((el) => el.classList.contains("text-primary")));
+});
+
+test("on a colleague's knowledge base the badge shows the viewer's workspace role, untinted", async () => {
+  const wrapper = mountPopover({ id: "kb2", type: "document", creator_id: "u2" });
+  await wrapper.get("button").trigger("click");
+  await flushPromises();
+
+  const card = document.body.querySelector('[data-slot="popover-content"]');
+  assert.ok(card, "the popover content is rendered");
+  const badges = Array.from(card.querySelectorAll("span")).filter(
+    (el) => (el.textContent ?? "").trim() === enUS.tenantMember.role.contributor,
+  );
+  assert.equal(badges.length, 1);
+  assert.ok(!badges[0].classList.contains("bg-success"));
+  assert.ok(!badges[0].classList.contains("bg-primary"));
+  assert.match(card.textContent ?? "", new RegExp(enUS.knowledgeBase.accessInfo.permissionViewer));
 });

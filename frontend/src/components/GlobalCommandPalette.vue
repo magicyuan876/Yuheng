@@ -296,8 +296,6 @@ import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useCommandPaletteStore } from "@/stores/commandPalette";
-import { useAuthStore } from "@/stores/auth";
-import { useDeploymentCapabilitiesStore } from "@/stores/deploymentCapabilities";
 import { useCmdkSearch, type CmdkFileGroup, type CmdkChunk, type CmdkMsgGroup } from "./GlobalCommandPalette/useSearch";
 import { highlightText } from "./GlobalCommandPalette/useHighlight";
 import { useStartChat } from "./GlobalCommandPalette/useStartChat";
@@ -316,8 +314,6 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const commandPaletteStore = useCommandPaletteStore();
-const authStore = useAuthStore();
-const deploymentCapabilities = useDeploymentCapabilitiesStore();
 const { open, initialQuery, recentQueries } = storeToRefs(commandPaletteStore);
 const { startChat } = useStartChat();
 
@@ -403,16 +399,10 @@ const flatMessageItems = computed<FlatMsgItem[]>(() => {
 // All palette commands live in a shared module so quick-action (empty state)
 // and the "commands" tab can use the same data.
 const allCommands = computed(() => {
-  const cmds = buildCommands({
+  return buildCommands({
     router,
     t,
     close: () => commandPaletteStore.closePalette(),
-  });
-  return cmds.filter((command) => {
-    if (command.id === "open-organizations") {
-      return authStore.hasRole("admin") && deploymentCapabilities.isSupported("organizations");
-    }
-    return true;
   });
 });
 
