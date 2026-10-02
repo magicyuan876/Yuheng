@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
@@ -34,13 +35,20 @@ func (r *userRepository) HasAnyUser(ctx context.Context) (bool, error) {
 	return exists, nil
 }
 
-// CreateFirstUser inserts user as the system administrator, but only when the
-// users table is empty. The emptiness check and the insert run in one
-// transaction under a transaction-scoped advisory lock: two concurrent first
-// registrations queue on the lock, and the loser re-checks after the winner has
-// committed and gets ErrRegistrationClosed. A plain "count then insert" would
-// let both through under READ COMMITTED, making two administrators.
-func (r *userRepository) CreateFirstUser(ctx context.Context, user *types.User) error {
+// BootstrapFirstUser inserts user as the system administrator together with
+// the deployment's default workspace, but only when the users table is empty.
+// The emptiness check and the four inserts (workspace, user, Owner membership,
+// preference on the user row) run in one transaction under a
+// transaction-scoped advisory lock: two concurrent first registrations queue
+// on the lock, and the loser re-checks after the winner has committed and gets
+// ErrRegistrationClosed. A plain "count then insert" would let both through
+// under READ COMMITTED, making two administrators.
+//
+// Atomicity matters here more than anywhere else: the auth middleware no
+// longer repairs a workspace without members (the former "orphan workspace"
+// self-heal went with users.tenant_id), so a workspace committed without its
+// Owner row would be unreachable for good.
+func (r *userRepository) BootstrapFirstUser(ctx context.Context, user *types.User, workspace *types.Tenant) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", firstUserLockKey).Error; err != nil {
 			return err
@@ -52,11 +60,21 @@ func (r *userRepository) CreateFirstUser(ctx context.Context, user *types.User) 
 		if exists {
 			return types.ErrRegistrationClosed
 		}
-		user.IsSystemAdmin = true
-		if user.TenantID == 0 {
-			return tx.Omit("tenant_id").Create(user).Error
+		if err := tx.Create(workspace).Error; err != nil {
+			return err
 		}
-		return tx.Create(user).Error
+		user.IsSystemAdmin = true
+		user.Preferences.LastActiveTenantID = &workspace.ID
+		if err := tx.Create(user).Error; err != nil {
+			return err
+		}
+		return tx.Create(&types.TenantMember{
+			UserID:   user.ID,
+			TenantID: workspace.ID,
+			Role:     types.TenantRoleOwner,
+			Status:   types.TenantMemberStatusActive,
+			JoinedAt: time.Now(),
+		}).Error
 	})
 }
 
@@ -72,14 +90,6 @@ func NewUserRepository(db *gorm.DB) interfaces.UserRepository {
 
 // CreateUser creates a user
 func (r *userRepository) CreateUser(ctx context.Context, user *types.User) error {
-	// users.tenant_id is nullable. GORM would
-	// otherwise serialise the uint64 zero value as 0, which violates the
-	// PostgreSQL FK and loses the distinction between "not provisioned yet"
-	// and a real tenant. Omitting the column stores SQL NULL; reads hydrate it
-	// back as zero, the domain sentinel used by tenantless auth flows.
-	if user != nil && user.TenantID == 0 {
-		return r.db.WithContext(ctx).Omit("tenant_id").Create(user).Error
-	}
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
@@ -139,33 +149,8 @@ func (r *userRepository) GetUserByUsername(ctx context.Context, username string)
 	return &user, nil
 }
 
-// GetUserByTenantID gets the first user (owner) of a tenant
-func (r *userRepository) GetUserByTenantID(ctx context.Context, tenantID uint64) (*types.User, error) {
-	var user types.User
-	if err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Order("created_at ASC").First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
-	}
-	return &user, nil
-}
-
 // UpdateUser updates a user
 func (r *userRepository) UpdateUser(ctx context.Context, user *types.User) error {
-	if user != nil && user.TenantID == 0 {
-		return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			// Preserve Save's all-fields behaviour while keeping the nullable
-			// tenant column out of the struct write, then explicitly store NULL.
-			// Writing uint64(0) would violate the PostgreSQL tenant FK.
-			if err := tx.Omit("tenant_id").Save(user).Error; err != nil {
-				return err
-			}
-			return tx.Model(&types.User{}).
-				Where("id = ?", user.ID).
-				UpdateColumn("tenant_id", nil).Error
-		})
-	}
 	return r.db.WithContext(ctx).Save(user).Error
 }
 

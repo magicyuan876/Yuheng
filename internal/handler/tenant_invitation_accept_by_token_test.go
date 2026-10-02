@@ -33,22 +33,16 @@ func (s *acceptByTokenInvitationSvc) AcceptByToken(_ context.Context, _ string, 
 	return &types.TenantMember{TenantID: 42, Role: types.TenantRoleViewer, Status: types.TenantMemberStatusActive}, nil
 }
 
-// acceptByTokenUserSvc returns a user with the configured home tenant so
-// the handler's tenantless-adoption branch can be exercised.
+// acceptByTokenUserSvc records which workspace the handler asked to
+// remember as the caller's active one; whether that write happens is the
+// user service's decision, so the handler test only checks the request.
 type acceptByTokenUserSvc struct {
 	interfaces.UserService
-	homeTenant    uint64
-	updatedTenant uint64
-	updateCalled  bool
+	remembered []uint64
 }
 
-func (s *acceptByTokenUserSvc) GetUserByID(_ context.Context, _ string) (*types.User, error) {
-	return &types.User{ID: "u-test", TenantID: s.homeTenant, IsActive: true}, nil
-}
-
-func (s *acceptByTokenUserSvc) UpdateUser(_ context.Context, user *types.User) error {
-	s.updateCalled = true
-	s.updatedTenant = user.TenantID
+func (s *acceptByTokenUserSvc) RememberFirstWorkspace(_ context.Context, _ string, tenantID uint64) error {
+	s.remembered = append(s.remembered, tenantID)
 	return nil
 }
 
@@ -75,7 +69,7 @@ func newAcceptByTokenTestRouter(h *TenantInvitationHandler) *gin.Engine {
 }
 
 func TestAcceptMyInvitationByTokenSuccess(t *testing.T) {
-	users := &acceptByTokenUserSvc{homeTenant: 0} // tenantless -> adopts invited tenant
+	users := &acceptByTokenUserSvc{}
 	h := &TenantInvitationHandler{
 		invitationService: &acceptByTokenInvitationSvc{},
 		userService:       users,
@@ -92,9 +86,9 @@ func TestAcceptMyInvitationByTokenSuccess(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
-	if !users.updateCalled || users.updatedTenant != 42 {
-		t.Fatalf("tenantless user should adopt tenant 42, updateCalled=%v updatedTenant=%d",
-			users.updateCalled, users.updatedTenant)
+	if len(users.remembered) != 1 || users.remembered[0] != 42 {
+		t.Fatalf("remembered workspaces = %v, want [42] so a first workspace becomes the active one",
+			users.remembered)
 	}
 	var resp struct {
 		Success bool `json:"success"`
@@ -111,29 +105,6 @@ func TestAcceptMyInvitationByTokenSuccess(t *testing.T) {
 	}
 	if !resp.Success || resp.Data.Membership.TenantID != 42 || resp.Data.TenantName != "Invited Workspace" {
 		t.Fatalf("unexpected response: %+v", resp)
-	}
-}
-
-func TestAcceptMyInvitationByTokenDoesNotMutateUserWithHomeTenant(t *testing.T) {
-	users := &acceptByTokenUserSvc{homeTenant: 7} // already has a home tenant
-	h := &TenantInvitationHandler{
-		invitationService: &acceptByTokenInvitationSvc{},
-		userService:       users,
-		tenantService:     &acceptByTokenTenantSvc{},
-	}
-	r := newAcceptByTokenTestRouter(h)
-
-	body := []byte(`{"token":"invite-token"}`)
-	req := httptest.NewRequest(http.MethodPost, "/me/invitations/accept-by-token", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	if users.updateCalled {
-		t.Fatalf("user with home tenant must not be rewritten; updateCalled=%v", users.updateCalled)
 	}
 }
 
@@ -180,7 +151,7 @@ func TestAcceptMyInvitationByTokenMissingTokenIsBadRequest(t *testing.T) {
 // created one (200 + membership), so a user clicking the same link
 // twice from two devices never sees a role downgrade or an error.
 func TestAcceptMyInvitationByTokenIdempotent(t *testing.T) {
-	users := &acceptByTokenUserSvc{homeTenant: 42}
+	users := &acceptByTokenUserSvc{}
 	h := &TenantInvitationHandler{
 		invitationService: &acceptByTokenInvitationSvc{
 			member: &types.TenantMember{TenantID: 42, Role: types.TenantRoleContributor, Status: types.TenantMemberStatusActive},
@@ -212,9 +183,10 @@ func TestAcceptMyInvitationByTokenIdempotent(t *testing.T) {
 	if resp.Data.Membership.Role != string(types.TenantRoleContributor) {
 		t.Fatalf("role=%s, want contributor (existing membership preserved)", resp.Data.Membership.Role)
 	}
-	// homeTenant is already 42, so the adoption branch must not fire.
-	if users.updateCalled {
-		t.Fatalf("idempotent re-accept should not rewrite user; updateCalled=%v", users.updateCalled)
+	// Remembering is idempotent in the user service (it only fills an empty
+	// preference), so the handler asks every time.
+	if len(users.remembered) != 1 || users.remembered[0] != 42 {
+		t.Fatalf("remembered workspaces = %v, want [42]", users.remembered)
 	}
 }
 

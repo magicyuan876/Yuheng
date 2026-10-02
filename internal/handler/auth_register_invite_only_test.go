@@ -117,8 +117,8 @@ func TestRegister_SelfServeAllowsRegistration(t *testing.T) {
 	us := &stubRegisterUserService{
 		register: func(_ context.Context, req *types.RegisterRequest) (*types.User, error) {
 			called = true
-			if req.TenantProvisioning != types.TenantProvisioningCreatePersonal {
-				t.Fatalf("default provisioning = %q, want create_personal", req.TenantProvisioning)
+			if req.BootstrapFirstUser {
+				t.Fatal("self_serve registration with existing users must not bootstrap")
 			}
 			return &types.User{ID: "u1", Email: "alice@example.com"}, nil
 		},
@@ -136,25 +136,28 @@ func TestRegister_SelfServeAllowsRegistration(t *testing.T) {
 	}
 }
 
-func TestRegister_TenantlessProvisioningFromConfig(t *testing.T) {
+// The bootstrap registration may name the deployment's default workspace;
+// the field is bound from JSON and handed to the service together with the
+// bootstrap flag. Only the service decides whether it is honoured.
+func TestRegister_BootstrapPassesTheWorkspaceName(t *testing.T) {
+	var got *types.RegisterRequest
 	us := &stubRegisterUserService{
 		register: func(_ context.Context, req *types.RegisterRequest) (*types.User, error) {
-			if req.TenantProvisioning != types.TenantProvisioningTenantless {
-				t.Fatalf("provisioning = %q, want tenantless", req.TenantProvisioning)
-			}
+			cp := *req
+			got = &cp
 			return &types.User{ID: "u1", Email: "alice@example.com"}, nil
 		},
 	}
-	h := NewAuthHandler(&config.Config{
-		Auth: &config.AuthConfig{
-			RegistrationMode:  config.AuthRegistrationModeSelfServe,
-			DefaultTenantMode: config.AuthDefaultTenantModeTenantless,
-		},
-	}, us, nil, nil, nil)
+	h := NewAuthHandler(cfgWithMode(config.AuthRegistrationModeAuto), us, nil, nil, nil)
 
-	w := doRegister(t, newRegisterTestRouter(h), validRegisterBody())
+	body := validRegisterBody()
+	body["workspace_name"] = "Acme Knowledge"
+	w := doRegister(t, newRegisterTestRouter(h), body)
 	if w.Code != http.StatusCreated {
-		t.Fatalf("tenantless self-serve registration got %d body=%s", w.Code, w.Body.String())
+		t.Fatalf("bootstrap registration got %d body=%s", w.Code, w.Body.String())
+	}
+	if got == nil || !got.BootstrapFirstUser || got.WorkspaceName != "Acme Knowledge" {
+		t.Fatalf("register request = %+v, want bootstrap with the workspace name", got)
 	}
 }
 

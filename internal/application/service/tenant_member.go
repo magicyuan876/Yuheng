@@ -76,7 +76,7 @@ const (
 type tenantMemberService struct {
 	repo      interfaces.TenantMemberRepository
 	audit     interfaces.AuditLogService     // optional; nil ⇒ no audit, business ops still succeed
-	userRepo  interfaces.UserRepository      // optional; used to clear stale home-tenant pointers
+	userRepo  interfaces.UserRepository      // optional; used to clear a stale active-workspace preference
 	tokenRepo interfaces.AuthTokenRepository // optional; used to revoke sessions after removal
 }
 
@@ -90,10 +90,10 @@ type tenantMemberService struct {
 //
 // userRepo / tokenRepo are also optional and only used by RemoveMember
 // cleanup: after a membership is soft-deleted we best-effort clear a
-// dangling users.tenant_id / LastActiveTenantID and revoke outstanding
-// sessions so the removed user cannot keep a JWT scoped to a workspace
-// they no longer belong to. Passing nil keeps unit tests that only
-// exercise membership invariants free of extra stubs.
+// LastActiveTenantID preference that still points at the workspace and
+// revoke outstanding sessions so the removed user cannot keep a JWT scoped
+// to a workspace they no longer belong to. Passing nil keeps unit tests
+// that only exercise membership invariants free of extra stubs.
 func NewTenantMemberService(
 	repo interfaces.TenantMemberRepository,
 	audit interfaces.AuditLogService,
@@ -388,14 +388,13 @@ func (s *tenantMemberService) emitRoleChangeAudit(
 // service method but the recorded action differs so an audit reader
 // can tell the two apart.
 //
-// After a successful soft-delete, best-effort cleanup clears any
-// dangling users.tenant_id / LastActiveTenantID that still points at
-// the removed workspace and revokes outstanding auth tokens. Without
-// this, a tenantless→invited→removed user keeps a stale home pointer
-// and the login path synthesises the removed workspace back into the
-// space switcher (see issue #2586). Cleanup failures are logged but
-// never fail the removal itself: the membership row is already gone
-// and the login-path membership checks act as a second line of defence.
+// After a successful soft-delete, best-effort cleanup clears a
+// LastActiveTenantID preference that still points at the removed
+// workspace and revokes outstanding auth tokens, so the user's next
+// login resolves a workspace they still belong to instead of a 403-only
+// one. Cleanup failures are logged but never fail the removal itself: the
+// membership row is already gone and ResolveActiveTenantID re-validates
+// the preference against tenant_members on every login anyway.
 func (s *tenantMemberService) RemoveMember(ctx context.Context, userID string, tenantID uint64) error {
 	current, err := s.repo.Get(ctx, userID, tenantID)
 	if err != nil {
@@ -424,34 +423,26 @@ func (s *tenantMemberService) RemoveMember(ctx context.Context, userID string, t
 	return nil
 }
 
-// cleanupRemovedMemberState drops stale home/preference pointers that
-// reference the removed tenant and revokes the user's sessions so any
-// JWT still scoped to that tenant cannot keep serving 403-only UI.
-// All steps are best-effort and nil-safe for partial DI graphs in tests.
+// cleanupRemovedMemberState drops a preference that still points at the
+// removed tenant and revokes the user's sessions so any JWT still scoped to
+// that tenant cannot keep serving 403-only UI. All steps are best-effort
+// and nil-safe for partial DI graphs in tests.
 func (s *tenantMemberService) cleanupRemovedMemberState(ctx context.Context, userID string, tenantID uint64) {
 	if s.userRepo != nil {
 		user, err := s.userRepo.GetUserByID(ctx, userID)
-		if err != nil {
+		switch {
+		case err != nil:
 			logger.Warnf(ctx,
 				"RemoveMember cleanup: failed to load user %s after removing tenant %d: %v",
 				userID, tenantID, err)
-		} else if user != nil {
-			changed := false
-			if user.TenantID == tenantID {
-				user.TenantID = 0
-				changed = true
-			}
-			if user.Preferences.LastActiveTenantID != nil && *user.Preferences.LastActiveTenantID == tenantID {
-				user.Preferences.LastActiveTenantID = nil
-				changed = true
-			}
-			if changed {
-				user.UpdatedAt = time.Now()
-				if err := s.userRepo.UpdateUser(ctx, user); err != nil {
-					logger.Warnf(ctx,
-						"RemoveMember cleanup: failed to clear stale tenant pointers for user %s tenant %d: %v",
-						userID, tenantID, err)
-				}
+		case user != nil && user.Preferences.LastActiveTenantID != nil &&
+			*user.Preferences.LastActiveTenantID == tenantID:
+			user.Preferences.LastActiveTenantID = nil
+			user.UpdatedAt = time.Now()
+			if err := s.userRepo.UpdateUser(ctx, user); err != nil {
+				logger.Warnf(ctx,
+					"RemoveMember cleanup: failed to clear the active-workspace preference of user %s (tenant %d): %v",
+					userID, tenantID, err)
 			}
 		}
 	}

@@ -1203,12 +1203,13 @@ definitions:
         description: |-
           ActiveTenant is the workspace whose ID is encoded in the issued JWT;
           future requests are scoped to it until the client calls /auth/switch-tenant.
-          Defaults to the user's home workspace on a fresh login.
+          Nil for a user who belongs to no workspace yet (see
+          UserService.ResolveActiveTenantID for how it is chosen).
       memberships:
         description: |-
           Memberships lists every workspace the user can authenticate into,
-          along with their role in each. Always populated (length 1 for users
-          who only belong to their home workspace) so frontends can render a
+          along with their role in each. Always populated (possibly empty for a
+          user who belongs to no workspace yet) so frontends can render a
           workspace switcher without a follow-up request. Serialised without
           omitempty so the field is always present as a JSON array (possibly
           empty) — the "always populated" contract relies on the server side
@@ -1801,6 +1802,13 @@ definitions:
       username:
         maxLength: 50
         minLength: 2
+        type: string
+      workspace_name:
+        description: |-
+          WorkspaceName names the deployment's default workspace. It is honoured
+          only when BootstrapFirstUser is set and is ignored otherwise; empty
+          means DefaultWorkspaceName. The bound is the one POST /tenants applies.
+        maxLength: 128
         type: string
     required:
     - email
@@ -2608,13 +2616,6 @@ definitions:
           Per-user UI/feature preferences.
           Stored as JSON in a jsonb column via the
           driver.Valuer / sql.Scanner methods on UserPreferences.
-      tenant:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.Tenant'
-        description: Association relationship, not stored in the database
-      tenant_id:
-        description: Workspace ID that the user belongs to
-        type: integer
       updated_at:
         description: Last updated time of the user
         type: string
@@ -2640,8 +2641,6 @@ definitions:
         type: boolean
       preferences:
         $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.UserPreferences'
-      tenant_id:
-        type: integer
       updated_at:
         type: string
       username:
@@ -2651,16 +2650,18 @@ definitions:
     properties:
       last_active_tenant_id:
         description: |-
-          LastActiveTenantID remembers the last workspace the user actively
-          switched into, so a fresh login (new device, cleared browser, new
-          refresh token) lands them back in that workspace instead of always
-          bouncing to their home workspace. Login / RefreshToken validate that
-          the workspace still exists and the user still has an active membership
-          (or CanAccessAllTenants) before honouring this preference; an
-          invalid pointer is best-effort cleared and the user falls back to
-          home.
+          LastActiveTenantID is the user's current workspace: the one a fresh
+          login (new device, cleared browser, new refresh token) lands in and the
+          one a request without an X-Tenant-ID header and without a tenant in its
+          JWT is scoped to. A user is a global identity with no "home" workspace;
+          this preference is the only pointer from a user to a workspace, and
+          tenant_members decides whether it may be honoured. UserService.
+          ResolveActiveTenantID validates it (the workspace must exist and the
+          user must still have an active membership, or CanAccessAllTenants)
+          and otherwise falls back to the earliest active membership, rewriting
+          the preference so later logins do not repeat the lookup.
 
-          nil  = no preference (use user.TenantID, i.e. home)
+          nil  = no preference (resolve from memberships)
           *0   = "clear preference" sentinel for the partial-update endpoint
                  (UpdateUserPreferences turns this into nil). Otherwise treat
                  a stored *0 the same as nil.
@@ -5207,7 +5208,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: 注册新用户账号
+      description: |-
+        注册新用户账号。注册只创建账号，不创建空间；用户通过邀请或由系统管理员加入空间。
+        例外是部署的首个账号（/auth/config 的 first_user 为 true）：它同时创建部署的默认空间并成为其 Owner，
+        可通过 workspace_name 指定空间名称（为空则为 "Default Workspace"）。
       parameters:
       - description: 注册请求参数
         in: body
@@ -5273,7 +5277,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 为当前用户在目标空间重新签发访问令牌；要求该用户在目标空间存在 active 成员关系
+      description: 为当前用户在目标空间重新签发访问令牌；要求该用户在目标空间存在 active 成员关系（跨空间超管除外）
       parameters:
       - description: 切换请求
         in: body
@@ -14588,8 +14592,8 @@ paths:
         When `password` is omitted or null, a cryptographically random
         password is generated (OIDC-style crypto/rand + base64url)
         and returned once in the response body. Any provided value,
-        including empty string, is policy-checked. Tenant provisioning
-        follows the shared auth.default_tenant_mode policy.
+        including empty string, is policy-checked. The account belongs
+        to no workspace until it is added to one.
       parameters:
       - description: User creation request
         in: body

@@ -52,7 +52,7 @@ const syncOIDCUserContext = async () => {
   }
 
   const { user, tenant, memberships, capabilities } = currentUserResponse.data;
-  authStore.setUser(userInfoFromApi(user, tenant?.id));
+  authStore.setUser(userInfoFromApi(user));
   if (tenant) {
     authStore.setTenant({
       id: String(tenant.id) || "",
@@ -79,17 +79,10 @@ const syncOIDCUserContext = async () => {
   if (typeof capabilities?.can_create_tenant === "boolean") {
     authStore.setCanCreateTenant(capabilities.can_create_tenant);
   }
-  // Same active-vs-home reconciliation as Login.vue: if the OIDC login
-  // landed us in a non-home tenant (because the backend honoured a
-  // remembered last-active-tenant preference) make sure X-Tenant-ID
-  // override is set; otherwise drop any stale override.
-  const activeIdNum = tenant?.id != null ? Number(tenant.id) : NaN;
-  const homeIdNum = user.tenant_id != null ? Number(user.tenant_id) : NaN;
-  if (Number.isFinite(activeIdNum) && Number.isFinite(homeIdNum) && activeIdNum !== homeIdNum) {
-    authStore.setSelectedTenant(activeIdNum, tenant?.name || null);
-  } else {
-    authStore.setSelectedTenant(null, null);
-  }
+  // Same as Login.vue: the freshly issued token is already scoped to the
+  // workspace the server chose, so any X-Tenant-ID override left in
+  // localStorage by a previous session (possibly another account) is stale.
+  authStore.setSelectedTenant(null, null);
 };
 
 const persistOIDCLoginResponse = async (response: any) => {

@@ -360,9 +360,9 @@ func (h *TenantHandler) CreateTenant(c *gin.Context) {
 	// Bootstrap an Owner membership so the caller immediately has full
 	// control over the tenant they just created. We MUST roll the tenant
 	// back if this fails: without a membership row the new tenant is
-	// unreachable (middleware/auth.go's orphan-recovery only fires for a
-	// user's home tenant, never for a freshly-created side workspace),
-	// yet still occupies storage_bucket / name uniqueness slots.
+	// unreachable (the auth middleware never promotes anyone into a
+	// memberless workspace), yet still occupies storage_bucket / name
+	// uniqueness slots.
 	// Idempotent: EnsureOwner is a no-op when the row already exists,
 	// so cross-tenant superusers create-and-own through the same path.
 	if h.memberService != nil && !platformCaller {
@@ -423,23 +423,6 @@ func (h *TenantHandler) CreateTenant(c *gin.Context) {
 					return
 				}
 			}
-		}
-	}
-
-	// When a tenantless user creates their first workspace, make it their
-	// default login tenant. Roll the just-created resources back if this
-	// finalisation fails so the user is not left with an unreachable tenant.
-	if caller.TenantID == 0 && !platformCaller {
-		caller.TenantID = createdTenant.ID
-		if err := h.userService.UpdateUser(ctx, caller); err != nil {
-			logger.Errorf(ctx, "Failed to set first tenant %d as default for user %s: %v",
-				createdTenant.ID, caller.ID, err)
-			if h.memberService != nil {
-				_ = h.memberService.RemoveMember(ctx, caller.ID, createdTenant.ID)
-			}
-			_ = h.service.DeleteTenant(ctx, createdTenant.ID)
-			c.Error(errors.NewInternalServerError("Failed to finalise default workspace").WithDetails(err.Error()))
-			return
 		}
 	}
 

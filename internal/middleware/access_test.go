@@ -76,13 +76,15 @@ func TestIsCrossTenantSuperuser_NoUserInCtxRejects(t *testing.T) {
 
 // ---------- IsTenantAccessible ----------
 
-func TestIsTenantAccessible_HomeTenantAlwaysAllows(t *testing.T) {
-	user := &types.User{ID: "u1", TenantID: 1}
-	// Even with no member service and the cross-tenant flag off, a user
-	// reaching their own tenant is fine. Home tenant is the cheapest
-	// fast path.
-	if !IsTenantAccessible(context.Background(), user, 1, nil, cfgCrossTenant(false)) {
-		t.Fatalf("home tenant must allow regardless of other inputs")
+func TestIsTenantAccessible_NoShortcutWithoutMembership(t *testing.T) {
+	// A user is a global identity: there is no "home" workspace that admits
+	// them by itself. Without a membership row (and without the superuser
+	// attribute) every target is rejected, whatever the user's preference
+	// says.
+	preferred := uint64(1)
+	user := &types.User{ID: "u1", Preferences: types.UserPreferences{LastActiveTenantID: &preferred}}
+	if IsTenantAccessible(context.Background(), user, 1, newFakeMemberService(), cfgCrossTenant(false)) {
+		t.Fatalf("a preference is not a membership; access must be rejected")
 	}
 }
 
@@ -93,14 +95,14 @@ func TestIsTenantAccessible_NilUserRejects(t *testing.T) {
 }
 
 func TestIsTenantAccessible_ZeroTargetRejects(t *testing.T) {
-	user := &types.User{ID: "u1", TenantID: 1}
+	user := &types.User{ID: "u1"}
 	if IsTenantAccessible(context.Background(), user, 0, nil, cfgCrossTenant(true)) {
 		t.Fatalf("zero target tenant must reject")
 	}
 }
 
 func TestIsTenantAccessible_SuperuserPathRequiresFlag(t *testing.T) {
-	user := &types.User{ID: "u1", TenantID: 1, CanAccessAllTenants: true}
+	user := &types.User{ID: "u1", CanAccessAllTenants: true}
 	// With flag OFF, the superuser attribute alone must NOT grant
 	// cross-tenant access — same revocation rule as
 	// IsCrossTenantSuperuser.
@@ -115,7 +117,7 @@ func TestIsTenantAccessible_SuperuserPathRequiresFlag(t *testing.T) {
 }
 
 func TestIsTenantAccessible_ActiveMembershipAllows(t *testing.T) {
-	user := &types.User{ID: "u1", TenantID: 1}
+	user := &types.User{ID: "u1"}
 	ms := newFakeMemberService()
 	ms.seedActive("u1", 99, types.TenantRoleContributor)
 	if !IsTenantAccessible(context.Background(), user, 99, ms, cfgCrossTenant(false)) {
@@ -124,7 +126,7 @@ func TestIsTenantAccessible_ActiveMembershipAllows(t *testing.T) {
 }
 
 func TestIsTenantAccessible_NoMembershipRejects(t *testing.T) {
-	user := &types.User{ID: "u1", TenantID: 1}
+	user := &types.User{ID: "u1"}
 	ms := newFakeMemberService() // empty
 	if IsTenantAccessible(context.Background(), user, 99, ms, cfgCrossTenant(true)) {
 		t.Fatalf("no membership and not superuser must reject")
@@ -136,7 +138,7 @@ func TestIsTenantAccessible_LookupErrorRejects(t *testing.T) {
 	// is "treat as no membership". The X-Tenant-ID gate in auth.go
 	// relies on this — failing closed prevents tenant-bleed during
 	// transient outages.
-	user := &types.User{ID: "u1", TenantID: 1}
+	user := &types.User{ID: "u1"}
 	ms := newFakeMemberService()
 	ms.failGet = errors.New("db down")
 	if IsTenantAccessible(context.Background(), user, 99, ms, cfgCrossTenant(true)) {
@@ -144,10 +146,10 @@ func TestIsTenantAccessible_LookupErrorRejects(t *testing.T) {
 	}
 }
 
-func TestIsTenantAccessible_NilMemberServiceRejectsNonHome(t *testing.T) {
-	user := &types.User{ID: "u1", TenantID: 1}
+func TestIsTenantAccessible_NilMemberServiceRejects(t *testing.T) {
+	user := &types.User{ID: "u1"}
 	if IsTenantAccessible(context.Background(), user, 99, nil, cfgCrossTenant(false)) {
-		t.Fatalf("no member service + non-home tenant must reject")
+		t.Fatalf("no member service must reject (nothing can vouch for the user)")
 	}
 }
 

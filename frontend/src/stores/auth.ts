@@ -320,7 +320,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
-  // Reconcile user / home tenant / memberships with GET /api/v1/auth/me.
+  // Reconcile user / current workspace / memberships with GET /api/v1/auth/me.
   // Login only populated memberships once; SPA navigations skip
   // hydrateSessionFromToken when isLoggedIn is already true — so inviting
   // flows or revokes would leave the sidebar switcher stale until reload.
@@ -331,7 +331,7 @@ export const useAuthStore = defineStore("auth", () => {
       const u = response.data?.user;
       if (!response.success || !u) return false;
 
-      setUser(userInfoFromApi(u, response.data?.tenant?.id));
+      setUser(userInfoFromApi(u));
 
       const tenantSnapshot = response.data?.tenant;
       if (tenantSnapshot) {

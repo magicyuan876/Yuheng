@@ -23,9 +23,9 @@ import (
 //
 //   - "can the caller access target tenant X" — used by the
 //     X-Tenant-ID branch in auth.go to decide whether to honour the
-//     header. Originally allowed only superusers; now also allows
-//     ordinary multi-tenant members who have an active row in the
-//     target tenant's tenant_members table.
+//     header. Superusers, and anyone with an active row in the target
+//     tenant's tenant_members table; membership is the only relation
+//     between a user and a workspace.
 //
 //   - "must the URL :id match the active tenant" — used by every
 //     tenant-scoped route. Was duplicated in tenant.go (4 callers) and
@@ -66,11 +66,11 @@ func IsCrossTenantSuperuser(ctx context.Context, cfg *config.Config) bool {
 // IsTenantAccessible reports whether `user` is allowed to operate inside
 // `targetTenantID`. The decision order is:
 //
-//  1. Home tenant (user.TenantID == targetTenantID): always.
-//  2. Cross-tenant superuser: governed by IsCrossTenantSuperuser.
-//  3. Multi-tenant member: an active tenant_members row in the target
-//     tenant grants access (this is what makes cross-tenant browsing
-//     work for non-superusers added via PR 3's member management).
+//  1. Cross-tenant superuser: governed by IsCrossTenantSuperuser.
+//  2. Member: an active tenant_members row in the target tenant grants
+//     access. There is no shortcut for a "home" workspace; a user is a
+//     global identity and every workspace they can enter is one they are
+//     a member of.
 //
 // Lookup errors are treated as "not a member" — the safest fallback
 // that doesn't expose other tenants on a transient DB hiccup.
@@ -83,9 +83,6 @@ func IsTenantAccessible(
 ) bool {
 	if user == nil || targetTenantID == 0 {
 		return false
-	}
-	if user.TenantID == targetTenantID {
-		return true
 	}
 	if cfg != nil && cfg.Tenant != nil && cfg.Tenant.EnableCrossTenantAccess && user.CanAccessAllTenants {
 		return true

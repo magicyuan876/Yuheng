@@ -51,7 +51,6 @@ vi.mock("@/stores/ui", () => ({ useUIStore: () => uiStore }));
 
 vi.mock("@/composables/useRoleLabel", () => ({
   useRoleLabel: () => ({ formatRole: (role: string) => role, roleIcon: () => null }),
-  useHomeTenant: () => ({ homeTenantId: { value: 1 }, isHomeTenant: () => false }),
 }));
 
 vi.mock("@/config/contextualGuides", () => ({ openNewUserGuide: vi.fn() }));

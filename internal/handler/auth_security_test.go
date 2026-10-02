@@ -110,8 +110,8 @@ func TestRegisterByInvite_WorksWhileRegistrationClosed(t *testing.T) {
 			if w.Code != http.StatusCreated {
 				t.Fatalf("invitation registration = %d body=%s", w.Code, w.Body.String())
 			}
-			if users.registeredMode != types.TenantProvisioningTenantless {
-				t.Fatalf("invitee must be tenantless, got %q", users.registeredMode)
+			if users.registered == nil || users.registered.BootstrapFirstUser {
+				t.Fatalf("invitee must register as an ordinary account, got %+v", users.registered)
 			}
 		})
 	}

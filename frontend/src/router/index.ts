@@ -176,7 +176,7 @@ async function hydrateSessionFromToken(authStore: ReturnType<typeof useAuthStore
       return false;
     }
 
-    authStore.setUser(userInfoFromApi(user, response.data?.tenant?.id));
+    authStore.setUser(userInfoFromApi(user));
 
     const tenant = response.data?.tenant;
     if (tenant) {

@@ -18,9 +18,9 @@ type LoginRequest struct {
 // Token is the JWT access token; RefreshToken renews it via Auth.Refresh.
 // ActiveTenant is the tenant whose ID is encoded in the JWT — every
 // subsequent request is scoped to it until /auth/switch-tenant is called.
-// Memberships lists every tenant the user can access along with their
-// role in each, so callers can build a tenant switcher UI without a
-// follow-up request.
+// It is nil for a user who belongs to no tenant yet. Memberships lists
+// every tenant the user can access along with their role in each, so
+// callers can build a tenant switcher UI without a follow-up request.
 type LoginResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message,omitempty"`
@@ -42,13 +42,14 @@ type AuthMembership struct {
 
 // AuthUser is the principal returned by /auth/login and /auth/me.
 //
-// Fields mirror the server's UserInfo projection (no PasswordHash).
+// Fields mirror the server's UserInfo projection (no PasswordHash). A user
+// carries no tenant of its own; the tenant a session is scoped to is the
+// ActiveTenant of the login response or the Tenant of /auth/me.
 type AuthUser struct {
 	ID                  string    `json:"id"`
 	Username            string    `json:"username"`
 	Email               string    `json:"email"`
 	Avatar              string    `json:"avatar,omitempty"`
-	TenantID            uint64    `json:"tenant_id"`
 	IsActive            bool      `json:"is_active"`
 	CanAccessAllTenants bool      `json:"can_access_all_tenants,omitempty"`
 	CreatedAt           time.Time `json:"created_at,omitempty"`
@@ -70,7 +71,9 @@ type AuthCapabilities struct {
 type CurrentUserResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
-		User           *AuthUser         `json:"user,omitempty"`
+		User *AuthUser `json:"user,omitempty"`
+		// Tenant is the tenant this session is scoped to; nil when the user
+		// belongs to no tenant yet, in which case TenantRequired is true.
 		Tenant         *AuthTenant       `json:"tenant,omitempty"`
 		Memberships    []AuthMembership  `json:"memberships,omitempty"`
 		TenantRequired bool              `json:"tenant_required,omitempty"`

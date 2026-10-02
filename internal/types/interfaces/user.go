@@ -8,7 +8,9 @@ import (
 
 // UserService defines the user service interface
 type UserService interface {
-	// Register creates a new user account
+	// Register creates a new user account. It creates no workspace, except
+	// for the bootstrap registration (req.BootstrapFirstUser), which creates
+	// the deployment's default workspace with the registrant as its Owner.
 	Register(ctx context.Context, req *types.RegisterRequest) (*types.User, error)
 	// HasAnyUser reports whether the deployment already has a user; drives the
 	// "auto" registration mode (open only until the first account exists).
@@ -18,9 +20,7 @@ type UserService interface {
 	// GetOIDCAuthorizationURL builds the third-party OIDC authorization URL
 	GetOIDCAuthorizationURL(ctx context.Context, redirectURI string) (*types.OIDCAuthURLResponse, error)
 	// LoginWithOIDC exchanges the callback code, auto-provisions users if needed, and completes login.
-	// provisioning is the default tenant mode for a newly auto-created user
-	// (resolved by the caller from auth.default_tenant_mode).
-	LoginWithOIDC(ctx context.Context, code, redirectURI string, provisioning types.TenantProvisioningMode) (*types.OIDCCallbackResponse, error)
+	LoginWithOIDC(ctx context.Context, code, redirectURI string) (*types.OIDCCallbackResponse, error)
 	// GetUserByID gets a user by ID
 	GetUserByID(ctx context.Context, id string) (*types.User, error)
 	// GetUsersByIDs batch-fetches users by id, returning a map keyed by
@@ -32,8 +32,6 @@ type UserService interface {
 	GetUserByEmail(ctx context.Context, email string) (*types.User, error)
 	// GetUserByUsername gets a user by username
 	GetUserByUsername(ctx context.Context, username string) (*types.User, error)
-	// GetUserByTenantID gets the first user (owner) of a tenant
-	GetUserByTenantID(ctx context.Context, tenantID uint64) (*types.User, error)
 	// UpdateUser updates user information
 	UpdateUser(ctx context.Context, user *types.User) error
 	// DeleteUser deletes a user
@@ -46,8 +44,24 @@ type UserService interface {
 	AdminResetPassword(ctx context.Context, userID string, newPassword string) error
 	// ValidatePassword validates user password
 	ValidatePassword(ctx context.Context, userID string, password string) error
-	// GenerateTokens generates access and refresh tokens for user
+	// GenerateTokens generates access and refresh tokens for user, scoped to
+	// the workspace ResolveActiveTenantID picks.
 	GenerateTokens(ctx context.Context, user *types.User) (accessToken, refreshToken string, err error)
+	// ResolveActiveTenantID picks the workspace a session lands in when the
+	// request names none (no X-Tenant-ID header, no tenant in the JWT): the
+	// user's last_active_tenant_id preference if the workspace still exists
+	// and the user may still act there (active membership, or
+	// CanAccessAllTenants), else the earliest active membership, which is
+	// then written back as the preference, best effort. Returns 0 for a user
+	// who belongs to no workspace. Never fails: a lookup error only narrows
+	// the result.
+	ResolveActiveTenantID(ctx context.Context, user *types.User) uint64
+	// RememberFirstWorkspace records tenantID as the user's
+	// last_active_tenant_id when they have no preference yet, so a user whose
+	// first workspace came through an invitation lands there on their next
+	// login instead of going through the membership fallback. A user who
+	// already has a preference keeps it.
+	RememberFirstWorkspace(ctx context.Context, userID string, tenantID uint64) error
 	// BuildLoginMemberships projects the user's tenant memberships into
 	// the login-response shape. activeTenant is reused (without an extra
 	// lookup) for the matching row's TenantName. The slice is guaranteed
@@ -56,15 +70,15 @@ type UserService interface {
 	BuildLoginMemberships(ctx context.Context, user *types.User, activeTenant *types.Tenant) []types.Membership
 	// SwitchTenant issues a new token pair scoped to targetTenantID and
 	// returns the corresponding LoginResponse. The caller's previous
-	// refresh token (passed in for revocation) is invalidated. Membership
-	// is verified via the TenantMember service before tokens are issued.
+	// refresh token (passed in for revocation) is invalidated. The user
+	// must have an active membership in the target workspace unless they
+	// CanAccessAllTenants.
 	SwitchTenant(ctx context.Context, user *types.User, targetTenantID uint64, currentRefreshToken string) (*types.LoginResponse, error)
 	// ValidateToken validates an access token. It returns the user
-	// referenced by the token plus the active tenant ID encoded in the
-	// JWT's `tenant_id` claim — the latter lets the auth middleware
-	// honour /auth/switch-tenant sessions that were minted with a
-	// non-home tenant. Falls back to user.TenantID when the claim is
-	// missing (old tokens issued before tenant-level RBAC).
+	// referenced by the token plus the workspace ID encoded in the JWT's
+	// `tenant_id` claim, or 0 when the token carries none (a tenantless
+	// session); the auth middleware then falls back to
+	// ResolveActiveTenantID.
 	ValidateToken(ctx context.Context, token string) (*types.User, uint64, error)
 	// RefreshToken refreshes access token using refresh token
 	RefreshToken(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error)
@@ -82,11 +96,9 @@ type UserService interface {
 	ListSystemAdmins(ctx context.Context, offset, limit int) ([]*types.User, int64, error)
 	// AdminCreateUser provisions a new local user on behalf of a
 	// SystemAdmin. When req.Password is nil, a random password is generated
-	// and returned exactly once as the second result. provisioning is
-	// resolved by the caller from the shared auth.default_tenant_mode policy.
-	AdminCreateUser(
-		ctx context.Context, req *types.AdminCreateUserRequest, provisioning types.TenantProvisioningMode,
-	) (*types.User, string, error)
+	// and returned exactly once as the second result. The account belongs to
+	// no workspace until it is added to one.
+	AdminCreateUser(ctx context.Context, req *types.AdminCreateUserRequest) (*types.User, string, error)
 	// RevokeSystemAdmin removes system-admin privileges with the
 	// last-admin/self-revoke checks performed atomically.
 	RevokeSystemAdmin(ctx context.Context, userID, actorID string) (*types.User, error)
@@ -102,9 +114,12 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *types.User) error
 	// HasAnyUser reports whether at least one user exists (cheap EXISTS probe).
 	HasAnyUser(ctx context.Context) (bool, error)
-	// CreateFirstUser creates user as system administrator only if no user
-	// exists yet, atomically; otherwise it returns types.ErrRegistrationClosed.
-	CreateFirstUser(ctx context.Context, user *types.User) error
+	// BootstrapFirstUser creates the deployment's first account and its default
+	// workspace in one transaction: the user as system administrator, the
+	// workspace, an Owner membership and the user's last_active_tenant_id
+	// preference pointing at it. Only if no user exists yet; otherwise it
+	// returns types.ErrRegistrationClosed and writes nothing.
+	BootstrapFirstUser(ctx context.Context, user *types.User, workspace *types.Tenant) error
 	// GetUserByID gets a user by ID
 	GetUserByID(ctx context.Context, id string) (*types.User, error)
 	// GetUsersByIDs batch-fetches users by id, returning a map keyed by
@@ -114,8 +129,6 @@ type UserRepository interface {
 	GetUserByEmail(ctx context.Context, email string) (*types.User, error)
 	// GetUserByUsername gets a user by username
 	GetUserByUsername(ctx context.Context, username string) (*types.User, error)
-	// GetUserByTenantID gets the first user (owner) of a tenant
-	GetUserByTenantID(ctx context.Context, tenantID uint64) (*types.User, error)
 	// UpdateUser updates a user
 	UpdateUser(ctx context.Context, user *types.User) error
 	// DeleteUser deletes a user

@@ -22,16 +22,18 @@ import (
 //
 // No DB DDL is required — preferences is a single jsonb column.
 type UserPreferences struct {
-	// LastActiveTenantID remembers the last workspace the user actively
-	// switched into, so a fresh login (new device, cleared browser, new
-	// refresh token) lands them back in that workspace instead of always
-	// bouncing to their home workspace. Login / RefreshToken validate that
-	// the workspace still exists and the user still has an active membership
-	// (or CanAccessAllTenants) before honouring this preference; an
-	// invalid pointer is best-effort cleared and the user falls back to
-	// home.
+	// LastActiveTenantID is the user's current workspace: the one a fresh
+	// login (new device, cleared browser, new refresh token) lands in and the
+	// one a request without an X-Tenant-ID header and without a tenant in its
+	// JWT is scoped to. A user is a global identity with no "home" workspace;
+	// this preference is the only pointer from a user to a workspace, and
+	// tenant_members decides whether it may be honoured. UserService.
+	// ResolveActiveTenantID validates it (the workspace must exist and the
+	// user must still have an active membership, or CanAccessAllTenants)
+	// and otherwise falls back to the earliest active membership, rewriting
+	// the preference so later logins do not repeat the lookup.
 	//
-	// nil  = no preference (use user.TenantID, i.e. home)
+	// nil  = no preference (resolve from memberships)
 	// *0   = "clear preference" sentinel for the partial-update endpoint
 	//        (UpdateUserPreferences turns this into nil). Otherwise treat
 	//        a stored *0 the same as nil.
@@ -89,8 +91,6 @@ type User struct {
 	PasswordHash string `json:"-"          gorm:"type:varchar(255);not null"`
 	// Avatar URL of the user
 	Avatar string `json:"avatar"     gorm:"type:varchar(500)"`
-	// Workspace ID that the user belongs to
-	TenantID uint64 `json:"tenant_id"  gorm:"index"`
 	// Whether the user is active
 	IsActive bool `json:"is_active"  gorm:"default:true"`
 	// Whether the user can access all workspaces (cross-workspace access)
@@ -107,9 +107,6 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	// Deletion time of the user
 	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index"`
-
-	// Association relationship, not stored in the database
-	Tenant *Tenant `json:"tenant,omitempty" gorm:"foreignKey:TenantID"`
 }
 
 // AuthToken represents an authentication token
@@ -185,21 +182,29 @@ type OIDCUserInfo struct {
 // mode. Handlers translate it to 403.
 var ErrRegistrationClosed = errors.New("registration is closed")
 
-// RegisterRequest represents a registration request
+// DefaultWorkspaceName names the workspace the bootstrap registration creates
+// when the registrant leaves the name empty. English, like every other default
+// the backend writes; the registration page localises its placeholder.
+const DefaultWorkspaceName = "Default Workspace"
+
+// RegisterRequest represents a registration request. Registration creates an
+// account and nothing else: a user is a global identity that enters workspaces
+// through invitations or an administrator. The one exception is the bootstrap
+// registration below, which is an installation step rather than a policy.
 type RegisterRequest struct {
 	Username string `json:"username" binding:"required,min=2,max=50"`
 	Email    string `json:"email"    binding:"required,email"`
 	Password string `json:"password" binding:"required,min=6"`
 
-	// TenantProvisioning is server-controlled registration context. It is
-	// deliberately excluded from JSON so a public caller cannot choose its
-	// own tenancy semantics. Empty preserves the historical behaviour and is
-	// treated as create_personal by UserService.Register.
-	TenantProvisioning TenantProvisioningMode `json:"-"`
+	// WorkspaceName names the deployment's default workspace. It is honoured
+	// only when BootstrapFirstUser is set and is ignored otherwise; empty
+	// means DefaultWorkspaceName. The bound is the one POST /tenants applies.
+	WorkspaceName string `json:"workspace_name" binding:"omitempty,max=128"`
 
 	// BootstrapFirstUser is server-controlled (never bound from JSON): the
-	// account is created as system administrator, atomically, and only if no
-	// user exists yet. Set by the handler in "auto" registration mode.
+	// account is created as system administrator together with the
+	// deployment's default workspace, atomically, and only if no user exists
+	// yet. Set by the handler in "auto" registration mode.
 	BootstrapFirstUser bool `json:"-"`
 }
 
@@ -215,21 +220,6 @@ type AdminCreateUserRequest struct {
 	Password *string `json:"password"`
 }
 
-// TenantProvisioningMode controls what UserService.Register does after it
-// has validated the identity fields. Joining an existing tenant is
-// orchestrated by the invitation handler because the invitation token is the
-// authority for the target tenant and role.
-type TenantProvisioningMode string
-
-const (
-	TenantProvisioningCreatePersonal TenantProvisioningMode = "create_personal"
-	TenantProvisioningTenantless     TenantProvisioningMode = "tenantless"
-)
-
-func (m TenantProvisioningMode) IsValid() bool {
-	return m == TenantProvisioningCreatePersonal || m == TenantProvisioningTenantless
-}
-
 // LoginResponse represents a login response
 type LoginResponse struct {
 	Success bool   `json:"success"`
@@ -237,11 +227,12 @@ type LoginResponse struct {
 	User    *User  `json:"user,omitempty"`
 	// ActiveTenant is the workspace whose ID is encoded in the issued JWT;
 	// future requests are scoped to it until the client calls /auth/switch-tenant.
-	// Defaults to the user's home workspace on a fresh login.
+	// Nil for a user who belongs to no workspace yet (see
+	// UserService.ResolveActiveTenantID for how it is chosen).
 	ActiveTenant *Tenant `json:"active_tenant,omitempty"`
 	// Memberships lists every workspace the user can authenticate into,
-	// along with their role in each. Always populated (length 1 for users
-	// who only belong to their home workspace) so frontends can render a
+	// along with their role in each. Always populated (possibly empty for a
+	// user who belongs to no workspace yet) so frontends can render a
 	// workspace switcher without a follow-up request. Serialised without
 	// omitempty so the field is always present as a JSON array (possibly
 	// empty) — the "always populated" contract relies on the server side
@@ -259,13 +250,15 @@ type RegisterResponse struct {
 	Tenant  *Tenant `json:"tenant,omitempty"`
 }
 
-// UserInfo represents user information for API responses
+// UserInfo represents user information for API responses. It carries no
+// workspace: the current workspace is the `tenant` object next to it in the
+// login and /auth/me responses, resolved per request from the token and the
+// user's memberships.
 type UserInfo struct {
 	ID                  string          `json:"id"`
 	Username            string          `json:"username"`
 	Email               string          `json:"email"`
 	Avatar              string          `json:"avatar"`
-	TenantID            uint64          `json:"tenant_id"`
 	IsActive            bool            `json:"is_active"`
 	CanAccessAllTenants bool            `json:"can_access_all_tenants"`
 	IsSystemAdmin       bool            `json:"is_system_admin"`
@@ -281,7 +274,6 @@ func (u *User) ToUserInfo() *UserInfo {
 		Username:            u.Username,
 		Email:               u.Email,
 		Avatar:              u.Avatar,
-		TenantID:            u.TenantID,
 		IsActive:            u.IsActive,
 		CanAccessAllTenants: u.CanAccessAllTenants,
 		IsSystemAdmin:       u.IsSystemAdmin,

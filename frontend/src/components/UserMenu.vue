@@ -278,23 +278,10 @@
               "
             >
               {{ tenantInitial(m) }}
-              <!-- Home 标识：home tenant 行的 avatar 右下角加一个小 home
-                   icon。比起在 meta 行单独立一个「我的」pill，这里更省地、
-                   也保持各行徽标列对齐；用户切到非 home tenant 时这个小
-                   icon 仍能一眼指出「我的主空间在哪一行」。 -->
-              <span
-                v-if="isHomeTenant(m.tenant_id)"
-                class="bg-card text-muted-foreground pointer-events-none absolute -right-[3px] -bottom-[3px] flex size-3.5 items-center justify-center rounded-full border-[1.5px] border-[var(--td-bg-color-container)] shadow-[0_0_0_0.5px_var(--td-success-color-light)]"
-                :title="$t('tenant.switcher.homeTooltip')"
-              >
-                <HouseIcon class="size-[9px]" />
-              </span>
             </div>
             <!-- 两行布局：第一行是 tenant 名（拿满剩余宽度，避免被徽标截断
-                 — 之前 home + 当前 两个徽标在同一行时，长 tenant 名直接
-                 被压成省略号）；第二行 role（带角色图标） + 「当前」徽标。
-                 home 徽标已挪到 tenant 名首字母 avatar 角落，不再在 meta
-                 行额外占位，避免徽标列宽不齐。 -->
+                 — 长 tenant 名和徽标同行时会被压成省略号）；第二行 role
+                 （带角色图标） + 「当前」徽标。 -->
             <div class="flex min-w-0 flex-1 flex-col gap-0.5">
               <span
                 class="text-foreground truncate text-[13px]"
@@ -352,7 +339,7 @@ import {
   stashTenantSwitchToast,
 } from "@/utils/tenantSwitch";
 import type { TenantInfo } from "@/api/tenant";
-import { useRoleLabel, useHomeTenant } from "@/composables/useRoleLabel";
+import { useRoleLabel } from "@/composables/useRoleLabel";
 import { getRootZoom, rectToCssPx, cssViewportSize } from "@/utils/zoom";
 import { openNewUserGuide } from "@/config/contextualGuides";
 import { SETTINGS_MANAGEMENT_SHORTCUT_MIN_ROLE } from "@/config/settingsAccess";
@@ -365,7 +352,6 @@ import {
   ChevronUpIcon,
   CircleHelpIcon,
   CircleUserIcon,
-  HouseIcon,
   LogOutIcon,
   PlusIcon,
   ServerIcon,
@@ -392,18 +378,15 @@ const menuItemClass =
 const menuIconClass = "text-muted-foreground size-4 shrink-0";
 const externalIconClass =
   "pointer-events-none size-4 shrink-0 text-[var(--td-text-color-disabled)] transition-colors duration-200 ease-in-out group-hover:text-primary";
-const { homeTenantId, isHomeTenant } = useHomeTenant();
-
 // 顶部用户卡片展示的空间名 / 当前角色：跟着 tenant 切换器实时变。
-// activeTenantName 优先用切换器选中的名字（含 fallback 到 home tenant 名字），
-// 单空间用户也能正常显示自己的 home tenant 名。
+// activeTenantName 优先用切换器选中的名字，否则是会话令牌所在空间的名字。
 const activeTenantName = computed(() => {
   return authStore.selectedTenantName || authStore.tenant?.name || "";
 });
 const currentRoleLabel = computed(() => formatRole(authStore.currentTenantRole));
 const currentRoleIcon = computed(() => roleIconComponent(authStore.currentTenantRole));
 
-// 单空间用户（memberships <= 1 且非 superuser）= 永远 home + owner，第三
+// 单空间用户（memberships <= 1 且非 superuser）只有一个可能的空间，第三
 // 行就是 user-email 信息的重复，没必要占视觉空间；只对多空间 / superuser
 // 渲染。
 const showTenantIdentityLine = computed(() => {
@@ -554,14 +537,8 @@ const switchToTenant = (m: Membership) => {
     closeAll();
     return;
   }
-  // 始终把激活空间写进 selectedTenantId，让 request.ts 永远附 X-Tenant-ID。
-  // 历史实现里「切回 home 就清 override」会让请求落回 JWT 编码的空间，
-  // 而 JWT 在 last_active != home 的会话里恰好是 peer 空间（见
-  // userService.resolveLoginTenantID），结果切回 home 反而原地不动。
-  // 服务端持久化偏好仍然按 home/peer 区分：home 时清空 last_active，
-  // 让下次干净重登能正确回到 home。
-  const home = homeTenantId.value;
-  const switchingToHome = home !== null && home === m.tenant_id;
+  // 始终把激活空间写进 selectedTenantId，让 request.ts 永远附 X-Tenant-ID：
+  // 没有 override 时请求会落回 JWT 编码的空间，而那正是我们要离开的空间。
   authStore.setSelectedTenant(m.tenant_id, tenantDisplayName(m));
   closeAll();
   // Toast 在 reload 后由 App.vue 弹出（直接在这里弹会被 hard reload 干掉）。
@@ -570,13 +547,14 @@ const switchToTenant = (m: Membership) => {
     role: formatRole(m.role) || undefined,
     roleEnum: m.role || undefined,
   });
-  // Persist "last active tenant" preference (switching to home clears
-  // it). Hard reload so every cached store / open SSE stream / in-flight
-  // request gets re-keyed under the new tenant; navigateAfterTenantSwitch
-  // redirects to the platform home so tenant-scoped resource paths don't
-  // white-screen. Race the persist against the existing 400ms grace
-  // window so most writes complete before the page tears down.
-  const persist = persistLastActiveTenantPreference(switchingToHome ? null : m.tenant_id);
+  // Persist the workspace as the user's current one, so the next login
+  // (any device) lands here. Hard reload so every cached store / open SSE
+  // stream / in-flight request gets re-keyed under the new tenant;
+  // navigateAfterTenantSwitch redirects to the platform home so
+  // tenant-scoped resource paths don't white-screen. Race the persist
+  // against the existing 400ms grace window so most writes complete
+  // before the page tears down.
+  const persist = persistLastActiveTenantPreference(m.tenant_id);
   Promise.race([persist, new Promise((r) => setTimeout(r, 400))]).finally(() => navigateAfterTenantSwitch());
 };
 

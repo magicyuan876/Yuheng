@@ -50,7 +50,7 @@ func TestAdminCreateUserGeneratesPolicyCompliantPasswordWhenEmpty(t *testing.T) 
 
 	user, generated, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "alice", Email: "alice@example.com",
-	}, types.TenantProvisioningTenantless)
+	})
 	if err != nil {
 		t.Fatalf("AdminCreateUser: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestAdminCreateUserUsesExplicitPassword(t *testing.T) {
 
 	user, generated, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "alice", Email: "alice@example.com", Password: new("PlainPass9"),
-	}, types.TenantProvisioningTenantless)
+	})
 	if err != nil {
 		t.Fatalf("AdminCreateUser: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestAdminCreateUserHashesUntrimmedPasswordByteForByte(t *testing.T) {
 	raw := "  PlainPass9  "
 	if _, _, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "alice", Email: "alice@example.com", Password: &raw,
-	}, types.TenantProvisioningTenantless); err != nil {
+	}); err != nil {
 		t.Fatalf("AdminCreateUser: %v", err)
 	}
 	if bcrypt.CompareHashAndPassword([]byte(repo.created.PasswordHash), []byte(raw)) != nil {
@@ -118,7 +118,7 @@ func TestAdminCreateUserRejectsPolicyViolatingPassword(t *testing.T) {
 	for _, pw := range []string{"password", "", "   ", "\t\n", " \u00a0\u00a0 "} {
 		_, generated, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 			Username: "alice", Email: "alice@example.com", Password: &pw,
-		}, types.TenantProvisioningTenantless)
+		})
 		if !errors.Is(err, ErrPasswordPolicy) {
 			t.Fatalf("password=%q err=%v, want ErrPasswordPolicy", pw, err)
 		}
@@ -155,7 +155,7 @@ func TestAdminCreateUserRejectsWeakPasswordBeforePersisting(t *testing.T) {
 	for _, pw := range []string{"password", ""} {
 		_, _, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 			Username: "alice", Email: "alice@example.com", Password: &pw,
-		}, types.TenantProvisioningTenantless)
+		})
 		if !errors.Is(err, ErrPasswordPolicy) {
 			t.Fatalf("password=%q err=%v, want ErrPasswordPolicy", pw, err)
 		}
@@ -172,7 +172,7 @@ func TestAdminCreateUserDuplicateReturnsExistingUserWithSentinel(t *testing.T) {
 
 	user, generated, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "alice", Email: "alice@example.com", Password: new("PlainPass9"),
-	}, types.TenantProvisioningTenantless)
+	})
 	if !errors.Is(err, ErrUserEmailExists) {
 		t.Fatalf("err=%v, want ErrUserEmailExists", err)
 	}
@@ -194,7 +194,7 @@ func TestAdminCreateUserDuplicateUsernameReturnsExistingUserWithSentinel(t *test
 
 	user, _, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "alice", Email: "alice@example.com", Password: new("PlainPass9"),
-	}, types.TenantProvisioningTenantless)
+	})
 	if !errors.Is(err, ErrUserUsernameExists) {
 		t.Fatalf("err=%v, want ErrUserUsernameExists", err)
 	}
@@ -216,7 +216,7 @@ func TestAdminCreateUserDuplicateLookupTargetsSentinelIdentity(t *testing.T) {
 
 	user, _, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "alice", Email: "alice@example.com", Password: new("PlainPass9"),
-	}, types.TenantProvisioningTenantless)
+	})
 	if !errors.Is(err, ErrUserUsernameExists) {
 		t.Fatalf("err=%v, want ErrUserUsernameExists", err)
 	}
@@ -257,7 +257,7 @@ func TestAdminCreateUserRejectsPartialEmailConflict(t *testing.T) {
 
 	_, generated, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "bob", Email: "alice@example.com", Password: new("PlainPass9"),
-	}, types.TenantProvisioningTenantless)
+	})
 	if !errors.Is(err, ErrUserIdentityConflict) {
 		t.Fatalf("err=%v, want ErrUserIdentityConflict", err)
 	}
@@ -276,7 +276,7 @@ func TestAdminCreateUserRejectsPartialUsernameConflict(t *testing.T) {
 
 	_, _, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "alice", Email: "bob@example.com", Password: new("PlainPass9"),
-	}, types.TenantProvisioningTenantless)
+	})
 	if !errors.Is(err, ErrUserIdentityConflict) {
 		t.Fatalf("err=%v, want ErrUserIdentityConflict", err)
 	}
@@ -291,7 +291,7 @@ func TestAdminCreateUserRejectsMissingIdentity(t *testing.T) {
 
 	_, _, err := svc.AdminCreateUser(context.Background(), &types.AdminCreateUserRequest{
 		Username: "", Email: "alice@example.com",
-	}, types.TenantProvisioningTenantless)
+	})
 	if err == nil {
 		t.Fatal("expected an error for an empty username")
 	}

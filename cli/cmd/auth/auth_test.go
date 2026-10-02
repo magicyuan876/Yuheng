@@ -86,7 +86,7 @@ func TestPersistAPIKey_WritesContext(t *testing.T) {
 		Profile: "ci",
 		APIKey:  "sk-zzz",
 	}
-	require.NoError(t, persistAPIKey(opts, &cmdutil.FormatOptions{Mode: cmdutil.FormatText}, f, nil))
+	require.NoError(t, persistAPIKey(opts, &cmdutil.FormatOptions{Mode: cmdutil.FormatText}, f, nil, nil))
 	v, _ := store.Get("ci", "api_key")
 	assert.Equal(t, "sk-zzz", v)
 	cfg, _ := f.Config()
@@ -112,7 +112,8 @@ func TestPersistJWT_StoresBothTokens(t *testing.T) {
 	resp := &sdk.LoginResponse{
 		Token:        "jwt-acc",
 		RefreshToken: "jwt-ref",
-		User:         &sdk.AuthUser{Email: "a@b.c", TenantID: 7},
+		User:         &sdk.AuthUser{Email: "a@b.c"},
+		ActiveTenant: &sdk.AuthTenant{ID: 7, Name: "Acme"},
 	}
 	require.NoError(t, persistJWT(opts, &cmdutil.FormatOptions{Mode: cmdutil.FormatJSON}, f, resp))
 	a, _ := store.Get("p", "access")

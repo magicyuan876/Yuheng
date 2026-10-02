@@ -48,7 +48,7 @@ func TestRunStatus_TextOutput(t *testing.T) {
 	}
 	svc := &fakeStatusService{
 		resp: newCurrentUserResponse(
-			&sdk.AuthUser{ID: "u1", Email: "alice@example.com", TenantID: 7},
+			&sdk.AuthUser{ID: "u1", Email: "alice@example.com"},
 			&sdk.AuthTenant{ID: 7, Name: "Acme"},
 		),
 	}
@@ -69,7 +69,7 @@ func TestRunStatus_JSONOutput(t *testing.T) {
 		Profiles:       map[string]config.Profile{"prod": {Host: "https://x"}},
 	}))
 	f := &cmdutil.Factory{Config: func() (*config.Config, error) { return config.Load() }}
-	svc := &fakeStatusService{resp: newCurrentUserResponse(&sdk.AuthUser{ID: "u1", Email: "a@b.c", TenantID: 7}, nil)}
+	svc := &fakeStatusService{resp: newCurrentUserResponse(&sdk.AuthUser{ID: "u1", Email: "a@b.c"}, &sdk.AuthTenant{ID: 7})}
 	require.NoError(t, runStatus(context.Background(), &cmdutil.FormatOptions{Mode: cmdutil.FormatJSON}, f, svc))
 	got := out.String()
 	var env struct {

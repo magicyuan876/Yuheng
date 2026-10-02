@@ -261,7 +261,7 @@ func newServiceWithRepo() (interfaces.TenantMemberService, *fakeTenantMemberRepo
 }
 
 // cleanupUserRepo is a minimal UserRepository used to assert that
-// RemoveMember clears dangling home-tenant pointers (#2586).
+// RemoveMember clears a stale active-workspace preference (#2586).
 type cleanupUserRepo struct {
 	users map[string]*types.User
 }
@@ -288,10 +288,6 @@ func (r *cleanupUserRepo) GetUserByUsername(context.Context, string) (*types.Use
 	return nil, nil
 }
 
-func (r *cleanupUserRepo) GetUserByTenantID(context.Context, uint64) (*types.User, error) {
-	return nil, nil
-}
-
 func (r *cleanupUserRepo) UpdateUser(_ context.Context, user *types.User) error {
 	cp := *user
 	r.users[user.ID] = &cp
@@ -314,7 +310,7 @@ func (r *cleanupUserRepo) HasAnyUser(context.Context) (bool, error) {
 	return false, nil
 }
 
-func (r *cleanupUserRepo) CreateFirstUser(context.Context, *types.User) error {
+func (r *cleanupUserRepo) BootstrapFirstUser(context.Context, *types.User, *types.Tenant) error {
 	return nil
 }
 
@@ -338,13 +334,12 @@ func (r *cleanupTokenRepo) RevokeTokensByUserID(_ context.Context, userID string
 	return nil
 }
 
-func TestTenantMemberService_RemoveMember_ClearsStaleHomeAndRevokesTokens(t *testing.T) {
+func TestTenantMemberService_RemoveMember_ClearsStalePreferenceAndRevokesTokens(t *testing.T) {
 	memberRepo := newFakeRepo()
 	prefTenant := uint64(7)
 	userRepo := &cleanupUserRepo{users: map[string]*types.User{
 		"contrib": {
-			ID:       "contrib",
-			TenantID: 7,
+			ID: "contrib",
 			Preferences: types.UserPreferences{
 				LastActiveTenantID: &prefTenant,
 			},
@@ -368,9 +363,6 @@ func TestTenantMemberService_RemoveMember_ClearsStaleHomeAndRevokesTokens(t *tes
 	if got == nil {
 		t.Fatal("user missing after cleanup")
 	}
-	if got.TenantID != 0 {
-		t.Fatalf("TenantID = %d, want 0 after home membership removal", got.TenantID)
-	}
 	if got.Preferences.LastActiveTenantID != nil {
 		t.Fatalf("LastActiveTenantID = %v, want nil", got.Preferences.LastActiveTenantID)
 	}
@@ -379,13 +371,14 @@ func TestTenantMemberService_RemoveMember_ClearsStaleHomeAndRevokesTokens(t *tes
 	}
 }
 
-func TestTenantMemberService_RemoveMember_RevokesTokensEvenWhenHomeUnchanged(t *testing.T) {
-	// User's home is tenant 1; they are removed from tenant 7. Home
-	// pointer stays, but sessions must still be revoked so a JWT scoped
-	// to tenant 7 cannot keep serving a 403-only UI.
+func TestTenantMemberService_RemoveMember_RevokesTokensEvenWhenPreferenceUnaffected(t *testing.T) {
+	// The user's active workspace is tenant 1; they are removed from
+	// tenant 7. The preference stays, but sessions must still be revoked
+	// so a JWT scoped to tenant 7 cannot keep serving a 403-only UI.
 	memberRepo := newFakeRepo()
+	prefTenant := uint64(1)
 	userRepo := &cleanupUserRepo{users: map[string]*types.User{
-		"contrib": {ID: "contrib", TenantID: 1},
+		"contrib": {ID: "contrib", Preferences: types.UserPreferences{LastActiveTenantID: &prefTenant}},
 	}}
 	tokenRepo := &cleanupTokenRepo{}
 	svc := NewTenantMemberService(memberRepo, nil, userRepo, tokenRepo)
@@ -402,8 +395,8 @@ func TestTenantMemberService_RemoveMember_RevokesTokensEvenWhenHomeUnchanged(t *
 	}
 
 	got := userRepo.users["contrib"]
-	if got.TenantID != 1 {
-		t.Fatalf("TenantID = %d, want home 1 left untouched", got.TenantID)
+	if got.Preferences.LastActiveTenantID == nil || *got.Preferences.LastActiveTenantID != 1 {
+		t.Fatalf("LastActiveTenantID = %v, want 1 left untouched", got.Preferences.LastActiveTenantID)
 	}
 	if len(tokenRepo.revoked) != 1 || tokenRepo.revoked[0] != "contrib" {
 		t.Fatalf("revoked users = %v, want [contrib]", tokenRepo.revoked)

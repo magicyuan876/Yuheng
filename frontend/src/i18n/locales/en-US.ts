@@ -1115,6 +1115,10 @@ export default {
     registerFailed: "Registration failed",
     subtitle: "RAG Q&A and Wiki knowledge bases — an LLM-powered enterprise knowledge framework",
     registerSubtitle: "Create your account and start using Yuheng",
+    workspaceName: "Workspace name",
+    workspaceNamePlaceholder: "Default Workspace",
+    workspaceNameHint:
+      "This is your organization's workspace; knowledge bases live inside it. You can rename it later.",
     emailPlaceholder: "Enter email address",
     passwordPlaceholder: "Enter password (8-32 characters, including letters and numbers)",
     confirmPasswordPlaceholder: "Enter password again",
@@ -2187,7 +2191,6 @@ export default {
     switcher: {
       menuLabel: "Switch workspace",
       currentBadge: "Current",
-      homeTooltip: "Your home workspace",
       empty: "You only belong to one workspace",
     },
     sectionDescription: "View detailed configuration for the workspace",
@@ -2621,7 +2624,6 @@ export default {
       keyLabels: {
         auth: {
           registration_mode: "Self-service registration mode",
-          default_tenant_mode: "Default workspace provisioning",
         },
         ssrf: {
           whitelist: "SSRF protection allowlist",
@@ -2651,8 +2653,6 @@ export default {
         auth: {
           registration_mode:
             "Self-service registration mode. self_serve = anyone can register an account; invite_only = public registration is disabled and only Owners/Admins can invite. Takes effect immediately after saving, but use self_serve with care (the public internet will send spam sign-ups).",
-          default_tenant_mode:
-            "Workspace provisioning after public registration. create_personal creates an Owner workspace; tenantless creates only the account until the user accepts an invitation or creates a workspace. Applies to new users only.",
         },
         ssrf: {
           whitelist:
@@ -2697,10 +2697,6 @@ export default {
             auto: "Automatic (open only until the first account exists)",
             self_serve: "Self-service (anyone can register)",
             invite_only: "Invite only (public registration disabled)",
-          },
-          default_tenant_mode: {
-            create_personal: "Create personal workspace",
-            tenantless: "Do not create a workspace",
           },
         },
       },

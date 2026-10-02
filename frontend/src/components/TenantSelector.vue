@@ -166,10 +166,9 @@ const loading = ref(false);
 const searchTimer = ref<number | null>(null);
 
 const selectedTenantId = computed(() => authStore.selectedTenantId);
-// home 空间 id 来自 user.tenant_id（注册时分配、永不变）。不要读
-// authStore.tenant.id —— 那是当前激活空间，会随 X-Tenant-ID 切换；用它
-// 当 home 会让「切回 home」分支错判，详见 useHomeTenant() 注释。
-const defaultTenantId = computed(() => (authStore.user?.tenant_id ? Number(authStore.user.tenant_id) : null));
+// 没有显式选择时，当前空间就是会话令牌所在的空间（/auth/me 返回的 tenant）。
+// 用户是全局身份，没有自己的 tenant_id 可以回退。
+const defaultTenantId = computed(() => (authStore.tenant?.id ? Number(authStore.tenant.id) : null));
 
 const currentTenantId = computed(() => {
   return selectedTenantId.value || defaultTenantId.value;

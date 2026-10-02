@@ -17,15 +17,15 @@ export interface LoginResponse {
     username: string;
     email: string;
     avatar?: string;
-    tenant_id: number;
     can_access_all_tenants?: boolean;
     is_system_admin?: boolean;
     is_active: boolean;
     created_at: string;
     updated_at: string;
   };
-  // The workspace the issued token is scoped to: the user's home workspace
-  // on a fresh login, or the one the server remembered as last active.
+  // The workspace the issued token is scoped to: the one the server remembered
+  // as last active, else the user's earliest membership. Absent for a user who
+  // belongs to no workspace yet.
   active_tenant?: {
     id: number;
     name: string;
@@ -56,11 +56,13 @@ export interface OIDCConfigResponse {
   message?: string;
 }
 
-// 用户注册接口
+// 用户注册接口。注册只创建账号，不创建空间；唯一例外是部署的首个账号
+// （/auth/config 的 first_user），它同时创建部署的默认空间，可用 workspace_name 命名。
 export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
+  workspace_name?: string;
 }
 
 export interface RegisterResponse {
@@ -83,21 +85,21 @@ export interface RegisterResponse {
 // 新加 key 时记得：后端 service.UpdateUserPreferences 也要在 merge 分支里
 // 处理；前端调用方按需读 / 默认值降级。
 export interface UserPreferences {
-  // last_active_tenant_id 持久化「刷新 / 换设备 / 重新登录后回到上次的空间」
-  // 偏好；后端在 Login / RefreshToken 时校验 membership 有效后才会沿用，
-  // 否则回退到 home 并清掉这个字段。传 0 给 PATCH 表示「清除偏好」。
+  // last_active_tenant_id 是用户「当前所在空间」的唯一指针：刷新 / 换设备 /
+  // 重新登录后回到这个空间。后端在 Login / RefreshToken 时校验 membership
+  // 仍有效才沿用，否则改写为最早加入的空间。传 0 给 PATCH 表示「清除偏好」。
   last_active_tenant_id?: number | null;
   // oidc_only_login 为 true 表示账号由 OIDC 自动开通且用户尚未设置已知密码。
   oidc_only_login?: boolean;
 }
 
-// 用户信息接口
+// 用户信息接口。用户是全局身份，没有自己的 tenant_id；当前空间是
+// /auth/me 与登录响应里并列的 tenant / active_tenant 对象（见 authStore.tenant）。
 export interface UserInfo {
   id: string;
   username: string;
   email: string;
   avatar?: string;
-  tenant_id: string;
   can_access_all_tenants?: boolean;
   preferences?: UserPreferences;
   is_system_admin?: boolean;
@@ -114,24 +116,16 @@ export interface UserInfo {
  * 漏拷一处而看不到「系统管理」入口；这个工厂存在的目的就是杜绝同类
  * 漏拷再发生。**新增 user 字段请只改这里**。
  *
- * fallbackTenantId 是 tenant_id 缺失时的兜底来源——
- *   - /auth/me 偶发只返回 user 不带 tenant 时也走兜底
- * 调用方按需传入；不传则保持空字符串（与历史行为一致）。
- *
  * 字段读取统一走 `=== true` 而不是 `|| false`，对偶发非 boolean
  * 类型（后端某天传 1/0 或字符串）做严格收敛，避免把 truthy 字符串
  * 误判为权限通过。
  */
-export function userInfoFromApi(u: any, fallbackTenantId?: string | number | null): UserInfo {
-  const rawTenantId =
-    u?.tenant_id !== undefined && u?.tenant_id !== null && u.tenant_id !== "" ? u.tenant_id : (fallbackTenantId ?? "");
-  const tid = Number(rawTenantId) > 0 ? rawTenantId : "";
+export function userInfoFromApi(u: any): UserInfo {
   return {
     id: u?.id || "",
     username: u?.username || "",
     email: u?.email || "",
     avatar: u?.avatar,
-    tenant_id: String(tid) || "",
     can_access_all_tenants: u?.can_access_all_tenants === true,
     is_system_admin: u?.is_system_admin === true,
     preferences: u?.preferences,
@@ -247,8 +241,10 @@ export interface AuthConfigResponse {
   registration_mode: "self_serve" | "invite_only" | string;
   /** 公开注册当前是否开放（auto 模式下，第一个账号创建后为 false）。 */
   registration_open?: boolean;
-  /** 数据库里还没有任何用户：第一个注册的账号会成为管理员。 */
+  /** 数据库里还没有任何用户：第一个注册的账号会成为管理员，并创建部署的默认空间。 */
   first_user?: boolean;
+  /** 首个账号不填空间名称时后端使用的名字（英文）；注册页用本地化占位符，不直接展示它。 */
+  default_workspace_name?: string;
   /** 配置的策略：auto / self_serve / invite_only。 */
   configured_registration_mode?: string;
 }

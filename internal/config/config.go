@@ -234,30 +234,24 @@ type AuthConfig struct {
 	// RegistrationMode controls who may call POST /auth/register.
 	//   "auto" (default)       — registration is open only while the
 	//                            deployment has no user at all: the first
-	//                            registrant becomes tenant owner and system
-	//                            administrator, after which public
-	//                            registration closes.
-	//   "self_serve"           — anyone may register; a new tenant is
-	//                            auto-created and the registrant becomes
-	//                            its Owner. An explicit opt-in.
+	//                            registrant creates the default workspace,
+	//                            owns it and is the system administrator,
+	//                            after which public registration closes.
+	//   "self_serve"           — anyone may register an account. Accounts
+	//                            belong to no workspace until invited or
+	//                            added by an administrator. An explicit
+	//                            opt-in.
 	//   "invite_only"          — public registration is rejected; new
 	//                            users only enter through the invitation
 	//                            flow added in PR 3.
 	RegistrationMode string `yaml:"registration_mode" json:"registration_mode"`
-	// DefaultTenantMode controls public password-registration provisioning.
-	// create_personal preserves the historical one-user-one-workspace default;
-	// tenantless creates only the identity and waits for an invitation or an
-	// explicit self-service tenant creation.
-	DefaultTenantMode string `yaml:"default_tenant_mode" json:"default_tenant_mode"`
 }
 
 // AuthRegistrationMode constants used by handlers and middleware.
 const (
-	AuthRegistrationModeAuto            = "auto"
-	AuthRegistrationModeSelfServe       = "self_serve"
-	AuthRegistrationModeInviteOnly      = "invite_only"
-	AuthDefaultTenantModeCreatePersonal = "create_personal"
-	AuthDefaultTenantModeTenantless     = "tenantless"
+	AuthRegistrationModeAuto       = "auto"
+	AuthRegistrationModeSelfServe  = "self_serve"
+	AuthRegistrationModeInviteOnly = "invite_only"
 )
 
 // IsInviteOnly returns true when registration is gated behind invitations.
@@ -585,11 +579,6 @@ func ValidateConfig(cfg *Config) error {
 			errs = append(errs, fmt.Sprintf("auth.registration_mode must be %q, %q or %q, got %q",
 				AuthRegistrationModeAuto, AuthRegistrationModeSelfServe, AuthRegistrationModeInviteOnly, mode))
 		}
-		tenantMode := strings.TrimSpace(cfg.Auth.DefaultTenantMode)
-		if tenantMode != "" && tenantMode != AuthDefaultTenantModeCreatePersonal && tenantMode != AuthDefaultTenantModeTenantless {
-			errs = append(errs, fmt.Sprintf("auth.default_tenant_mode must be %q or %q, got %q",
-				AuthDefaultTenantModeCreatePersonal, AuthDefaultTenantModeTenantless, tenantMode))
-		}
 	}
 
 	if cfg.Audit != nil && cfg.Audit.RetentionDays < 0 {
@@ -725,9 +714,7 @@ func applyKnowledgeBaseEnvOverrides(cfg *Config) {
 // to enable RBAC or switch registration mode without editing config.yaml.
 //
 // Defaults:
-//   - auth.registration_mode  -> "self_serve" (preserves pre-RBAC behaviour)
-//   - auth.default_tenant_mode -> "create_personal" (preserves the
-//     historical registration behaviour)
+//   - auth.registration_mode  -> "auto" (open until the first account exists)
 //   - tenant.enable_rbac      -> true (enforce role checks unless an
 //     operator explicitly opts into the logging-only rollout window via
 //     config.yaml `enable_rbac: false` or `YUHENG_TENANT_ENABLE_RBAC=false`).
@@ -735,7 +722,6 @@ func applyKnowledgeBaseEnvOverrides(cfg *Config) {
 //     authenticated users' ability to create workspaces).
 //
 // Env overrides (when set and non-empty):
-//   - YUHENG_AUTH_DEFAULT_TENANT_MODE ("create_personal"/"tenantless")
 //   - YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED (boolean)
 //   - YUHENG_TENANT_ENABLE_RBAC      ("true"/"false", case-insensitive)
 //   - YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS ("true"/"false", case-insensitive).
@@ -781,12 +767,6 @@ func applyAuthAndTenantDefaults(cfg *Config) {
 
 	if strings.TrimSpace(cfg.Auth.RegistrationMode) == "" {
 		cfg.Auth.RegistrationMode = AuthRegistrationModeAuto
-	}
-	if value := strings.TrimSpace(os.Getenv("YUHENG_AUTH_DEFAULT_TENANT_MODE")); value != "" {
-		cfg.Auth.DefaultTenantMode = value
-	}
-	if strings.TrimSpace(cfg.Auth.DefaultTenantMode) == "" {
-		cfg.Auth.DefaultTenantMode = AuthDefaultTenantModeCreatePersonal
 	}
 
 	if value := strings.TrimSpace(os.Getenv("YUHENG_TENANT_ENABLE_RBAC")); value != "" {

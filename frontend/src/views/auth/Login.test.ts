@@ -12,12 +12,13 @@ import Login from "./Login.vue";
 
 const login = vi.fn();
 const register = vi.fn();
+const getAuthConfig = vi.fn();
 vi.mock("@/api/auth", () => ({
   login: (...args: unknown[]) => login(...args),
   register: (...args: unknown[]) => register(...args),
   getOIDCAuthorizationURL: vi.fn(),
   getOIDCConfig: vi.fn(async () => ({ success: true, enabled: true, provider_display_name: "SSO" })),
-  getAuthConfig: vi.fn(async () => ({ registration_mode: "self_serve" })),
+  getAuthConfig: (...args: unknown[]) => getAuthConfig(...args),
   userInfoFromApi: vi.fn(),
   getInvitationByToken: vi.fn(),
   registerByInvite: vi.fn(),
@@ -61,7 +62,9 @@ const mounted: VueWrapper[] = [];
 beforeEach(() => {
   login.mockReset();
   register.mockReset();
+  getAuthConfig.mockReset();
   login.mockResolvedValue({ success: false, message: "nope" });
+  getAuthConfig.mockResolvedValue({ success: true, registration_mode: "self_serve", first_user: false });
 });
 
 afterEach(() => {
@@ -146,4 +149,47 @@ test("the confirmation must match the password", async () => {
   assert.ok(wrapper.text().includes(enUS.auth.passwordMismatch));
   await wrapper.find("#register-confirmPassword").setValue("secret123");
   assert.ok(!wrapper.text().includes(enUS.auth.passwordMismatch));
+});
+
+// Registration creates an account and nothing else, so the form has no
+// workspace field; the deployment's first account is the exception, because
+// it also creates the default workspace and may name it.
+test("an ordinary registrant is not asked for a workspace name", async () => {
+  const wrapper = await mountLogin();
+  await buttonByText(wrapper, enUS.auth.createAccount).trigger("click");
+  assert.ok(!wrapper.find("#register-workspace-name").exists());
+  assert.ok(!wrapper.text().includes(enUS.auth.workspaceName));
+});
+
+test("the first account may name the default workspace, and only a typed name is sent", async () => {
+  getAuthConfig.mockResolvedValue({ success: true, registration_mode: "self_serve", first_user: true });
+  register.mockResolvedValue({ success: true });
+  const wrapper = await mountLogin();
+  await buttonByText(wrapper, enUS.auth.createAccount).trigger("click");
+  const field = wrapper.find("#register-workspace-name");
+  assert.ok(field.exists(), "the workspace-name field is shown for the first account");
+  assert.equal(field.attributes("placeholder"), enUS.auth.workspaceNamePlaceholder);
+
+  const fill = async () => {
+    await wrapper.find("#register-username").setValue("admin");
+    await wrapper.find("#register-email").setValue("admin@example.com");
+    await wrapper.find("#register-password").setValue("secret123");
+    await wrapper.find("#register-confirmPassword").setValue("secret123");
+  };
+  await fill();
+  await wrapper.find("form").trigger("submit");
+  await flushPromises();
+  assert.deepEqual(register.mock.calls[0]?.[0], {
+    username: "admin",
+    email: "admin@example.com",
+    password: "secret123",
+  });
+
+  // Registering switched the page back to the login form; reopen it.
+  await buttonByText(wrapper, enUS.auth.createAccount).trigger("click");
+  await fill();
+  await wrapper.find("#register-workspace-name").setValue("  Acme Knowledge  ");
+  await wrapper.find("form").trigger("submit");
+  await flushPromises();
+  assert.equal(register.mock.calls[1]?.[0].workspace_name, "Acme Knowledge");
 });

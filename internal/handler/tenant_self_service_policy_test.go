@@ -99,7 +99,6 @@ func TestCreateTenantAllowsCrossTenantSuperuserWhenSelfServiceDisabled(t *testin
 		service: tenants,
 		userService: &tenantPolicyUserService{user: &types.User{
 			ID:                  "super-user",
-			TenantID:            1,
 			CanAccessAllTenants: true,
 		}},
 		config:           &config.Config{Tenant: &config.TenantConfig{}},

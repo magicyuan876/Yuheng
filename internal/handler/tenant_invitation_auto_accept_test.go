@@ -50,13 +50,13 @@ func (s *autoAcceptMemberSvc) AddMember(_ context.Context, userID string, _ uint
 	}, nil
 }
 
-// autoAcceptUserSvc resolves GetUserByEmail for the 404 / happy paths.
+// autoAcceptUserSvc resolves GetUserByEmail for the 404 / happy paths and
+// records the workspace the handler asks to remember for the invitee.
 type autoAcceptUserSvc struct {
 	interfaces.UserService
-	user          *types.User
-	uerr          error
-	updatedTenant uint64
-	updateCalled  bool
+	user       *types.User
+	uerr       error
+	remembered []uint64
 }
 
 func (s *autoAcceptUserSvc) GetUserByEmail(_ context.Context, _ string) (*types.User, error) {
@@ -67,9 +67,8 @@ func (s *autoAcceptUserSvc) GetUserByID(_ context.Context, _ string) (*types.Use
 	return nil, nil
 }
 
-func (s *autoAcceptUserSvc) UpdateUser(_ context.Context, user *types.User) error {
-	s.updateCalled = true
-	s.updatedTenant = user.TenantID
+func (s *autoAcceptUserSvc) RememberFirstWorkspace(_ context.Context, _ string, tenantID uint64) error {
+	s.remembered = append(s.remembered, tenantID)
 	return nil
 }
 
@@ -270,9 +269,9 @@ func TestCreateInvitation_AutoAcceptEnabled_NilMemberServiceReturns500(t *testin
 	}
 }
 
-func TestCreateInvitation_AutoAccept_AdoptsTenantlessInviteeHomeTenant(t *testing.T) {
+func TestCreateInvitation_AutoAccept_RemembersTheWorkspaceForTheInvitee(t *testing.T) {
 	users := &autoAcceptUserSvc{
-		user: &types.User{ID: "u-bob", Email: "bob@x.com", Username: "bob", TenantID: 0},
+		user: &types.User{ID: "u-bob", Email: "bob@x.com", Username: "bob"},
 	}
 	members := &autoAcceptMemberSvc{}
 	invites := &autoAcceptInvitationSvc{}
@@ -288,8 +287,8 @@ func TestCreateInvitation_AutoAccept_AdoptsTenantlessInviteeHomeTenant(t *testin
 	if w.Code != http.StatusCreated {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
-	if !users.updateCalled || users.updatedTenant != 7 {
-		t.Fatalf("tenantless invitee should adopt tenant 7, updateCalled=%v updatedTenant=%d",
-			users.updateCalled, users.updatedTenant)
+	if len(users.remembered) != 1 || users.remembered[0] != 7 {
+		t.Fatalf("remembered workspaces = %v, want [7] so an invitee's first workspace becomes the active one",
+			users.remembered)
 	}
 }

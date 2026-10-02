@@ -28,7 +28,9 @@ type StatusService interface {
 // statusResult is the typed payload emitted by `--format json`. Mirrors the
 // SDK AuthUser + AuthTenant projection so agents can branch on
 // can_access_all_tenants (cross-tenant admin) and is_active (disabled
-// account) without a second round-trip.
+// account) without a second round-trip. tenant_id / tenant_name describe the
+// tenant the credential is scoped to and are absent for a user who belongs
+// to no tenant yet.
 type statusResult struct {
 	Profile             string `json:"profile"`
 	Host                string `json:"host,omitempty"`
@@ -117,9 +119,9 @@ func runStatus(ctx context.Context, fopts *cmdutil.FormatOptions, f *cmdutil.Fac
 			result.Email = user.Email
 			result.IsActive = user.IsActive
 			result.CanAccessAllTenants = user.CanAccessAllTenants
-			result.TenantID = user.TenantID
 		}
 		if tenant != nil {
+			result.TenantID = tenant.ID
 			result.TenantName = tenant.Name
 		}
 		return fopts.Emit(iostreams.IO.Out, result, nil)
@@ -130,11 +132,11 @@ func runStatus(ctx context.Context, fopts *cmdutil.FormatOptions, f *cmdutil.Fac
 	fmt.Fprintf(iostreams.IO.Out, "host:        %s\n", host)
 	if user != nil {
 		fmt.Fprintf(iostreams.IO.Out, "user:    %s (%s)\n", user.Email, user.ID)
-		fmt.Fprintf(iostreams.IO.Out, "tenant:  %d", user.TenantID)
 		if tenant != nil {
-			fmt.Fprintf(iostreams.IO.Out, " (%s)", tenant.Name)
+			fmt.Fprintf(iostreams.IO.Out, "tenant:  %d (%s)\n", tenant.ID, tenant.Name)
+		} else {
+			fmt.Fprintln(iostreams.IO.Out, "tenant:  none (ask an administrator to add you to a workspace)")
 		}
-		fmt.Fprintln(iostreams.IO.Out)
 	}
 	return nil
 }

@@ -95,21 +95,9 @@ func TestDocsMirrorAgainstTheRealKnowledgeService(t *testing.T) {
 	}))
 
 	// A workspace with an owner, and a knowledge base in it.
-	var (
-		user *types.User
-		mod  *docs.Module
-	)
-	must1(t, s.DI.Invoke(func(users interfaces.UserService, m *docs.Module) {
-		u, err := users.Register(ctx, &types.RegisterRequest{
-			Username: "owner", Email: "owner@example.com", Password: "owner password",
-			TenantProvisioning: types.TenantProvisioningCreatePersonal,
-		})
-		if err != nil {
-			t.Fatalf("create owner: %v", err)
-		}
-		user, mod = u, m
-	}))
-	tenantID := user.TenantID
+	user, tenantID := createUserWithWorkspace(t, s, "owner", "owner@example.com", "owner password")
+	var mod *docs.Module
+	must1(t, s.DI.Invoke(func(m *docs.Module) { mod = m }))
 	kb := &types.KnowledgeBase{ID: "kb-docs-mirror", Name: "Handbook KB", TenantID: tenantID, Type: "document"}
 	must1(t, s.DB.Create(kb).Error)
 

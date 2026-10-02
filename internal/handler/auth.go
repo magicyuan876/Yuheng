@@ -164,54 +164,11 @@ func (h *AuthHandler) registrationState(ctx context.Context) (open, bootstrap bo
 	}
 }
 
-// resolveDefaultTenantMode returns the provisioning policy for a new
-// local user account.
-// Priority: DB system_settings > cfg.Auth > hard default (create_personal).
-// Shared by public registration and the SystemAdmin create-user endpoint.
-//
-// Invitation registration never uses this value: the invitation itself
-// supplies the target tenant.
-func resolveDefaultTenantMode(
-	ctx context.Context,
-	configInfo *config.Config,
-	systemSettingSvc interfaces.SystemSettingService,
-) types.TenantProvisioningMode {
-	def := config.AuthDefaultTenantModeCreatePersonal
-	if configInfo != nil && configInfo.Auth != nil {
-		if mode := strings.TrimSpace(configInfo.Auth.DefaultTenantMode); mode != "" {
-			def = mode
-		}
-	}
-	mode := def
-	if systemSettingSvc != nil {
-		mode = systemSettingSvc.GetString(
-			ctx,
-			"auth.default_tenant_mode",
-			"YUHENG_AUTH_DEFAULT_TENANT_MODE",
-			def,
-		)
-	}
-	if mode == config.AuthDefaultTenantModeTenantless {
-		return types.TenantProvisioningTenantless
-	}
-	return types.TenantProvisioningCreatePersonal
-}
-
-// resolveDefaultTenantMode returns the provisioning policy for ordinary
-// public password registrations.
-func (h *AuthHandler) resolveDefaultTenantMode(ctx context.Context) types.TenantProvisioningMode {
-	return resolveDefaultTenantMode(ctx, h.configInfo, h.systemSettingSvc)
-}
-
-// resolveDefaultTenantMode resolves the same policy for users provisioned
-// by a SystemAdmin via POST /api/v1/system/admin/users/create.
-func (h *SystemHandler) resolveDefaultTenantMode(ctx context.Context) types.TenantProvisioningMode {
-	return resolveDefaultTenantMode(ctx, h.cfg, h.systemSettingSvc)
-}
-
 // Register godoc
 // @Summary      用户注册
-// @Description  注册新用户账号
+// @Description  注册新用户账号。注册只创建账号，不创建空间；用户通过邀请或由系统管理员加入空间。
+// @Description  例外是部署的首个账号（/auth/config 的 first_user 为 true）：它同时创建部署的默认空间并成为其 Owner，
+// @Description  可通过 workspace_name 指定空间名称（为空则为 "Default Workspace"）。
 // @Tags         认证
 // @Accept       json
 // @Produce      json
@@ -262,7 +219,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 	req.Username = secutils.SanitizeForLog(req.Username)
 	req.Email = secutils.SanitizeForLog(req.Email)
-	req.TenantProvisioning = h.resolveDefaultTenantMode(ctx)
 	req.BootstrapFirstUser = bootstrap
 	// Call service to register user
 	user, err := h.userService.Register(ctx, &req)
@@ -505,7 +461,7 @@ func (h *AuthHandler) OIDCRedirectCallback(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.userService.LoginWithOIDC(ctx, code, strings.TrimSpace(decodedState.RedirectURI), h.resolveDefaultTenantMode(ctx))
+	resp, err := h.userService.LoginWithOIDC(ctx, code, strings.TrimSpace(decodedState.RedirectURI))
 	if err != nil {
 		logger.Errorf(ctx, "Failed to complete OIDC login via redirect callback: %v", err)
 		c.Redirect(http.StatusFound, frontendRedirectURI+"#oidc_error="+urlQueryEscape("login_failed")+"&oidc_error_description="+urlQueryEscape(err.Error()))
@@ -688,21 +644,14 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	// Get tenant information for the *active* tenant (the one the
-	// auth middleware resolved against the X-Tenant-ID header), not
-	// the user's home tenant. user.TenantID is the row stored on the
-	// users table at signup time and never changes; reading it here
-	// would make /auth/me always return the home tenant even after
-	// the user switched into a peer tenant. The frontend then re-keys
-	// `authStore.tenant.id` to the home tenant, and every UI gate
-	// computed against it (currentTenantRole, isOwner, ...) leaks
-	// the wrong role. Pull the active tenant id from context instead.
+	// The response's tenant is the current workspace: the one the auth
+	// middleware resolved for this request (X-Tenant-ID header, JWT claim,
+	// or the user's remembered / earliest workspace). A user has no other
+	// workspace pointer, so there is nothing to fall back to here; an
+	// absent tenant means the user belongs to no workspace and the client
+	// shows the "ask your administrator" page (tenant_required below).
 	var tenant *types.Tenant
-	activeTenantID, _ := types.TenantIDFromContext(ctx)
-	if activeTenantID == 0 {
-		activeTenantID = user.TenantID
-	}
-	if activeTenantID > 0 {
+	if activeTenantID, _ := types.TenantIDFromContext(ctx); activeTenantID > 0 {
 		tenant, err = h.tenantService.GetTenantByID(ctx, activeTenantID)
 		if err != nil {
 			logger.Warnf(ctx, "Failed to get tenant info for user %s, tenant ID %d: %v", user.Email, activeTenantID, err)
@@ -897,14 +846,17 @@ func (h *AuthHandler) GetAuthConfig(c *gin.Context) {
 		"configured_registration_mode": configured,
 		"registration_open":            open,
 		// first_user is true on a fresh install: the next registrant becomes
-		// the system administrator, so the UI can say "create the admin account".
-		"first_user": bootstrap,
+		// the system administrator and creates the deployment's default
+		// workspace, so the UI says "create the admin account" and shows the
+		// workspace-name field (optional; the server default is below).
+		"first_user":             bootstrap,
+		"default_workspace_name": types.DefaultWorkspaceName,
 	})
 }
 
 // SwitchTenant godoc
 // @Summary      切换激活空间
-// @Description  为当前用户在目标空间重新签发访问令牌；要求该用户在目标空间存在 active 成员关系
+// @Description  为当前用户在目标空间重新签发访问令牌；要求该用户在目标空间存在 active 成员关系（跨空间超管除外）
 // @Tags         认证
 // @Accept       json
 // @Produce      json

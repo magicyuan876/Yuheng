@@ -68,14 +68,14 @@ export function consumePendingTenantSwitchToast(): PendingTenantSwitchToast | nu
 /**
  * Persist the user's "last active tenant" preference server-side so a
  * fresh login (new device, new refresh token, cleared browser) drops
- * them back into this workspace instead of always bouncing to their
- * home tenant.
+ * them back into this workspace. It is the only pointer from a user to a
+ * workspace: a user has no "home" of their own, and without a preference
+ * the server picks the earliest membership.
  *
  * Conventions:
- *   - Pass the target tenant id when switching to a peer tenant.
- *   - Pass `null` (which sends `0`) when switching back to the home
- *     tenant — that clears the preference and reverts the user to the
- *     "always start at home" default.
+ *   - Pass the target tenant id when switching workspaces.
+ *   - Pass `null` (which sends `0`) to clear the preference and let the
+ *     server fall back to the earliest membership on the next login.
  *
  * Fire-and-forget: callers usually trigger a full-page reload right
  * after; this returns the in-flight promise so callers can race it

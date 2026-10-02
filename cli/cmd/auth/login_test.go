@@ -71,7 +71,9 @@ func TestRunLogin_PasswordMode(t *testing.T) {
 	svc := &fakeLoginService{resp: &sdk.LoginResponse{
 		Success: true,
 		Token:   "jwt-access",
-		User:    &sdk.AuthUser{ID: "u1", Email: "a@b.c", TenantID: 7},
+		User:    &sdk.AuthUser{ID: "u1", Email: "a@b.c"},
+		// The active tenant, not the user, says where the session acts.
+		ActiveTenant: &sdk.AuthTenant{ID: 7, Name: "Acme"},
 	}}
 	require.NoError(t, runLogin(context.Background(), &LoginOptions{}, &cmdutil.FormatOptions{Mode: cmdutil.FormatText}, f, svc))
 
@@ -83,14 +85,15 @@ func TestRunLogin_PasswordMode(t *testing.T) {
 
 	cfg, _ := f.Config()
 	assert.Equal(t, "https://kb.example.com", cfg.Profiles["prod"].Host, "host must be preserved from the seeded profile")
+	assert.Equal(t, uint64(7), cfg.Profiles["prod"].TenantID, "the login's active tenant is recorded on the profile")
 }
 
 func TestRunLogin_WithToken(t *testing.T) {
 	iostreams.SetForTest(t)
 	f, store := newTestFactoryWithConfig(t, prompt.AgentPrompter{})
 	seedActiveProfile(t, "ci", config.Profile{Host: "https://kb.example.com"})
-	restore := stubAPIKeyValidator(func(_ context.Context, _, _ string) (*sdk.AuthUser, error) {
-		return &sdk.AuthUser{ID: "u1", Email: "ci@example.com", TenantID: 7}, nil
+	restore := stubAPIKeyValidator(func(_ context.Context, _, _ string) (*sdk.AuthUser, *sdk.AuthTenant, error) {
+		return &sdk.AuthUser{ID: "u1", Email: "ci@example.com"}, &sdk.AuthTenant{ID: 7, Name: "Acme"}, nil
 	})
 	defer restore()
 	opts := &LoginOptions{
@@ -102,7 +105,7 @@ func TestRunLogin_WithToken(t *testing.T) {
 	assert.Equal(t, "sk-1234", got)
 	cfg, _ := f.Config()
 	assert.Equal(t, "ci@example.com", cfg.Profiles["ci"].User, "validator-returned user should be persisted")
-	assert.Equal(t, uint64(7), cfg.Profiles["ci"].TenantID)
+	assert.Equal(t, uint64(7), cfg.Profiles["ci"].TenantID, "the key's tenant from /auth/me is persisted")
 	assert.Equal(t, "https://kb.example.com", cfg.Profiles["ci"].Host, "host preserved from seeded profile")
 }
 
@@ -110,11 +113,11 @@ func TestRunLogin_WithToken_JSONReportsAPIKeyMode(t *testing.T) {
 	out, _ := iostreams.SetForTest(t)
 	f, _ := newTestFactoryWithConfig(t, prompt.AgentPrompter{})
 	seedActiveProfile(t, "ci", config.Profile{Host: "https://kb.example.com"})
-	restore := stubAPIKeyValidator(func(_ context.Context, _, _ string) (*sdk.AuthUser, error) {
+	restore := stubAPIKeyValidator(func(_ context.Context, _, _ string) (*sdk.AuthUser, *sdk.AuthTenant, error) {
 		// API-key validation hits /auth/me, which DOES return a user. mode
 		// must still be reported as api-key (derived from credential type,
 		// not from "did the server return a user").
-		return &sdk.AuthUser{ID: "u1", Email: "ci@example.com", TenantID: 7}, nil
+		return &sdk.AuthUser{ID: "u1", Email: "ci@example.com"}, &sdk.AuthTenant{ID: 7}, nil
 	})
 	defer restore()
 	opts := &LoginOptions{WithToken: true, StdinReader: strings.NewReader("sk-1234")}
@@ -133,10 +136,10 @@ func TestRunLogin_WithToken_ServerRejects(t *testing.T) {
 	iostreams.SetForTest(t)
 	f, _ := newTestFactoryWithConfig(t, prompt.AgentPrompter{})
 	seedActiveProfile(t, "ci", config.Profile{Host: "https://kb.example.com"})
-	restore := stubAPIKeyValidator(func(_ context.Context, _, _ string) (*sdk.AuthUser, error) {
+	restore := stubAPIKeyValidator(func(_ context.Context, _, _ string) (*sdk.AuthUser, *sdk.AuthTenant, error) {
 		// Use the SDK-format HTTP error message so ClassifyHTTPError detects
 		// this as an HTTP 401, not a transport/network failure.
-		return nil, errors.New("HTTP error 401: invalid api key")
+		return nil, nil, errors.New("HTTP error 401: invalid api key")
 	})
 	defer restore()
 	opts := &LoginOptions{
@@ -165,9 +168,9 @@ func TestRunLogin_WithToken_Empty(t *testing.T) {
 	seedActiveProfile(t, "ci", config.Profile{Host: "https://kb.example.com"})
 	// Validator must NOT be called when stdin is empty - verify by setting
 	// a panic-on-call sentinel.
-	restore := stubAPIKeyValidator(func(_ context.Context, _, _ string) (*sdk.AuthUser, error) {
+	restore := stubAPIKeyValidator(func(_ context.Context, _, _ string) (*sdk.AuthUser, *sdk.AuthTenant, error) {
 		t.Fatal("validator should not be called on empty stdin")
-		return nil, nil
+		return nil, nil, nil
 	})
 	defer restore()
 	opts := &LoginOptions{
@@ -242,11 +245,11 @@ func TestLogin_UsesActiveProfileHost(t *testing.T) {
 	f, store := newTestFactoryWithConfig(t, prompt.AgentPrompter{})
 	// Pre-seed "prod" with a host AND a user that must survive re-login.
 	seedActiveProfile(t, "prod", config.Profile{Host: "https://prod.example.com", User: "existing@owner.com"})
-	restore := stubAPIKeyValidator(func(_ context.Context, host, _ string) (*sdk.AuthUser, error) {
+	restore := stubAPIKeyValidator(func(_ context.Context, host, _ string) (*sdk.AuthUser, *sdk.AuthTenant, error) {
 		assert.Equal(t, "https://prod.example.com", host, "validator must be called with the active profile's host")
 		// Server returns nil user (e.g. /auth/me gave no email) - must NOT
 		// wipe the existing User.
-		return &sdk.AuthUser{}, nil
+		return &sdk.AuthUser{}, nil, nil
 	})
 	defer restore()
 	opts := &LoginOptions{WithToken: true, StdinReader: strings.NewReader("sk-prod")}

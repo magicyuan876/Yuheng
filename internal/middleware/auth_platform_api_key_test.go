@@ -74,7 +74,7 @@ func TestAttachTargetedPlatformAPIKeyKeepsPlatformPrincipal(t *testing.T) {
 			string(types.APIKeyCapabilityRetrieve),
 		},
 	}
-	attachAPIKeyAuthContext(c, &fakeTenantService{tenant: &types.Tenant{ID: 42}}, nil, 42, key)
+	attachAPIKeyAuthContext(c, &fakeTenantService{tenant: &types.Tenant{ID: 42}}, 42, key)
 	if c.IsAborted() {
 		t.Fatal("targeted platform API key context unexpectedly aborted")
 	}
@@ -91,8 +91,38 @@ func TestAttachTargetedPlatformAPIKeyKeepsPlatformPrincipal(t *testing.T) {
 		t.Fatalf("scope = %#v, ok=%v", scope, ok)
 	}
 	user, ok := c.Request.Context().Value(types.UserContextKey).(*types.User)
-	if !ok || user.ID != "api_platform:27" || user.TenantID != 42 {
+	if !ok || user.ID != "api_platform:27" {
 		t.Fatalf("user = %#v, ok=%v", user, ok)
+	}
+}
+
+// A workspace API key always acts as the workspace's synthetic system user,
+// never as the human who created the key or any other member: resources it
+// writes belong to the workspace and survive people leaving.
+func TestAttachWorkspaceAPIKeyActsAsTheSyntheticSystemUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/knowledge-bases", nil)
+	tenantID := uint64(42)
+	key := &types.TenantAPIKey{ID: 3, TenantID: &tenantID, ScopeType: types.APIKeyScopeTenant, FullAccess: true}
+
+	attachAPIKeyAuthContext(c, &fakeTenantService{tenant: &types.Tenant{ID: 42}}, 42, key)
+	if c.IsAborted() {
+		t.Fatal("workspace API key context unexpectedly aborted")
+	}
+	user, ok := c.Request.Context().Value(types.UserContextKey).(*types.User)
+	if !ok || user.ID != "system-42" || user.Username != "system-42" || !user.IsActive {
+		t.Fatalf("user = %#v, ok=%v; want the synthetic system-42 identity", user, ok)
+	}
+	if got, ok := types.UserIDFromContext(c.Request.Context()); !ok || got != "system-42" {
+		t.Fatalf("ctx user id = %q, ok=%v", got, ok)
+	}
+	principal, ok := types.PrincipalFromContext(c.Request.Context())
+	if !ok || principal.Type != types.PrincipalAPITenant || principal.ID != "42" {
+		t.Fatalf("principal = %#v, ok=%v", principal, ok)
+	}
+	if got := types.TenantRoleFromContext(c.Request.Context()); got != types.TenantRoleOwner {
+		t.Fatalf("role for a full-access key = %q, want owner", got)
 	}
 }
 

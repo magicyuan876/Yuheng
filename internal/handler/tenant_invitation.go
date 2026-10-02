@@ -66,6 +66,17 @@ type createInvitationRequest struct {
 	Message string           `json:"message"`
 }
 
+// rememberFirstWorkspace makes the workspace an invitee just joined their
+// active one if they had none, so their next login lands there. Membership
+// is the authorization source and the login path resolves it on its own,
+// so a failure here only costs a lookup later and is logged, not surfaced.
+func (h *TenantInvitationHandler) rememberFirstWorkspace(ctx context.Context, userID string, tenantID uint64) {
+	if err := h.userService.RememberFirstWorkspace(ctx, userID, tenantID); err != nil {
+		logger.Warnf(ctx, "failed to remember workspace %d as the active workspace of user %s: %v",
+			tenantID, userID, err)
+	}
+}
+
 // parseInvitationIDFromPath reads :inv_id off the gin context.
 func parseInvitationIDFromPath(c *gin.Context) (uint64, bool) {
 	raw := strings.TrimSpace(c.Param("inv_id"))
@@ -346,8 +357,8 @@ func (h *TenantInvitationHandler) CreateInvitation(c *gin.Context) {
 }
 
 // autoAcceptInvitationAndRespond adds the invitee as an active member,
-// reconciles any stale pending invitation row, and adopts the invited
-// tenant as the invitee's home tenant when they are tenantless (same as
+// reconciles any stale pending invitation row, and makes the invited
+// workspace the invitee's active one when they had none (same as
 // AcceptMyInvitation).
 func (h *TenantInvitationHandler) autoAcceptInvitationAndRespond(
 	c *gin.Context,
@@ -369,17 +380,7 @@ func (h *TenantInvitationHandler) autoAcceptInvitationAndRespond(
 				user.ID, tenantID, markErr)
 		}
 	}
-	if user.TenantID == 0 {
-		user.TenantID = tenantID
-		if updateErr := h.userService.UpdateUser(ctx, user); updateErr != nil {
-			logger.Errorf(ctx,
-				"auto_accept: member added but default tenant update failed: user=%s tenant=%d err=%v",
-				user.ID, tenantID, updateErr)
-			c.Error(apperrors.NewInternalServerError(
-				"member added but default workspace update failed").WithDetails(updateErr.Error()))
-			return
-		}
-	}
+	h.rememberFirstWorkspace(ctx, user.ID, tenantID)
 	writeAddMemberSuccess(c, user, member)
 }
 
@@ -551,18 +552,7 @@ func (h *TenantInvitationHandler) AcceptMyInvitation(c *gin.Context) {
 		return
 	}
 
-	// A tenantless account adopts the first accepted invitation as its
-	// default tenant. Membership remains the authorization source; TenantID
-	// only supplies the login/navigation default.
-	if user, userErr := h.userService.GetUserByID(ctx, caller); userErr == nil && user != nil && user.TenantID == 0 {
-		user.TenantID = member.TenantID
-		if updateErr := h.userService.UpdateUser(ctx, user); updateErr != nil {
-			logger.Errorf(ctx, "AcceptMyInvitation failed to set default tenant: user=%s tenant=%d err=%v",
-				caller, member.TenantID, updateErr)
-			c.Error(apperrors.NewInternalServerError("invitation accepted but default workspace update failed").WithDetails(updateErr.Error()))
-			return
-		}
-	}
+	h.rememberFirstWorkspace(ctx, caller, member.TenantID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -630,16 +620,7 @@ func (h *TenantInvitationHandler) AcceptMyInvitationByToken(c *gin.Context) {
 		return
 	}
 
-	// 无租户用户将首个加入的空间设为默认空间（与 AcceptMyInvitation 同理）。
-	if user, userErr := h.userService.GetUserByID(ctx, caller); userErr == nil && user != nil && user.TenantID == 0 {
-		user.TenantID = member.TenantID
-		if updateErr := h.userService.UpdateUser(ctx, user); updateErr != nil {
-			logger.Errorf(ctx, "AcceptMyInvitationByToken failed to set default tenant: user=%s tenant=%d err=%v",
-				caller, member.TenantID, updateErr)
-			c.Error(apperrors.NewInternalServerError("invitation accepted but default workspace update failed").WithDetails(updateErr.Error()))
-			return
-		}
-	}
+	h.rememberFirstWorkspace(ctx, caller, member.TenantID)
 
 	// 供前端切换空间展示用。
 	tenantName := ""

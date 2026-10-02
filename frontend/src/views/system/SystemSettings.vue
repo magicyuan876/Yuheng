@@ -832,7 +832,6 @@ const SETTINGS_SECTION_KEYS: Record<Exclude<SettingsSection, "other">, readonly 
   access: [
     "governance.centralized_infra",
     "auth.registration_mode",
-    "auth.default_tenant_mode",
     "tenant.self_service_creation_enabled",
     "tenant.max_owned_per_user",
   ],

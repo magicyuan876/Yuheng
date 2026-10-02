@@ -475,6 +475,27 @@
                   </p>
                 </div>
               </div>
+              <!-- The first account of a deployment also creates its default
+                   workspace, so only that registrant gets to name it. Every
+                   later account joins workspaces through an administrator, and
+                   the server ignores the field for them anyway. -->
+              <div v-if="isFirstUser" class="mt-6 mb-0">
+                <Label for="register-workspace-name" :class="FIELD_LABEL_CLASS">{{ $t("auth.workspaceName") }}</Label>
+                <div class="relative">
+                  <Input
+                    id="register-workspace-name"
+                    v-model="registerData.workspaceName"
+                    :placeholder="$t('auth.workspaceNamePlaceholder')"
+                    maxlength="128"
+                    :disabled="loading"
+                    :class="FIELD_INPUT_CLASS"
+                    @keydown.enter.prevent="handleRegister"
+                  />
+                  <p class="text-muted-foreground mt-1.5 mb-0 text-xs leading-[1.5]">
+                    {{ $t("auth.workspaceNameHint") }}
+                  </p>
+                </div>
+              </div>
 
               <Button
                 type="submit"
@@ -658,6 +679,11 @@ const oidcProviderName = ref("");
 // link is visible; the actual mode is fetched from /auth/config in onMounted.
 // In invite_only mode the link/card are hidden.
 const registrationEnabled = ref(true);
+// isFirstUser is /auth/config's first_user: the deployment has no account yet,
+// so the registrant becomes the administrator and creates the default
+// workspace. It defaults to false so the workspace-name field never flashes
+// for an ordinary registrant before the config arrives.
+const isFirstUser = ref(false);
 
 // invite-link state. When the URL carries ?token=xxx we resolve it to
 // the originating tenant + role and switch the form into a "register
@@ -699,6 +725,8 @@ const registerData = reactive<{ [key: string]: any }>({
   email: "",
   password: "",
   confirmPassword: "",
+  // Bootstrap only (see isFirstUser); empty means the server's default name.
+  workspaceName: "",
 });
 
 // Field errors, shown under each input. The forms used to be TDesign forms
@@ -850,17 +878,12 @@ onBeforeUnmount(() => {
 });
 
 const persistLoginResponse = async (response: any, skipRedirect = false) => {
-  // `active_tenant` is the tenant whose ID is encoded in the JWT, defaulting
-  // to the user's home tenant on a fresh login.
+  // `active_tenant` is the workspace whose ID is encoded in the JWT: the one
+  // the server remembered for the user, else their earliest membership, or
+  // absent when they belong to no workspace yet.
   const activeTenant = response.active_tenant;
   if (response.user && response.token) {
-    // user.tenant_id must be the user's HOME tenant (the immutable row
-    // on the users table); useHomeTenant() and the home-badge logic both
-    // assume so. The ACTIVE tenant (which can differ from home when the
-    // server honoured a remembered last-active-tenant preference) is
-    // expressed separately via setSelectedTenant below.
-    const homeTenantIdRaw = response.user.tenant_id ?? activeTenant?.id ?? "";
-    authStore.setUser(userInfoFromApi(response.user, homeTenantIdRaw));
+    authStore.setUser(userInfoFromApi(response.user));
     authStore.setToken(response.token);
     if (response.refresh_token) {
       authStore.setRefreshToken(response.refresh_token);
@@ -879,18 +902,10 @@ const persistLoginResponse = async (response: any, skipRedirect = false) => {
     if (Array.isArray(response.memberships)) {
       authStore.setMemberships(response.memberships);
     }
-    // If the backend dropped us into a non-home tenant (honoured a
-    // remembered "last active tenant" preference), set the override so
-    // subsequent requests carry X-Tenant-ID and the UI stays consistent.
-    // Otherwise clear any stale override left in localStorage by a
-    // previous session for a different account.
-    const activeIdNum = Number(activeTenant?.id);
-    const homeIdNum = Number(homeTenantIdRaw);
-    if (Number.isFinite(activeIdNum) && Number.isFinite(homeIdNum) && activeIdNum !== homeIdNum) {
-      authStore.setSelectedTenant(activeIdNum, activeTenant?.name || null);
-    } else {
-      authStore.setSelectedTenant(null, null);
-    }
+    // The token is already scoped to the workspace the server chose, so
+    // any X-Tenant-ID override left in localStorage by a previous session
+    // (possibly another account) is stale and would fight the token.
+    authStore.setSelectedTenant(null, null);
   }
 
   // Pull runtime capabilities (including whether ordinary users may create
@@ -922,8 +937,10 @@ const loadAuthConfig = async () => {
   try {
     const response = await getAuthConfig();
     registrationEnabled.value = response.registration_mode !== "invite_only";
+    isFirstUser.value = response.first_user === true;
   } catch {
     registrationEnabled.value = true;
+    isFirstUser.value = false;
   }
 };
 
@@ -1031,10 +1048,14 @@ const handleRegister = async () => {
       return;
     }
 
+    const workspaceName = String(registerData.workspaceName || "").trim();
     const response = await register({
       username: registerData.username,
       email: registerData.email,
       password: registerData.password,
+      // Only the bootstrap registrant names a workspace; omit the field
+      // otherwise so the request says exactly what the form showed.
+      ...(isFirstUser.value && workspaceName ? { workspace_name: workspaceName } : {}),
     });
 
     if (response.success) {

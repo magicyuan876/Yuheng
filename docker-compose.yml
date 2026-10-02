@@ -134,8 +134,6 @@ services:
       # 禁止新用户注册（生产建议 true）
       # 留空 = auto：只在还没有任何用户时开放注册（第一个账号成为管理员），之后关闭。
       - DISABLE_REGISTRATION=${DISABLE_REGISTRATION:-}
-      # 公开注册后的默认空间策略：create_personal（默认，自动创建个人空间）/ tenantless
-      - YUHENG_AUTH_DEFAULT_TENANT_MODE=${YUHENG_AUTH_DEFAULT_TENANT_MODE:-create_personal}
       # 是否允许普通用户登录后主动创建空间（默认 true；false 仅能邀请加入，超管不受影响）
       - YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED=${YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED:-true}
       # 启用跨空间访问（需配合用户的 CanAccessAllTenants 权限；默认 false

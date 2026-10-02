@@ -72,41 +72,6 @@ func TestApplyAuthAndTenantDefaults_SelfServiceTenantCreation(t *testing.T) {
 	})
 }
 
-func TestApplyAuthAndTenantDefaults_DefaultTenantMode(t *testing.T) {
-	t.Run("historical default creates a personal tenant", func(t *testing.T) {
-		t.Setenv("YUHENG_AUTH_DEFAULT_TENANT_MODE", "")
-		cfg := &Config{Auth: &AuthConfig{}}
-
-		applyAuthAndTenantDefaults(cfg)
-
-		if cfg.Auth.DefaultTenantMode != AuthDefaultTenantModeCreatePersonal {
-			t.Fatalf("default_tenant_mode = %q, want %q", cfg.Auth.DefaultTenantMode, AuthDefaultTenantModeCreatePersonal)
-		}
-	})
-
-	t.Run("environment overrides yaml", func(t *testing.T) {
-		t.Setenv("YUHENG_AUTH_DEFAULT_TENANT_MODE", AuthDefaultTenantModeTenantless)
-		cfg := &Config{Auth: &AuthConfig{DefaultTenantMode: AuthDefaultTenantModeCreatePersonal}}
-
-		applyAuthAndTenantDefaults(cfg)
-
-		if cfg.Auth.DefaultTenantMode != AuthDefaultTenantModeTenantless {
-			t.Fatalf("default_tenant_mode = %q, want %q", cfg.Auth.DefaultTenantMode, AuthDefaultTenantModeTenantless)
-		}
-	})
-
-	t.Run("invalid environment value fails validation", func(t *testing.T) {
-		t.Setenv("YUHENG_AUTH_DEFAULT_TENANT_MODE", "create_magic")
-		cfg := &Config{Auth: &AuthConfig{}}
-
-		applyAuthAndTenantDefaults(cfg)
-
-		if err := ValidateConfig(cfg); err == nil {
-			t.Fatal("ValidateConfig unexpectedly accepted an invalid default tenant mode")
-		}
-	})
-}
-
 // TestApplyAuthAndTenantDefaults_CrossTenantAccess is a regression test for the
 // env-binding gap: viper.AutomaticEnv has no SetEnvPrefix, so
 // YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS is never bound to the nested struct

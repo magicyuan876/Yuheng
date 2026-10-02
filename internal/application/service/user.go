@@ -166,7 +166,12 @@ func NewUserService(
 	}
 }
 
-// Register creates a new user account
+// Register creates a new user account and nothing else: a user is a global
+// identity, and membership in a workspace comes from an invitation or an
+// administrator, never from registering. The bootstrap registration is the
+// one exception: the deployment's first account also creates its default
+// workspace and owns it, because somebody has to be able to invite everyone
+// else. That is an installation step, done atomically by the repository.
 func (s *userService) Register(ctx context.Context, req *types.RegisterRequest) (*types.User, error) {
 	logger.Info(ctx, "Start user registration")
 
@@ -193,61 +198,26 @@ func (s *userService) Register(ctx context.Context, req *types.RegisterRequest) 
 		return nil, errors.New("failed to process password")
 	}
 
-	provisioning := req.TenantProvisioning
-	if provisioning == "" || req.BootstrapFirstUser {
-		// The bootstrap administrator always gets a workspace of their own,
-		// whatever the default tenant mode: a system administrator with no
-		// tenant would have nowhere to start from.
-		provisioning = types.TenantProvisioningCreatePersonal
-	}
-	if !provisioning.IsValid() {
-		return nil, fmt.Errorf("invalid tenant provisioning mode %q", provisioning)
-	}
-
-	var createdTenant *types.Tenant
-	if provisioning == types.TenantProvisioningCreatePersonal {
-		// Note: RetrieverEngines is left empty - system will use defaults
-		// from RETRIEVE_DRIVER env.
-		tenant := &types.Tenant{
-			Name:        fmt.Sprintf("%s's Workspace", secutils.SanitizeForLog(req.Username)),
-			Description: "Default workspace",
-			Status:      "active",
-		}
-
-		createdTenant, err = s.tenantService.CreateTenant(ctx, tenant)
-		if err != nil {
-			logger.Errorf(ctx, "Failed to create workspace")
-			return nil, errors.New("failed to create workspace")
-		}
-	}
-
-	// Create user
 	user := &types.User{
 		ID:           uuid.New().String(),
 		Username:     req.Username,
 		Email:        req.Email,
 		PasswordHash: string(hashedPassword),
-		TenantID:     0,
 		IsActive:     true,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
-	if createdTenant != nil {
-		user.TenantID = createdTenant.ID
-	}
 
 	if req.BootstrapFirstUser {
-		// Atomic "only if the table is empty" insert; see CreateFirstUser.
-		err = s.userRepo.CreateFirstUser(ctx, user)
+		// User, workspace, Owner membership and the preference pointing at
+		// the workspace commit together, or not at all; see
+		// UserRepository.BootstrapFirstUser for why the "only if the table
+		// is empty" check lives in the same transaction.
+		err = s.userRepo.BootstrapFirstUser(ctx, user, newDefaultWorkspace(req.WorkspaceName))
 	} else {
 		err = s.userRepo.CreateUser(ctx, user)
 	}
 	if err != nil {
-		if createdTenant != nil {
-			if rollbackErr := s.tenantService.DeleteTenant(ctx, createdTenant.ID); rollbackErr != nil {
-				logger.Errorf(ctx, "Failed to roll back tenant %d after user creation failure: %v", createdTenant.ID, rollbackErr)
-			}
-		}
 		if errors.Is(err, types.ErrRegistrationClosed) {
 			// Lost the race for the first account: not a server fault.
 			return nil, types.ErrRegistrationClosed
@@ -256,22 +226,30 @@ func (s *userService) Register(ctx context.Context, req *types.RegisterRequest) 
 		return nil, errors.New("failed to create user")
 	}
 
-	// Bootstrap an Owner membership so the registrant has full control over
-	// the tenant their account just created. Failure here only logs — the
-	// user record exists and the auth middleware's orphan-tenant recovery
-	// path will recreate the membership on next login.
-	if createdTenant != nil && s.memberService != nil {
-		if _, err := s.memberService.EnsureOwner(ctx, user.ID, createdTenant.ID); err != nil {
-			logger.Errorf(ctx, "Failed to create owner membership for user %s tenant %d: %v",
-				user.ID, createdTenant.ID, err)
-			_ = s.userRepo.DeleteUser(ctx, user.ID)
-			_ = s.tenantService.DeleteTenant(ctx, createdTenant.ID)
-			return nil, errors.New("failed to finalise workspace ownership")
-		}
-	}
-
 	logger.Info(ctx, "User registered successfully")
 	return user, nil
+}
+
+// newDefaultWorkspace describes the deployment's default workspace for the
+// bootstrap registration. The name is the registrant's choice, falling back
+// to types.DefaultWorkspaceName; everything else takes the same defaults
+// TenantService.CreateTenant applies (RetrieverEngines is left empty so the
+// deployment's RETRIEVE_DRIVER defaults apply; storage quota and backend
+// take the column defaults).
+func newDefaultWorkspace(name string) *types.Tenant {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = types.DefaultWorkspaceName
+	}
+	now := time.Now()
+	return &types.Tenant{
+		Name:                    secutils.SanitizeForLog(name),
+		Description:             "Default workspace of this deployment",
+		Status:                  "active",
+		DefaultStorageBackendID: types.EnvStorageBackendID,
+		CreatedAt:               now,
+		UpdatedAt:               now,
+	}
 }
 
 // Login authenticates a user and returns tokens
@@ -317,9 +295,9 @@ func (s *userService) Login(ctx context.Context, req *types.LoginRequest) (*type
 	// Generate tokens. Resolve the target tenant once so the JWT claim
 	// and the tenant we return below agree — otherwise an honoured
 	// "last active tenant" preference would mint a token for tenant N
-	// but tell the client they're in their home tenant.
+	// but tell the client they are somewhere else.
 	logger.Info(ctx, "Generating tokens")
-	resolvedTenantID := s.resolveLoginTenantID(ctx, user)
+	resolvedTenantID := s.ResolveActiveTenantID(ctx, user)
 	accessToken, refreshToken, err := s.generateTokensForTenant(ctx, user, resolvedTenantID)
 	if err != nil {
 		logger.Errorf(ctx, "Failed to generate tokens: %v", err)
@@ -359,14 +337,12 @@ func (s *userService) Login(ctx context.Context, req *types.LoginRequest) (*type
 // buildMembershipsForUser returns the user's tenant memberships projected
 // into the login-response shape. activeTenant (if non-nil and matching one
 // of the rows) is used to reuse its already-fetched name without a second
-// DB lookup; other tenants are looked up individually. Errors are logged
+// DB lookup; other tenants are looked up in one batch. Errors are logged
 // but never propagated — a missing memberships array degrades gracefully
-// to length 0 rather than failing the whole login.
-//
-// When the membership service is unavailable (e.g. in tests that wire only
-// part of the dependency graph), this falls back to a single synthesized
-// row built from User.TenantID + the active tenant so callers always get
-// at least one entry.
+// to length 0 rather than failing the whole login. tenant_members is the
+// only source: an empty result is authoritative and nothing is invented
+// from the user row (that is what kept removed workspaces visible in the
+// workspace switcher, #2586).
 func (s *userService) BuildLoginMemberships(
 	ctx context.Context,
 	user *types.User,
@@ -380,16 +356,8 @@ func (s *userService) buildMembershipsForUser(
 	user *types.User,
 	activeTenant *types.Tenant,
 ) []types.Membership {
-	if user == nil {
+	if user == nil || s.memberService == nil {
 		return []types.Membership{}
-	}
-	// Only synthesise a membership from User.TenantID when the membership
-	// service is entirely unavailable (partial DI graphs in tests).
-	// Once ListByUser is reachable, an empty or fully-filtered result is
-	// authoritative: inventing a row from a stale users.tenant_id is what
-	// kept removed workspaces visible in the space switcher (#2586).
-	if s.memberService == nil {
-		return synthFallbackMembership(user, activeTenant)
 	}
 	rows, err := s.memberService.ListByUser(ctx, user.ID)
 	if err != nil {
@@ -445,42 +413,6 @@ func (s *userService) buildMembershipsForUser(
 	return out
 }
 
-// synthFallbackMembership returns a single-row membership list inferred
-// from User.TenantID. Used only when the membership service itself is
-// unavailable (partial DI graphs in tests, or a rollout window where the
-// service has not been wired yet) so the response shape stays consistent.
-//
-// Callers that successfully queried tenant_members must NOT use this
-// helper: an empty membership list is authoritative and synthesising
-// from users.tenant_id would re-surface workspaces the user was removed
-// from (#2586).
-//
-// The fallback role is intentionally TenantRoleViewer (least privilege):
-// the login response only feeds UI rendering, and the backend re-derives
-// the real role from tenant_members on every request. If membership data
-// is temporarily unavailable, showing a Viewer UI is preferable to
-// granting a misleading Owner UI that would surface admin controls the
-// backend will then 403. Once the membership row appears (via the auth
-// middleware's home-tenant auto-promotion or an admin invitation) the
-// next /auth/me-style refresh will upgrade the UI to the real role.
-func synthFallbackMembership(user *types.User, activeTenant *types.Tenant) []types.Membership {
-	if user == nil || user.TenantID == 0 {
-		// Always return a non-nil slice so the login response carries an
-		// empty array rather than `null`, preserving the documented
-		// "always populated" contract on LoginResponse.Memberships.
-		return []types.Membership{}
-	}
-	name := ""
-	if activeTenant != nil && activeTenant.ID == user.TenantID {
-		name = activeTenant.Name
-	}
-	return []types.Membership{{
-		TenantID:   user.TenantID,
-		TenantName: name,
-		Role:       types.TenantRoleViewer,
-	}}
-}
-
 // GetOIDCAuthorizationURL builds the OIDC authorization URL.
 func (s *userService) GetOIDCAuthorizationURL(ctx context.Context, redirectURI string) (*types.OIDCAuthURLResponse, error) {
 	cfg, err := s.getOIDCConfig(ctx)
@@ -528,13 +460,11 @@ func (s *userService) GetOIDCAuthorizationURL(ctx context.Context, redirectURI s
 }
 
 // LoginWithOIDC exchanges code for tokens, loads user info, provisions user if
-// needed, and returns local login tokens. provisioning is the default tenant
-// mode applied only when a brand-new local user is auto-created; it is resolved
-// by the caller from the shared auth.default_tenant_mode policy.
+// needed, and returns local login tokens. A first-time OIDC login creates the
+// account only; the user joins workspaces the same way a password user does.
 func (s *userService) LoginWithOIDC(
 	ctx context.Context,
 	code, redirectURI string,
-	provisioning types.TenantProvisioningMode,
 ) (*types.OIDCCallbackResponse, error) {
 	if strings.TrimSpace(code) == "" {
 		return nil, errors.New("code is required")
@@ -567,7 +497,7 @@ func (s *userService) LoginWithOIDC(
 	}
 	isNewUser := false
 	if isUserLookupNotFound(err) || user == nil {
-		user, err = s.provisionOIDCUser(ctx, userInfo, provisioning)
+		user, err = s.provisionOIDCUser(ctx, userInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -580,7 +510,7 @@ func (s *userService) LoginWithOIDC(
 
 	// Resolve target tenant once so the JWT claim and the tenant we
 	// return below stay in sync; see Login for the rationale.
-	resolvedTenantID := s.resolveLoginTenantID(ctx, user)
+	resolvedTenantID := s.ResolveActiveTenantID(ctx, user)
 	accessToken, refreshToken, err := s.generateTokensForTenant(ctx, user, resolvedTenantID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate local tokens: %w", err)
@@ -632,11 +562,6 @@ func (s *userService) GetUserByUsername(ctx context.Context, username string) (*
 	return s.userRepo.GetUserByUsername(ctx, username)
 }
 
-// GetUserByTenantID gets the first user (owner) of a tenant
-func (s *userService) GetUserByTenantID(ctx context.Context, tenantID uint64) (*types.User, error) {
-	return s.userRepo.GetUserByTenantID(ctx, tenantID)
-}
-
 // UpdateUser updates user information
 func (s *userService) UpdateUser(ctx context.Context, user *types.User) error {
 	user.UpdatedAt = time.Now()
@@ -678,10 +603,10 @@ func (s *userService) UpdateUserPreferences(
 
 	merged := user.Preferences
 	if patch.LastActiveTenantID != nil {
-		// *0 = "forget my preference, fall back to home on next login";
-		// any positive value = set/replace. We do not validate membership
-		// here — invalid values get culled on the next login via
-		// resolveLoginTenantID, keeping this endpoint cheap.
+		// *0 = "forget my preference, resolve from memberships on the next
+		// login"; any positive value = set/replace. We do not validate
+		// membership here — an invalid value is culled on the next login by
+		// ResolveActiveTenantID, keeping this endpoint cheap.
 		if *patch.LastActiveTenantID == 0 {
 			merged.LastActiveTenantID = nil
 		} else {
@@ -782,12 +707,11 @@ func (s *userService) AdminResetPassword(ctx context.Context, userID string, new
 // An absent password generates a random one, returned exactly once.
 // Any provided password, must satisfy ValidatePasswordPolicy.
 //
-// Delegates to Register, so duplicate checks, tenant provisioning and Owner
-// membership bootstrapping match public registration.
+// Delegates to Register, so duplicate checks match public registration. The
+// account belongs to no workspace until an administrator adds it to one.
 func (s *userService) AdminCreateUser(
 	ctx context.Context,
 	req *types.AdminCreateUserRequest,
-	provisioning types.TenantProvisioningMode,
 ) (*types.User, string, error) {
 	if req == nil || strings.TrimSpace(req.Username) == "" || strings.TrimSpace(req.Email) == "" {
 		return nil, "", errors.New("username and email are required")
@@ -813,10 +737,9 @@ func (s *userService) AdminCreateUser(
 	}
 
 	user, err := s.Register(ctx, &types.RegisterRequest{
-		Username:           strings.TrimSpace(req.Username),
-		Email:              strings.TrimSpace(req.Email),
-		Password:           password,
-		TenantProvisioning: provisioning,
+		Username: strings.TrimSpace(req.Username),
+		Email:    strings.TrimSpace(req.Email),
+		Password: password,
 	})
 	// WARN: idempotency is sequential only. Two concurrent creates of the
 	// same identity can race past Register's check; the loser gets a 500,
@@ -886,195 +809,154 @@ func (s *userService) ValidatePassword(ctx context.Context, userID string, passw
 	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 }
 
-// GenerateTokens generates access and refresh tokens for user. The
-// access token's tenant_id claim defaults to user.TenantID (home), but
-// if the user has persisted a still-valid "last active tenant"
-// preference we honour it instead — so login (and the refresh-token
-// rotation path that also calls into here) lands the user back where
-// they left off across devices. SwitchTenant remains the explicit tool
-// for switching to an arbitrary membership.
+// GenerateTokens generates access and refresh tokens for user. The access
+// token's tenant_id claim is the workspace ResolveActiveTenantID picks, so
+// login (and the refresh-token rotation path that also calls into here)
+// lands the user back where they left off across devices. SwitchTenant
+// remains the explicit tool for switching to an arbitrary membership.
 func (s *userService) GenerateTokens(
 	ctx context.Context,
 	user *types.User,
 ) (accessToken, refreshToken string, err error) {
-	return s.generateTokensForTenant(ctx, user, s.resolveLoginTenantID(ctx, user))
+	return s.generateTokensForTenant(ctx, user, s.ResolveActiveTenantID(ctx, user))
 }
 
-// resolveLoginTenantID picks the tenant whose ID should be encoded in a
-// freshly minted access token. The contract:
+// ResolveActiveTenantID picks the workspace whose ID a session is scoped to
+// when nothing names one explicitly. It is the single implementation behind
+// a fresh login token, a refreshed token and the auth middleware's fallback
+// for a JWT without a tenant claim, so the three can never disagree. The
+// order:
 //
-//  1. If the user has no LastActiveTenantID preference set (or it points
-//     at home), return home — the historical behaviour. A tenantless user
-//     with an active membership adopts their earliest membership instead;
-//     this repairs partial invitation/admin-assignment flows.
-//  2. Otherwise validate the preference: the tenant must still exist and
-//     the user must still have an active membership (or be a cross-tenant
-//     superuser). Validation failure logs a warning, best-effort clears
-//     the stale preference (so we don't waste a DB round-trip on every
-//     subsequent login), and falls back to home.
+//  1. The LastActiveTenantID preference, if it points at a workspace that
+//     still exists and the user may still act in (an active membership, or
+//     CanAccessAllTenants, mirroring SwitchTenant's gate).
+//  2. Otherwise the earliest active membership whose workspace still exists;
+//     ListByUser is ordered by join time, so the choice is deterministic.
+//     That workspace is written back as the preference, best effort, so the
+//     next login does not repeat the walk; a stale preference is thereby
+//     overwritten rather than cleared and left empty.
+//  3. Otherwise 0: a user who belongs to no workspace. The middleware then
+//     admits identity-level routes only and answers TENANT_REQUIRED elsewhere.
 //
-// This is intentionally a private method on userService so it can reach
-// memberService / tenantService / userRepo. Errors from the validation
-// path never fail login; the worst case is the user lands in home.
-func (s *userService) resolveLoginTenantID(ctx context.Context, user *types.User) uint64 {
+// Lookup errors never fail a login; they are logged and the resolution
+// narrows (an unverifiable preference is skipped, an unlistable membership
+// table yields 0).
+func (s *userService) ResolveActiveTenantID(ctx context.Context, user *types.User) uint64 {
 	if user == nil {
 		return 0
 	}
-	pref := user.Preferences.LastActiveTenantID
-	if pref == nil || *pref == 0 || *pref == user.TenantID {
-		return s.homeOrFirstMembershipTenant(ctx, user)
-	}
-	preferred := *pref
-
-	// Tenant must still exist.
-	if s.tenantService != nil {
-		if _, err := s.tenantService.GetTenantByID(ctx, preferred); err != nil {
-			logger.Warnf(ctx,
-				"resolveLoginTenantID: preferred tenant %d not loadable for user %s, "+
-					"clearing preference and falling back to home: %v",
-				preferred, user.ID, err)
-			s.clearLastActiveTenantPreference(ctx, user)
-			return s.homeOrFirstMembershipTenant(ctx, user)
+	if pref := user.Preferences.LastActiveTenantID; pref != nil && *pref != 0 {
+		if s.workspaceExists(ctx, *pref) && s.mayActInTenant(ctx, user, *pref) {
+			return *pref
 		}
-	}
-
-	// Membership (or cross-tenant superuser) must still be valid. Mirrors
-	// the gate in SwitchTenant so the two entry points stay consistent.
-	if !user.CanAccessAllTenants {
-		if s.memberService == nil {
-			logger.Warnf(ctx,
-				"resolveLoginTenantID: member service unavailable; falling back to home for user %s",
-				user.ID)
-			return user.TenantID
-		}
-		member, err := s.memberService.GetMembership(ctx, user.ID, preferred)
-		if err != nil || member == nil || member.Status != types.TenantMemberStatusActive {
-			logger.Warnf(ctx,
-				"resolveLoginTenantID: user %s no longer has active membership in tenant %d, "+
-					"clearing preference and falling back to home (err=%v)",
-				user.ID, preferred, err)
-			s.clearLastActiveTenantPreference(ctx, user)
-			return s.homeOrFirstMembershipTenant(ctx, user)
-		}
-	}
-
-	return preferred
-}
-
-// homeOrFirstMembershipTenant returns the user's home tenant, or — for a
-// tenantless identity (TenantID == 0) — the earliest active membership.
-// Shared by the happy path and the stale-preference fallbacks so a
-// tenantless session with a valid membership never gets a zero-tenant
-// token when a usable tenant is available (repairs partial
-// invitation/admin-assignment flows). resolveFirstMembershipTenant
-// best-effort persists the resolved tenant as the new home.
-//
-// When users.tenant_id is non-zero we still verify an active membership
-// still exists (mirroring resolveLoginTenantID's check on
-// LastActiveTenantID). A dangling home pointer is common after
-// RemoveMember: the membership row is soft-deleted but users.tenant_id
-// was historically left untouched, which made the removed workspace
-// reappear via synthFallbackMembership (#2586). Superusers that can
-// access every tenant skip the membership gate.
-func (s *userService) homeOrFirstMembershipTenant(ctx context.Context, user *types.User) uint64 {
-	if user == nil {
-		return 0
-	}
-	if user.TenantID == 0 {
-		return s.resolveFirstMembershipTenant(ctx, user)
-	}
-	if user.CanAccessAllTenants || s.memberService == nil {
-		return user.TenantID
-	}
-	member, err := s.memberService.GetMembership(ctx, user.ID, user.TenantID)
-	if err == nil && member != nil && member.Status == types.TenantMemberStatusActive {
-		return user.TenantID
-	}
-	logger.Warnf(ctx,
-		"homeOrFirstMembershipTenant: user %s home tenant %d has no active membership, "+
-			"clearing stale home and re-resolving (err=%v)",
-		user.ID, user.TenantID, err)
-	s.clearStaleHomeTenant(ctx, user)
-	return s.resolveFirstMembershipTenant(ctx, user)
-}
-
-// clearStaleHomeTenant best-effort zeroes users.tenant_id (and a
-// LastActiveTenantID that pointed at the same workspace) after the home
-// membership is observed to be gone. Failures are logged but never
-// fail login: the in-memory user is already corrected for this request.
-func (s *userService) clearStaleHomeTenant(ctx context.Context, user *types.User) {
-	if user == nil {
-		return
-	}
-	staleHome := user.TenantID
-	user.TenantID = 0
-	if user.Preferences.LastActiveTenantID != nil && *user.Preferences.LastActiveTenantID == staleHome {
-		user.Preferences.LastActiveTenantID = nil
-	}
-	if s.userRepo == nil {
-		return
-	}
-	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
 		logger.Warnf(ctx,
-			"clearStaleHomeTenant: failed to persist cleared home for user %s (was tenant %d): %v",
-			user.ID, staleHome, err)
+			"ResolveActiveTenantID: preferred workspace %d is no longer usable by user %s; "+
+				"falling back to the earliest membership",
+			*pref, user.ID)
 	}
+	tenantID := s.earliestMembershipTenant(ctx, user)
+	if tenantID != 0 {
+		s.persistActiveTenantPreference(ctx, user, tenantID)
+	}
+	return tenantID
 }
 
-// resolveFirstMembershipTenant makes a tenantless identity usable when an
-// active membership already exists (for example, an invitation was accepted
-// but persisting the default tenant failed). ListByUser is stably ordered by
-// join time, so the earliest valid membership is deterministic. Persisting it
-// as home is best-effort: even if the repair write fails, the freshly issued
-// token can still be scoped to the membership and the next login retries.
-func (s *userService) resolveFirstMembershipTenant(ctx context.Context, user *types.User) uint64 {
-	if user == nil || s.memberService == nil {
+// mayActInTenant reports whether user may be scoped to tenantID: an active
+// membership row, or the cross-workspace attribute. It is the one rule
+// SwitchTenant and the preference check share, so a workspace the user can
+// switch into is also one their login may land in.
+func (s *userService) mayActInTenant(ctx context.Context, user *types.User, tenantID uint64) bool {
+	if user.CanAccessAllTenants {
+		return true
+	}
+	if s.memberService == nil {
+		return false
+	}
+	member, err := s.memberService.GetMembership(ctx, user.ID, tenantID)
+	if err != nil {
+		logger.Warnf(ctx, "membership lookup failed for user %s tenant %d: %v", user.ID, tenantID, err)
+		return false
+	}
+	return member != nil && member.Status == types.TenantMemberStatusActive
+}
+
+// workspaceExists reports whether the workspace row is still there. A nil
+// tenant service (partial dependency graphs in tests) is treated as "yes" so
+// the membership check alone decides.
+func (s *userService) workspaceExists(ctx context.Context, tenantID uint64) bool {
+	if s.tenantService == nil {
+		return true
+	}
+	if _, err := s.tenantService.GetTenantByID(ctx, tenantID); err != nil {
+		logger.Warnf(ctx, "workspace %d not loadable: %v", tenantID, err)
+		return false
+	}
+	return true
+}
+
+// earliestMembershipTenant returns the first active membership (by join
+// time) whose workspace still exists, or 0. Memberships whose workspace row
+// is gone are skipped rather than reported: a token scoped to a deleted
+// workspace would fail every request.
+func (s *userService) earliestMembershipTenant(ctx context.Context, user *types.User) uint64 {
+	if s.memberService == nil {
 		return 0
 	}
 	members, err := s.memberService.ListByUser(ctx, user.ID)
 	if err != nil {
-		logger.Warnf(ctx, "resolveLoginTenantID: failed to list memberships for tenantless user %s: %v", user.ID, err)
+		logger.Warnf(ctx, "ResolveActiveTenantID: failed to list memberships for user %s: %v", user.ID, err)
 		return 0
 	}
 	for _, member := range members {
 		if member == nil || member.TenantID == 0 || member.Status != types.TenantMemberStatusActive {
 			continue
 		}
-		if s.tenantService != nil {
-			if _, err := s.tenantService.GetTenantByID(ctx, member.TenantID); err != nil {
-				logger.Warnf(ctx, "resolveLoginTenantID: tenant %d for tenantless user %s is unavailable: %v",
-					member.TenantID, user.ID, err)
-				continue
-			}
+		if s.workspaceExists(ctx, member.TenantID) {
+			return member.TenantID
 		}
-
-		user.TenantID = member.TenantID
-		if s.userRepo != nil {
-			if err := s.userRepo.UpdateUser(ctx, user); err != nil {
-				logger.Warnf(ctx, "resolveLoginTenantID: failed to persist tenant %d for tenantless user %s: %v",
-					member.TenantID, user.ID, err)
-				user.TenantID = 0
-			}
-		}
-		return member.TenantID
 	}
 	return 0
 }
 
-// clearLastActiveTenantPreference is the best-effort cleanup half of
-// resolveLoginTenantID. Failures here are logged but never propagated:
-// the in-memory user already has the preference cleared for this login,
-// and the next login will re-attempt the cleanup.
-func (s *userService) clearLastActiveTenantPreference(ctx context.Context, user *types.User) {
-	if user == nil {
+// persistActiveTenantPreference writes tenantID into the user's
+// LastActiveTenantID, in memory for this request and in the database, best
+// effort: a failed write is logged, the token being minted is still scoped to
+// tenantID, and the next login redoes the resolution.
+func (s *userService) persistActiveTenantPreference(ctx context.Context, user *types.User, tenantID uint64) {
+	if pref := user.Preferences.LastActiveTenantID; pref != nil && *pref == tenantID {
 		return
 	}
-	user.Preferences.LastActiveTenantID = nil
+	user.Preferences.LastActiveTenantID = &tenantID
+	user.UpdatedAt = time.Now()
+	if s.userRepo == nil {
+		return
+	}
 	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
 		logger.Warnf(ctx,
-			"clearLastActiveTenantPreference: failed to persist cleared preference for user %s: %v",
-			user.ID, err)
+			"failed to persist workspace %d as the active workspace of user %s: %v",
+			tenantID, user.ID, err)
 	}
+}
+
+// RememberFirstWorkspace sets the preference to tenantID for a user who has
+// none, typically right after an invitation made tenantID their first
+// workspace. It reads the user row rather than trusting a caller's copy
+// because the invitation handlers hold stale snapshots from the start of the
+// request.
+func (s *userService) RememberFirstWorkspace(ctx context.Context, userID string, tenantID uint64) error {
+	if tenantID == 0 {
+		return errors.New("workspace ID is required")
+	}
+	user, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if pref := user.Preferences.LastActiveTenantID; pref != nil && *pref != 0 {
+		return nil
+	}
+	user.Preferences.LastActiveTenantID = &tenantID
+	user.UpdatedAt = time.Now()
+	return s.userRepo.UpdateUser(ctx, user)
 }
 
 // generateTokensForTenant is the shared implementation behind
@@ -1143,13 +1025,13 @@ func (s *userService) generateTokensForTenant(
 	return accessToken, refreshToken, nil
 }
 
-// SwitchTenant verifies that user has an active membership in
-// targetTenantID and issues a new token pair scoped to that tenant.
-// The previous refresh token (if provided) is revoked so the old session
-// can no longer roll forward into the source tenant.
+// SwitchTenant verifies that user may act in targetTenantID and issues a
+// new token pair scoped to that tenant. The previous refresh token (if
+// provided) is revoked so the old session can no longer roll forward into
+// the source tenant.
 //
-// Returns ErrMembershipNotFound when the user is not a member of the
-// target tenant. Cross-tenant superuser access (CanAccessAllTenants)
+// Returns ErrMembershipNotFound when the user has no active membership in
+// the target tenant. Cross-tenant superuser access (CanAccessAllTenants)
 // is allowed without a membership row, mirroring the auth middleware's
 // resolveTenantRole behaviour.
 func (s *userService) SwitchTenant(
@@ -1165,9 +1047,8 @@ func (s *userService) SwitchTenant(
 		return nil, errors.New("target workspace ID is required")
 	}
 
-	// Verify membership unless the caller is a cross-tenant superuser
-	// switching outside their home tenant.
-	if !user.CanAccessAllTenants || targetTenantID == user.TenantID {
+	// Verify membership unless the caller is a cross-tenant superuser.
+	if !user.CanAccessAllTenants {
 		if s.memberService == nil {
 			return nil, errors.New("workspace membership service unavailable")
 		}
@@ -1213,10 +1094,10 @@ func (s *userService) SwitchTenant(
 }
 
 // ValidateToken validates an access token. The second return value is
-// the JWT's `tenant_id` claim — i.e. the tenant the token was minted
-// for, which may differ from user.TenantID after a /auth/switch-tenant
-// call. A token minted without an active tenant (claim 0) resolves to
-// user.TenantID.
+// the JWT's `tenant_id` claim — the tenant the token was minted for — or 0
+// for a token minted without one (a tenantless session, or a login that
+// found no usable workspace at the time). The caller decides what 0 means;
+// the auth middleware falls back to ResolveActiveTenantID.
 func (s *userService) ValidateToken(ctx context.Context, tokenString string) (*types.User, uint64, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -1257,12 +1138,7 @@ func (s *userService) ValidateToken(ctx context.Context, tokenString string) (*t
 		return nil, 0, err
 	}
 
-	// Extract active tenant from the JWT. A zero, missing or unparseable
-	// claim falls back to the user's home tenant rather than scoping the
-	// request to "tenant 0".
-	activeTenantID := tenantIDFromClaims(claims, user.TenantID)
-
-	return user, activeTenantID, nil
+	return user, tenantIDFromClaims(claims), nil
 }
 
 func isRefreshTokenClaims(claims jwt.MapClaims) bool {
@@ -1294,19 +1170,14 @@ func userIDFromSignedToken(tokenString string) (string, error) {
 }
 
 // tenantIDFromClaims pulls the active tenant ID out of a parsed JWT
-// claim map. Returns fallback when the claim is missing or has an
+// claim map. Returns 0 when the claim is missing, non-positive or has an
 // unrecognised type. Extracted as a free function so it can be unit
 // tested without standing up the full userService dependency graph.
 //
 // JSON numbers come back as float64 from jwt.MapClaims; the int64 /
 // uint64 branches cover claims built in memory (tests) rather than parsed.
-// Negative values are treated as missing.
-func tenantIDFromClaims(claims jwt.MapClaims, fallback uint64) uint64 {
-	raw, ok := claims["tenant_id"]
-	if !ok {
-		return fallback
-	}
-	switch v := raw.(type) {
+func tenantIDFromClaims(claims jwt.MapClaims) uint64 {
+	switch v := claims["tenant_id"].(type) {
 	case float64:
 		if v > 0 {
 			return uint64(v)
@@ -1316,11 +1187,9 @@ func tenantIDFromClaims(claims jwt.MapClaims, fallback uint64) uint64 {
 			return uint64(v)
 		}
 	case uint64:
-		if v > 0 {
-			return v
-		}
+		return v
 	}
-	return fallback
+	return 0
 }
 
 // RefreshToken refreshes access token using refresh token
@@ -1628,16 +1497,9 @@ func (s *userService) fetchOIDCUserInfo(ctx context.Context, endpoint, accessTok
 }
 
 // provisionOIDCUser auto-creates a local account for a first-time OIDC
-// login. The provisioning mode is decided by the caller (the OIDC callback
-// handler resolves it from the same auth.default_tenant_mode system-setting
-// that governs public password registration) so both entry points share a
-// single deployment policy. An empty mode falls back to create_personal via
-// Register's own defaulting.
-func (s *userService) provisionOIDCUser(
-	ctx context.Context,
-	info *types.OIDCUserInfo,
-	provisioning types.TenantProvisioningMode,
-) (*types.User, error) {
+// login. Like password registration it creates the account only; the user
+// is tenantless until invited or added by an administrator.
+func (s *userService) provisionOIDCUser(ctx context.Context, info *types.OIDCUserInfo) (*types.User, error) {
 	username := s.generateOIDCUsername(ctx, info)
 	randomPassword, err := generateRandomString(32)
 	if err != nil {
@@ -1645,10 +1507,9 @@ func (s *userService) provisionOIDCUser(
 	}
 
 	user, err := s.Register(ctx, &types.RegisterRequest{
-		Username:           username,
-		Email:              info.Email,
-		Password:           randomPassword,
-		TenantProvisioning: provisioning,
+		Username: username,
+		Email:    info.Email,
+		Password: randomPassword,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to auto-provision OIDC user: %w", err)

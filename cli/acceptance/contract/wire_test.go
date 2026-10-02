@@ -235,7 +235,7 @@ func whoamiOK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := sdk.CurrentUserResponse{Success: true}
-	resp.Data.User = &sdk.AuthUser{ID: "usr_abc", Email: "user@example.com", TenantID: 42}
+	resp.Data.User = &sdk.AuthUser{ID: "usr_abc", Email: "user@example.com"}
 	resp.Data.Tenant = &sdk.AuthTenant{ID: 42, Name: "Acme"}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)

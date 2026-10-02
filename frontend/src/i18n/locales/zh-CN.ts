@@ -1751,10 +1751,6 @@ export default {
       },
       enumLabels: {
         auth: {
-          default_tenant_mode: {
-            create_personal: "自动创建个人空间",
-            tenantless: "不自动创建空间",
-          },
           registration_mode: {
             auto: "自动（仅在创建第一个账号前开放）",
             self_serve: "自助注册（任何人可注册）",
@@ -1797,8 +1793,6 @@ export default {
         auth: {
           registration_mode:
             "自助注册模式。self_serve = 任何人可注册账号；invite_only = 关闭公网注册，仅 Owner/Admin 可邀请。修改后立即生效，但谨慎对待 self_serve（公网会接受 spam）。",
-          default_tenant_mode:
-            "公开注册后的空间初始化策略。create_personal 会自动创建个人空间并授予 Owner；tenantless 仅创建账户，用户需要接受邀请或主动创建空间。只影响之后注册的用户。",
         },
       },
       keyLabels: {
@@ -1827,7 +1821,6 @@ export default {
         },
         auth: {
           registration_mode: "自助注册模式",
-          default_tenant_mode: "注册默认空间策略",
         },
       },
       runtime: {
@@ -2194,7 +2187,6 @@ export default {
     switcher: {
       menuLabel: "切换空间",
       currentBadge: "当前",
-      homeTooltip: "我的空间",
       empty: "你目前只属于这一个空间",
     },
   },
@@ -3220,6 +3212,9 @@ export default {
     registerFailed: "注册失败",
     subtitle: "RAG 问答与 Wiki 知识库，大模型驱动的企业级知识框架",
     registerSubtitle: "创建账户并开始使用 Yuheng 知识库",
+    workspaceName: "空间名称",
+    workspaceNamePlaceholder: "默认空间",
+    workspaceNameHint: "这是你所在组织的空间，知识库都建在它里面；之后可以改名。",
     emailPlaceholder: "输入邮箱地址",
     passwordPlaceholder: "输入密码（8-32个字符，包含字母和数字）",
     confirmPasswordPlaceholder: "再次输入密码",

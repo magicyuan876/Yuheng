@@ -48,21 +48,24 @@ type LoginService interface {
 // fails fast at `auth login --with-token` time rather than on the next
 // authenticated call.
 //
-// Returns the resolved user (used to populate Profile.User / TenantID at
-// rest, so later `auth list` reflects who owns the key).
-type apiKeyValidator func(ctx context.Context, host, apiKey string) (*sdk.AuthUser, error)
+// Returns the resolved user and the tenant the key is scoped to (used to
+// populate Profile.User / TenantID at rest, so later `auth list` reflects
+// who owns the key and where it acts).
+type apiKeyValidator func(ctx context.Context, host, apiKey string) (*sdk.AuthUser, *sdk.AuthTenant, error)
 
 // defaultAPIKeyValidator builds a one-shot SDK client with the supplied key
 // and calls /auth/me. Side-effect-free; no persistence.
-var defaultAPIKeyValidator apiKeyValidator = func(ctx context.Context, host, apiKey string) (*sdk.AuthUser, error) {
+var defaultAPIKeyValidator apiKeyValidator = func(
+	ctx context.Context, host, apiKey string,
+) (*sdk.AuthUser, *sdk.AuthTenant, error) {
 	resp, err := sdk.NewClient(host, sdk.WithAPIKey(apiKey)).GetCurrentUser(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !resp.Success || resp.Data.User == nil {
-		return nil, fmt.Errorf("server rejected the API key (no user returned)")
+		return nil, nil, fmt.Errorf("server rejected the API key (no user returned)")
 	}
-	return resp.Data.User, nil
+	return resp.Data.User, resp.Data.Tenant, nil
 }
 
 // NewCmdLogin builds the `yuheng auth login` command. runF is the testable
@@ -192,7 +195,7 @@ func runLogin(ctx context.Context, opts *LoginOptions, fopts *cmdutil.FormatOpti
 		// Validate against the server before persisting so a typo'd /
 		// expired / wrong-host key fails fast at login time. The probe
 		// is /auth/me - read-only, side-effect-free.
-		user, err := defaultAPIKeyValidator(ctx, opts.Host, key)
+		user, tenant, err := defaultAPIKeyValidator(ctx, opts.Host, key)
 		if err != nil {
 			// Transport errors (connection refused, DNS failure) must not be
 			// surfaced as auth.bad_credential — the key may be fine but the
@@ -203,7 +206,7 @@ func runLogin(ctx context.Context, opts *LoginOptions, fopts *cmdutil.FormatOpti
 			}
 			return cmdutil.Wrapf(cmdutil.CodeAuthBadCredential, err, "validate API key")
 		}
-		return persistAPIKey(opts, fopts, f, user)
+		return persistAPIKey(opts, fopts, f, user, tenant)
 	}
 
 	// Interactive: prompt for email + password. svc is always set by now
@@ -245,10 +248,12 @@ func runLogin(ctx context.Context, opts *LoginOptions, fopts *cmdutil.FormatOpti
 }
 
 // persistAPIKey saves the --with-token API key and writes the profile.
-// user is the principal returned by /auth/me during pre-persist validation,
-// used to populate Profile.User / TenantID so `auth list` reflects who
-// owns the key.
-func persistAPIKey(opts *LoginOptions, fopts *cmdutil.FormatOptions, f *cmdutil.Factory, user *sdk.AuthUser) error {
+// user and tenant are what /auth/me returned during pre-persist validation,
+// used to populate Profile.User / TenantID so `auth list` reflects who owns
+// the key and which tenant it acts in.
+func persistAPIKey(
+	opts *LoginOptions, fopts *cmdutil.FormatOptions, f *cmdutil.Factory, user *sdk.AuthUser, tenant *sdk.AuthTenant,
+) error {
 	store, err := f.Secrets()
 	if err != nil {
 		return err
@@ -265,9 +270,9 @@ func persistAPIKey(opts *LoginOptions, fopts *cmdutil.FormatOptions, f *cmdutil.
 		prof.APIKeyRef = store.Ref(opts.Profile, "api_key")
 		prof.TokenRef = ""
 		prof.RefreshRef = ""
-		applyUser(prof, user)
+		applyUser(prof, user, tenant)
 	}
-	return saveProfileRef(opts, fopts, f, mutate, ModeAPIKey, user)
+	return saveProfileRef(opts, fopts, f, mutate, ModeAPIKey, user, tenant)
 }
 
 // persistJWT saves access + refresh tokens and writes the profile.
@@ -291,23 +296,26 @@ func persistJWT(opts *LoginOptions, fopts *cmdutil.FormatOptions, f *cmdutil.Fac
 		prof.TokenRef = store.Ref(opts.Profile, "access")
 		prof.RefreshRef = store.Ref(opts.Profile, "refresh")
 		prof.APIKeyRef = ""
-		applyUser(prof, resp.User)
+		applyUser(prof, resp.User, resp.ActiveTenant)
 	}
-	return saveProfileRef(opts, fopts, f, mutate, ModeBearer, resp.User)
+	return saveProfileRef(opts, fopts, f, mutate, ModeBearer, resp.User, resp.ActiveTenant)
 }
 
 // applyUser overwrites prof.User / prof.TenantID only when the server actually
 // returned them. A nil user (or empty email) must NOT wipe an existing User
-// that was set during `profile add` or a prior login.
-func applyUser(prof *config.Profile, user *sdk.AuthUser) {
+// that was set during `profile add` or a prior login. The tenant is the one
+// the session is scoped to (the login's active tenant, or /auth/me's tenant
+// for an API key); a user has no tenant of its own, and a user who belongs to
+// no tenant yet keeps whatever the profile already recorded.
+func applyUser(prof *config.Profile, user *sdk.AuthUser, tenant *sdk.AuthTenant) {
 	if user == nil {
 		return
 	}
 	if user.Email != "" {
 		prof.User = user.Email
 	}
-	if user.TenantID != 0 {
-		prof.TenantID = user.TenantID
+	if tenant != nil && tenant.ID != 0 {
+		prof.TenantID = tenant.ID
 	}
 }
 
@@ -330,7 +338,10 @@ type loginResult struct {
 // the credential refs + any server-returned user, so re-login never clobbers
 // the host or wipes an existing user. cfg.CurrentProfile is left untouched -
 // `auth login` authenticates the already-active profile, it doesn't switch.
-func saveProfileRef(opts *LoginOptions, fopts *cmdutil.FormatOptions, f *cmdutil.Factory, mutate func(*config.Profile), mode string, user *sdk.AuthUser) error {
+func saveProfileRef(
+	opts *LoginOptions, fopts *cmdutil.FormatOptions, f *cmdutil.Factory,
+	mutate func(*config.Profile), mode string, user *sdk.AuthUser, tenant *sdk.AuthTenant,
+) error {
 	cfg, err := f.Config()
 	if err != nil {
 		return err
@@ -352,7 +363,9 @@ func saveProfileRef(opts *LoginOptions, fopts *cmdutil.FormatOptions, f *cmdutil
 		result := loginResult{Profile: opts.Profile, Host: opts.Host, Mode: mode}
 		if user != nil {
 			result.Email = user.Email
-			result.TenantID = user.TenantID
+		}
+		if tenant != nil {
+			result.TenantID = tenant.ID
 		}
 		return fopts.Emit(iostreams.IO.Out, result, nil)
 	}

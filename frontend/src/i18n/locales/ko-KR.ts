@@ -1787,10 +1787,6 @@ export default {
       },
       enumLabels: {
         auth: {
-          default_tenant_mode: {
-            create_personal: "개인 공간 자동 생성",
-            tenantless: "공간을 자동 생성하지 않음",
-          },
           registration_mode: {
             auto: "자동 (첫 번째 계정이 생기기 전까지만 가입 허용)",
             self_serve: "셀프 가입 (누구나 가입 가능)",
@@ -1838,8 +1834,6 @@ export default {
         auth: {
           registration_mode:
             "셀프 가입 모드입니다. self_serve = 누구나 계정을 만들 수 있음; invite_only = 공개 가입을 끄고 Owner/Admin만 초대 가능. 저장 즉시 적용되며, self_serve는 스팸 가입이 들어올 수 있으니 신중히 사용하세요.",
-          default_tenant_mode:
-            "공개 가입 후 공간 초기화 정책입니다. create_personal은 개인 공간을 만들고 Owner를 부여하며, tenantless는 초대 수락 또는 직접 공간 생성 전까지 계정만 만듭니다.",
         },
       },
       keyLabels: {
@@ -1868,7 +1862,6 @@ export default {
         },
         auth: {
           registration_mode: "셀프 가입 모드",
-          default_tenant_mode: "기본 공간 프로비저닝",
         },
       },
       runtime: {
@@ -2242,7 +2235,6 @@ export default {
     switcher: {
       menuLabel: "워크스페이스 전환",
       currentBadge: "현재",
-      homeTooltip: "기본 워크스페이스",
       empty: "현재 하나의 워크스페이스에만 속해 있습니다",
     },
   },
@@ -3291,6 +3283,9 @@ export default {
     registerFailed: "가입 실패",
     subtitle: "RAG Q&A와 Wiki 지식베이스 — 대규모 언어 모델 기반 엔터프라이즈 지식 프레임워크",
     registerSubtitle: "계정을 만들고 Yuheng를 시작하세요",
+    workspaceName: "워크스페이스 이름",
+    workspaceNamePlaceholder: "기본 워크스페이스",
+    workspaceNameHint: "조직의 워크스페이스입니다. 지식 베이스는 이 안에 만들어지며 이름은 나중에 바꿀 수 있습니다.",
     emailPlaceholder: "이메일 주소 입력",
     passwordPlaceholder: "비밀번호 입력 (8-32자, 문자와 숫자 포함)",
     confirmPasswordPlaceholder: "비밀번호 다시 입력",

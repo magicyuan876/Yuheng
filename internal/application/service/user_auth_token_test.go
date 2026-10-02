@@ -68,10 +68,6 @@ func (s *stubUserRepoForAuth) GetUserByUsername(context.Context, string) (*types
 	return nil, nil
 }
 
-func (s *stubUserRepoForAuth) GetUserByTenantID(context.Context, uint64) (*types.User, error) {
-	return nil, nil
-}
-
 func (s *stubUserRepoForAuth) UpdateUser(context.Context, *types.User) error {
 	s.updateCalls++
 	return nil
@@ -93,7 +89,7 @@ func (s *stubUserRepoForAuth) HasAnyUser(context.Context) (bool, error) {
 	return false, nil
 }
 
-func (s *stubUserRepoForAuth) CreateFirstUser(context.Context, *types.User) error {
+func (s *stubUserRepoForAuth) BootstrapFirstUser(context.Context, *types.User, *types.Tenant) error {
 	return nil
 }
 
@@ -101,7 +97,7 @@ func newAuthTestUserService(tokenRepo *stubAuthTokenRepo) *userService {
 	return &userService{
 		userRepo: &stubUserRepoForAuth{
 			users: map[string]*types.User{
-				"user-1": {ID: "user-1", TenantID: 1},
+				"user-1": {ID: "user-1"},
 			},
 		},
 		tokenRepo: tokenRepo,

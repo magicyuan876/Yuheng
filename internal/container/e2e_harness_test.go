@@ -12,6 +12,7 @@ package container
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/magicyuan876/yuheng/internal/docs"
 	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
+	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 )
 
@@ -208,4 +210,35 @@ func (s *server) do(r request) response {
 	w := httptest.NewRecorder()
 	s.Engine.ServeHTTP(w, req)
 	return response{Code: w.Code, Header: w.Header(), Body: w.Body.Bytes()}
+}
+
+// createUserWithWorkspace does what registration no longer does: it creates
+// an account through the user service and then a workspace the account owns,
+// the way an administrator would (create the workspace, add the member).
+// Public registration is closed once the bootstrap administrator exists, so
+// every further user in these tests comes from here.
+func createUserWithWorkspace(t *testing.T, s *server, username, email, password string) (*types.User, uint64) {
+	t.Helper()
+	var (
+		user     *types.User
+		tenantID uint64
+	)
+	must1(t, s.DI.Invoke(func(
+		users interfaces.UserService, tenants interfaces.TenantService, members interfaces.TenantMemberService,
+	) {
+		ctx := context.Background()
+		u, err := users.Register(ctx, &types.RegisterRequest{Username: username, Email: email, Password: password})
+		if err != nil {
+			t.Fatalf("create user %s: %v", username, err)
+		}
+		ws, err := tenants.CreateTenant(ctx, &types.Tenant{Name: username + "'s workspace"})
+		if err != nil {
+			t.Fatalf("create workspace for %s: %v", username, err)
+		}
+		if _, err := members.AddMember(ctx, u.ID, ws.ID, types.TenantRoleOwner, nil); err != nil {
+			t.Fatalf("add %s as owner of %d: %v", username, ws.ID, err)
+		}
+		user, tenantID = u, ws.ID
+	}))
+	return user, tenantID
 }

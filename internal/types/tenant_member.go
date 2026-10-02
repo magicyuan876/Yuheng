@@ -79,9 +79,10 @@ const (
 // TenantMember represents the (user, tenant) membership record that
 // carries the user's TenantRole for that specific tenant.
 //
-// A user has one TenantMember row per tenant they belong to. The home
-// tenant recorded on User.TenantID is always one of these rows; additional
-// rows are created when an admin adds the user to another tenant.
+// A user has one TenantMember row per tenant they belong to, and these rows
+// are the only link between users and workspaces: a user with none belongs
+// nowhere yet. Rows are created by the bootstrap registration (the first
+// account owns the default workspace), by invitations and by administrators.
 type TenantMember struct {
 	// Surrogate primary key.
 	ID uint64 `json:"id" gorm:"primaryKey;autoIncrement"`
@@ -96,7 +97,7 @@ type TenantMember struct {
 	// middleware; see TenantMemberStatus constants.
 	Status TenantMemberStatus `json:"status" gorm:"type:varchar(20);not null;default:'active'"`
 	// InvitedBy records the user ID of the admin who created this row via
-	// an invitation flow. Nil for rows created by self-service registration.
+	// an invitation flow. Nil for the bootstrap Owner row and share-link joins.
 	InvitedBy *string `json:"invited_by,omitempty" gorm:"type:varchar(36)"`
 	// JoinedAt is when the membership became active.
 	JoinedAt  time.Time      `json:"joined_at"`

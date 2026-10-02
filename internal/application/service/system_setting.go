@@ -169,15 +169,6 @@ var registry = map[string]settingSpec{
 			"self_serve = 任何人可注册账号；invite_only = 关闭公网注册，仅 Owner/Admin 可邀请。" +
 			"修改后立即生效，但谨慎对待 self_serve（公网会接受 spam）。",
 	},
-	"auth.default_tenant_mode": {
-		Type:     "string",
-		EnvName:  "YUHENG_AUTH_DEFAULT_TENANT_MODE",
-		Default:  "create_personal",
-		Enum:     []string{"create_personal", "tenantless"},
-		Category: "auth",
-		Description: "公开注册成功后的默认空间策略。create_personal = 自动创建个人空间并设为 Owner；" +
-			"tenantless = 仅创建用户，等待接受邀请或主动创建空间。修改后只影响新注册用户。",
-	},
 	// tenant.max_owned_per_user caps how many tenants a single non-superuser
 	// can create (and Own) via self-service POST /tenants. Read on every
 	// request — UI edits take effect immediately, no restart required. The

@@ -170,10 +170,9 @@ func (h *AuthHandler) RegisterByInvite(c *gin.Context) {
 	}
 
 	user, err := h.userService.Register(ctx, &types.RegisterRequest{
-		Username:           req.Username,
-		Email:              req.Email,
-		Password:           req.Password,
-		TenantProvisioning: types.TenantProvisioningTenantless,
+		Username: req.Username,
+		Email:    req.Email,
+		Password: req.Password,
 	})
 	if err != nil {
 		logger.Errorf(ctx, "register-by-invite: user create failed for %s: %v",
@@ -182,32 +181,25 @@ func (h *AuthHandler) RegisterByInvite(c *gin.Context) {
 		return
 	}
 
-	// The invited tenant becomes the user's initial/default tenant. No
-	user.TenantID = inv.TenantID
-	if err := h.userService.UpdateUser(ctx, user); err != nil {
-		logger.Errorf(ctx, "register-by-invite: failed to set home tenant for user %s: %v", user.ID, err)
-		_ = h.userService.DeleteUser(ctx, user.ID)
-		c.Error(apperrors.NewInternalServerError("failed to finalise invited account").WithDetails(err.Error()))
-		return
-	}
-
 	if _, err := h.invitationSvc.AcceptByToken(ctx, req.Token, user.ID); err != nil {
-		// Race: link was revoked between Lookup and Accept. Keep the new
-		// account, but restore it to tenantless so it does not point at a
-		// tenant for which no membership was created. If even that repair
-		// fails, remove the half-provisioned identity.
+		// Race: link was revoked between Lookup and Accept. The account
+		// exists and belongs to no workspace, which is a valid state; the
+		// user can log in and be invited again.
 		logger.Errorf(ctx, "register-by-invite: accept failed for user %s: %v", user.ID, err)
-		user.TenantID = 0
-		if rollbackErr := h.userService.UpdateUser(ctx, user); rollbackErr != nil {
-			logger.Errorf(ctx, "register-by-invite: failed to restore tenantless user %s: %v", user.ID, rollbackErr)
-			_ = h.userService.DeleteUser(ctx, user.ID)
-		}
 		c.Error(&apperrors.AppError{
 			Code:     apperrors.ErrNotFound,
 			Message:  "invitation link is no longer valid; please log in to your new account",
 			HTTPCode: http.StatusGone,
 		})
 		return
+	}
+
+	// The invited workspace is the account's first, so it becomes the one
+	// the next login lands in. Best effort: the membership row is what
+	// grants access, and GenerateTokens below resolves it either way.
+	if err := h.userService.RememberFirstWorkspace(ctx, user.ID, inv.TenantID); err != nil {
+		logger.Warnf(ctx, "register-by-invite: failed to remember workspace %d for user %s: %v",
+			inv.TenantID, user.ID, err)
 	}
 
 	accessToken, refreshToken, err := h.userService.GenerateTokens(ctx, user)

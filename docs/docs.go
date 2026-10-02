@@ -507,7 +507,7 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
-                "description": "注册新用户账号",
+                "description": "注册新用户账号。注册只创建账号，不创建空间；用户通过邀请或由系统管理员加入空间。\n例外是部署的首个账号（/auth/config 的 first_user 为 true）：它同时创建部署的默认空间并成为其 Owner，\n可通过 workspace_name 指定空间名称（为空则为 \"Default Workspace\"）。",
                 "consumes": [
                     "application/json"
                 ],
@@ -610,7 +610,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "为当前用户在目标空间重新签发访问令牌；要求该用户在目标空间存在 active 成员关系",
+                "description": "为当前用户在目标空间重新签发访问令牌；要求该用户在目标空间存在 active 成员关系（跨空间超管除外）",
                 "consumes": [
                     "application/json"
                 ],
@@ -14984,7 +14984,7 @@ const docTemplate = `{
         },
         "/system/admin/users/create": {
             "post": {
-                "description": "Provision a new local user account (SystemAdmin only).\nWhen ` + "`" + `password` + "`" + ` is omitted or null, a cryptographically random\npassword is generated (OIDC-style crypto/rand + base64url)\nand returned once in the response body. Any provided value,\nincluding empty string, is policy-checked. Tenant provisioning\nfollows the shared auth.default_tenant_mode policy.",
+                "description": "Provision a new local user account (SystemAdmin only).\nWhen ` + "`" + `password` + "`" + ` is omitted or null, a cryptographically random\npassword is generated (OIDC-style crypto/rand + base64url)\nand returned once in the response body. Any provided value,\nincluding empty string, is policy-checked. The account belongs\nto no workspace until it is added to one.",
                 "consumes": [
                     "application/json"
                 ],
@@ -18875,7 +18875,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "active_tenant": {
-                    "description": "ActiveTenant is the workspace whose ID is encoded in the issued JWT;\nfuture requests are scoped to it until the client calls /auth/switch-tenant.\nDefaults to the user's home workspace on a fresh login.",
+                    "description": "ActiveTenant is the workspace whose ID is encoded in the issued JWT;\nfuture requests are scoped to it until the client calls /auth/switch-tenant.\nNil for a user who belongs to no workspace yet (see\nUserService.ResolveActiveTenantID for how it is chosen).",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.Tenant"
@@ -18883,7 +18883,7 @@ const docTemplate = `{
                     ]
                 },
                 "memberships": {
-                    "description": "Memberships lists every workspace the user can authenticate into,\nalong with their role in each. Always populated (length 1 for users\nwho only belong to their home workspace) so frontends can render a\nworkspace switcher without a follow-up request. Serialised without\nomitempty so the field is always present as a JSON array (possibly\nempty) — the \"always populated\" contract relies on the server side\nguaranteeing a non-nil slice.",
+                    "description": "Memberships lists every workspace the user can authenticate into,\nalong with their role in each. Always populated (possibly empty for a\nuser who belongs to no workspace yet) so frontends can render a\nworkspace switcher without a follow-up request. Serialised without\nomitempty so the field is always present as a JSON array (possibly\nempty) — the \"always populated\" contract relies on the server side\nguaranteeing a non-nil slice.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.Membership"
@@ -19627,6 +19627,11 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 2
+                },
+                "workspace_name": {
+                    "description": "WorkspaceName names the deployment's default workspace. It is honoured\nonly when BootstrapFirstUser is set and is ignored otherwise; empty\nmeans DefaultWorkspaceName. The bound is the one POST /tenants applies.",
+                    "type": "string",
+                    "maxLength": 128
                 }
             }
         },
@@ -20679,18 +20684,6 @@ const docTemplate = `{
                         }
                     ]
                 },
-                "tenant": {
-                    "description": "Association relationship, not stored in the database",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.Tenant"
-                        }
-                    ]
-                },
-                "tenant_id": {
-                    "description": "Workspace ID that the user belongs to",
-                    "type": "integer"
-                },
                 "updated_at": {
                     "description": "Last updated time of the user",
                     "type": "string"
@@ -20728,9 +20721,6 @@ const docTemplate = `{
                 "preferences": {
                     "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.UserPreferences"
                 },
-                "tenant_id": {
-                    "type": "integer"
-                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -20743,7 +20733,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "last_active_tenant_id": {
-                    "description": "LastActiveTenantID remembers the last workspace the user actively\nswitched into, so a fresh login (new device, cleared browser, new\nrefresh token) lands them back in that workspace instead of always\nbouncing to their home workspace. Login / RefreshToken validate that\nthe workspace still exists and the user still has an active membership\n(or CanAccessAllTenants) before honouring this preference; an\ninvalid pointer is best-effort cleared and the user falls back to\nhome.\n\nnil  = no preference (use user.TenantID, i.e. home)\n*0   = \"clear preference\" sentinel for the partial-update endpoint\n       (UpdateUserPreferences turns this into nil). Otherwise treat\n       a stored *0 the same as nil.\n*N   = preferred workspace id.",
+                    "description": "LastActiveTenantID is the user's current workspace: the one a fresh\nlogin (new device, cleared browser, new refresh token) lands in and the\none a request without an X-Tenant-ID header and without a tenant in its\nJWT is scoped to. A user is a global identity with no \"home\" workspace;\nthis preference is the only pointer from a user to a workspace, and\ntenant_members decides whether it may be honoured. UserService.\nResolveActiveTenantID validates it (the workspace must exist and the\nuser must still have an active membership, or CanAccessAllTenants)\nand otherwise falls back to the earliest active membership, rewriting\nthe preference so later logins do not repeat the lookup.\n\nnil  = no preference (resolve from memberships)\n*0   = \"clear preference\" sentinel for the partial-update endpoint\n       (UpdateUserPreferences turns this into nil). Otherwise treat\n       a stored *0 the same as nil.\n*N   = preferred workspace id.",
                     "type": "integer"
                 },
                 "oidc_only_login": {
