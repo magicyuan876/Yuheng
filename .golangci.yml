@@ -8,6 +8,14 @@ linters:
     lll:
       line-length: 120
       tab-width: 4
+    errcheck:
+      # Terminal output. The CLI and the server's own console messages write
+      # with fmt.Fprint* to stdout/stderr; a failed write there has no
+      # recovery and is never worth a branch. Everything else stays checked.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
   exclusions:
     paths:
       # Swagger output written by `make docs`. swag's header does not match the

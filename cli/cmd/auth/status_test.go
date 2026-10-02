@@ -69,7 +69,9 @@ func TestRunStatus_JSONOutput(t *testing.T) {
 		Profiles:       map[string]config.Profile{"prod": {Host: "https://x"}},
 	}))
 	f := &cmdutil.Factory{Config: func() (*config.Config, error) { return config.Load() }}
-	svc := &fakeStatusService{resp: newCurrentUserResponse(&sdk.AuthUser{ID: "u1", Email: "a@b.c"}, &sdk.AuthTenant{ID: 7})}
+	svc := &fakeStatusService{
+		resp: newCurrentUserResponse(&sdk.AuthUser{ID: "u1", Email: "a@b.c"}, &sdk.AuthTenant{ID: 7}),
+	}
 	require.NoError(t, runStatus(context.Background(), &cmdutil.FormatOptions{Mode: cmdutil.FormatJSON}, f, svc))
 	got := out.String()
 	var env struct {
