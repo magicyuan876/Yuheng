@@ -277,7 +277,7 @@ make docker-build-app / docker-build-docreader / docker-build-frontend
 
 `helm/Chart.yaml`: chart name `yuheng`, `appVersion` `v0.1.0`, Kubernetes >= 1.25.0 required.
 
-The chart has `app`, `frontend`, `docreader`, `postgresql` (the ParadeDB image) and `redis`, and can optionally enable `neo4j`, online documents (`docs.enabled`) and the collaboration service (`collab.enabled`). Because this release publishes no images, build them yourself, push them to your own registry, and tell the chart where they are with `global.imageRegistry` (it pulls `<registry>/yuheng-app` and so on, tagged `appVersion`; one component's `image.repository` / `image.tag` override that). Left unset, `helm install` / `helm template` fail with an error instead of installing pods that can never pull. The build-and-push steps are under "Images" in `helm/README.md`.
+The chart has `app`, `frontend`, `docreader`, `postgresql` (the ParadeDB image) and `redis`, plus by default a RustFS server for files (see "File storage" below), and can optionally enable `neo4j`, online documents (`docs.enabled`) and the collaboration service (`collab.enabled`). Because this release publishes no images, build them yourself, push them to your own registry, and tell the chart where they are with `global.imageRegistry` (it pulls `<registry>/yuheng-app` and so on, tagged `appVersion`; one component's `image.repository` / `image.tag` override that). Left unset, `helm install` / `helm template` fail with an error instead of installing pods that can never pull. The build-and-push steps are under "Images" in `helm/README.md`.
 
 Key settings in `helm/values.yaml`:
 
@@ -289,7 +289,6 @@ app:
   env:
     GIN_MODE: release
     RETRIEVE_DRIVER: postgres      # postgres only (ParadeDB + pgvector)
-    STORAGE_TYPE: local            # local / s3 (any S3-compatible service)
     STREAM_MANAGER_TYPE: redis
 postgresql:
   enabled: true
@@ -297,8 +296,13 @@ postgresql:
 redis:
   enabled: true
   persistence: { enabled: true, size: 1Gi }
-dataFiles:
-  persistence: { enabled: true, size: 10Gi }
+storage:
+  type: rustfs                      # rustfs (default, bundled) / s3 (external S3-compatible) / local (a volume, one replica)
+  s3: { bucket: yuheng, pathPrefix: yuheng/ }   # type=s3 adds endpoint / region / useSSL / addressingStyle
+  rustfs:
+    persistence: { enabled: true, size: 20Gi }
+  local:
+    persistence: { enabled: true, size: 10Gi }
 docs:
   enabled: false
 collab:
@@ -309,16 +313,27 @@ secrets:                            # or reference an existing Secret with exist
   jwtSecret: ""                     # required, at least 32 characters
   systemAesKey: ""                  # 32 bytes; if empty, generated on first install and reused on upgrade
   collabSharedSecret: ""            # required when collab.enabled, at least 16 characters
+  storageAccessKey: ""              # required for storage.type=rustfs (the RustFS root user, which the app uses too)
+  storageSecretKey: ""              # likewise; for type=s3 set both or neither (neither: the AWS default credential chain)
 ```
 
 ```bash
 helm install yuheng ./helm -n yuheng --create-namespace \
   --set global.imageRegistry=registry.example.com/yuheng \
   --set secrets.dbPassword=xxx --set secrets.redisPassword=xxx \
-  --set secrets.jwtSecret=$(openssl rand -hex 32) --set secrets.systemAesKey=$(openssl rand -hex 16)
+  --set secrets.jwtSecret=$(openssl rand -hex 32) --set secrets.systemAesKey=$(openssl rand -hex 16) \
+  --set secrets.storageAccessKey=yuheng --set secrets.storageSecretKey=$(openssl rand -hex 24)
 ```
 
 Set `systemAesKey` explicitly: a generated value lives only in the Secret the chart creates, and if that Secret is ever deleted and recreated the old data can no longer be decrypted. The app's `startupProbe` and `livenessProbe` use `/health`; its `readinessProbe` uses `/ready`.
+
+**File storage** (`storage.type`; details under "File storage" in `helm/README.md`):
+
+- `rustfs` (default): as in docker compose, the chart runs RustFS itself (the same digest-pinned image, a single-replica Deployment with a PVC, a Service named `rustfs`) and points the app at `http://rustfs:9000`. `secrets.storageAccessKey` / `storageSecretKey` are both the RustFS root credentials and the app's, and are required. The app creates the bucket (`storage.s3.bucket`) on first use, so there is no init job. It is one server without redundancy, as durable as its volume: back that up with the database, and for replicated object storage run a cluster of your own and use `s3`.
+- `s3`: an external S3-compatible service (AWS S3, MinIO, Aliyun OSS, Tencent COS, Volcengine TOS, Huawei OBS). Set `endpoint` (empty is AWS), `region`, `bucket`, `pathPrefix`, `useSSL` and `addressingStyle` under `storage.s3` (OSS, COS, TOS and OBS need `virtual`); with neither key set the app uses the AWS default credential chain (IRSA on EKS, through `serviceAccount.annotations`).
+- `local`: files on a ReadWriteOnce volume mounted into the app, for one app replica only: the chart refuses to render with `app.replicaCount` above 1. docreader mounts the same volume read-only to read large videos in place, and is therefore scheduled onto the app's node.
+
+The chart adds the storage endpoint's host (`rustfs`, or the host of `storage.s3.endpoint`) to the app's `SSRF_WHITELIST_EXTRA`; without it the app's S3 client refuses in-cluster services, which resolve to private addresses. Other hosts to allow go in `app.ssrfWhitelistExtra`. `STORAGE_ALLOW_LIST` defaults to `s3` only (plus `local` with `storage.type=local`). Once files are stored, the location (type, endpoint, region, bucket, path prefix) is fixed and the app refuses to start if it changes. Upgrading from chart 0.3.x while keeping the files on the old volume means `storage.type=local` with `dataFiles.persistence.*` moved to `storage.local.persistence.*`. Do not upgrade with the defaults: the old chart's volume carries no keep annotation, and Helm deletes it, files and all, once the old pod lets go (from 0.4.0 on the PVCs holding files are annotated `helm.sh/resource-policy: keep`). See "Upgrading" in `helm/README.md`.
 
 The chart's ParadeDB image (`postgresql.image.tag`) is the one `docker-compose.yml` runs, `v0.22.2-pg17`. Upgrading from the older chart (`v0.18.9-pg17`) needs one `ALTER EXTENSION pg_search UPDATE;` in the database; see "Upgrading" in `helm/README.md`.
 
@@ -355,8 +370,9 @@ flowchart TB
     subgraph k8s["Kubernetes (Helm)"]
         direction LR
         ING["Ingress"] --> FE2["frontend Deployment"] --> A2["app Deployment"]
-        A2 --> PVC1[("PVCs: postgres 10Gi / redis 1Gi / data-files 10Gi")]
+        A2 --> PVC1[("PVCs: postgres 10Gi / redis 1Gi")]
         A2 --> D2["docreader Deployment"]
+        A2 --> S2[("rustfs Deployment + PVC 20Gi")]
     end
 ```
 

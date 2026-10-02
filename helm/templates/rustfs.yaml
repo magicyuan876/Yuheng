@@ -1,0 +1,150 @@
+{{/*
+Copyright (c) 2026 magicyuan876.
+SPDX-License-Identifier: MIT
+
+RustFS (S3-compatible object storage) Deployment and Service: the deployment
+storage when storage.type is rustfs, as in docker-compose.
+
+A Deployment with Recreate and a separately created PVC rather than a
+StatefulSet, like PostgreSQL and Redis in this chart. It is one server with one
+volume and cannot scale by adding replicas (a RustFS cluster is a different
+topology, configured differently); what a StatefulSet would add is a per-pod
+volume template, which a single pod does not need and which `existingClaim`
+could not express. Recreate keeps two servers from ever opening the same data
+directory during a rollout.
+
+The bucket is not created here: the app creates storage.s3.bucket the first
+time it builds its storage driver (internal/application/service/file/s3.go),
+exactly as it does under docker-compose, so there is no init job to keep in
+step with the bucket name.
+*/}}
+{{- if eq .Values.storage.type "rustfs" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "yuheng.fullname" . }}-rustfs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "yuheng.componentLabels" (dict "component" "object-storage" "context" .) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "yuheng.componentSelectorLabels" (dict "component" "object-storage" "context" .) | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "yuheng.componentSelectorLabels" (dict "component" "object-storage" "context" .) | nindent 8 }}
+    spec:
+      {{- include "yuheng.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "yuheng.serviceAccountName" . }}
+      # Service links would put RUSTFS_SERVICE_HOST, RUSTFS_PORT and friends
+      # (from the Service below being named "rustfs") into the environment of
+      # a server that reads its configuration from RUSTFS_* variables.
+      enableServiceLinks: false
+      {{- include "yuheng.podSecurityContext" (dict "Values" .Values "componentSecurityContext" (deepCopy .Values.storage.rustfs.podSecurityContext)) | trim | nindent 6 }}
+      containers:
+        - name: rustfs
+          image: {{ include "yuheng.rustfs.image" . }}
+          imagePullPolicy: IfNotPresent
+          {{- with .Values.storage.rustfs.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: 9000
+              name: s3
+              protocol: TCP
+            - containerPort: 9001
+              name: console
+              protocol: TCP
+          env:
+            # The same pair the app signs its requests with (S3_ACCESS_KEY /
+            # S3_SECRET_KEY in the Secret).
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yuheng.secretName" . }}
+                  key: S3_ACCESS_KEY
+            - name: RUSTFS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yuheng.secretName" . }}
+                  key: S3_SECRET_KEY
+            - name: RUSTFS_VOLUMES
+              value: /data
+            # The image logs to files under /logs by default; empty sends the
+            # logs to stdout, where kubectl logs finds them, and leaves the
+            # data volume as the only path RustFS writes to.
+            - name: RUSTFS_OBS_LOG_DIRECTORY
+              value: ""
+          volumeMounts:
+            - name: rustfs-data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.storage.rustfs.resources | nindent 12 }}
+          # /health/live says the process serves requests; /health/ready also
+          # waits for the storage, IAM and lock subsystems, so the Service only
+          # routes to a server that can answer an upload.
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: s3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: s3
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: rustfs-data
+          {{- if .Values.storage.rustfs.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.rustfs.persistence.existingClaim | default (printf "%s-rustfs" (include "yuheng.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.storage.rustfs.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.storage.rustfs.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.storage.rustfs.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # Service name must be "rustfs" - the app's S3_ENDPOINT and SSRF allow list
+  # reference this
+  name: rustfs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "yuheng.componentLabels" (dict "component" "object-storage" "context" .) | nindent 4 }}
+spec:
+  type: {{ .Values.storage.rustfs.service.type }}
+  selector:
+    {{- include "yuheng.componentSelectorLabels" (dict "component" "object-storage" "context" .) | nindent 4 }}
+  ports:
+    - name: s3
+      port: {{ .Values.storage.rustfs.service.port }}
+      targetPort: s3
+      protocol: TCP
+    - name: console
+      port: {{ .Values.storage.rustfs.service.consolePort }}
+      targetPort: console
+      protocol: TCP
+{{- end }}

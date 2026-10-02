@@ -34,6 +34,18 @@ docker compose 默认就用自带的 RustFS（S3 兼容对象存储），不需�
 - `STORAGE_ALLOW_LIST`：逗号分隔的允许类型白名单（如 `local,s3`），留空允许全部；
 - 要让外部客户端直接加载预签名链接时，端点必须对客户端可达（不能是 `rustfs:9000`），见[图片与文件的对外访问](21-file-access.md)。
 
+### Helm 部署
+
+Helm chart（`helm/`）用 `storage.type` 选部署存储，取值与 compose 对应：
+
+| `storage.type` | 等价于 compose 的 | 说明 |
+| --- | --- | --- |
+| `rustfs`（默认） | 默认配置（自带 RustFS） | chart 自己跑 RustFS（同一个按 digest 固定的镜像，单副本 + PVC，Service 名 `rustfs`）；凭证 `secrets.storageAccessKey` / `storageSecretKey` 必填，RustFS 与 app 共用这一对 |
+| `s3` | 设置 `S3_*` 指向外部服务 | `storage.s3.endpoint` / `region` / `bucket` / `pathPrefix` / `useSSL` / `addressingStyle`；密钥同填或同空（同空走 AWS 默认凭证链，如 IRSA） |
+| `local` | `STORAGE_TYPE=local` | 挂进 app 的 ReadWriteOnce 卷，只支持一个 app 副本（`app.replicaCount` > 1 时 chart 拒绝渲染）；docreader 只读挂同一个卷按路径直读大视频 |
+
+与 compose 相同，桶由 app 首次使用时自动创建；chart 会把存储端点主机加进 `SSRF_WHITELIST_EXTRA`。`STORAGE_ALLOW_LIST` 由 `storage.allowList` 设置，留空时只放行 `s3`（`storage.type=local` 时再加 `local`）——其他类型下没有卷挂在 `LOCAL_STORAGE_BASE_DIR`，空间注册的本机目录实例会把文件写进 Pod 自己的文件系统、随 Pod 一起丢失。参数表与升级说明见 `helm/README.md` 的「File storage」与「Upgrading」。
+
 ### 部署存储：`env` 记录
 
 环境变量配置的这套存储在 `storage_backends` 里是**一条**记录：`id = env`、`source = env`、不属于任何空间（`tenant_id` 为空）、共享给所有空间（`is_builtin`），界面上名为「Deployment storage」。它只读：不能通过接口修改、删除或取消共享。
@@ -125,3 +137,4 @@ API Key 需要 `manage_storage_backends` 能力或 full-access。
 | `frontend/src/views/settings/StorageBackendSettings.vue`、`s3Presets.ts` | 「设置 → 存储引擎」与 S3 预设 |
 | `frontend/src/views/knowledge/settings/KBStorageSettings.vue` | 知识库的存储选择 |
 | `docker-compose.yml` 的 `rustfs` 服务、`.env.example` 的 B3/B4 节 | 自带 RustFS 与存储环境变量 |
+| `helm/values.yaml` 的 `storage` 节、`helm/templates/rustfs.yaml` | Helm 部署的存储配置与自带 RustFS |

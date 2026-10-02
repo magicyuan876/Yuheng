@@ -65,12 +65,46 @@ Components deployed:
 {{- if .Values.redis.enabled }}
   - Redis ({{ include "yuheng.redis.image" . }})
 {{- end }}
+{{- if eq .Values.storage.type "rustfs" }}
+  - RustFS object storage ({{ include "yuheng.rustfs.image" . }})
+{{- end }}
 
 {{- if .Values.neo4j.enabled }}
 
 Optional components enabled:
   - Neo4j (Knowledge Graph)
 {{- end }}
+
+--------------------------------------------------------------------------------
+  FILE STORAGE
+--------------------------------------------------------------------------------
+{{- if eq .Values.storage.type "rustfs" }}
+
+Uploaded files are stored in the bundled RustFS, bucket "{{ .Values.storage.s3.bucket }}" under
+"{{ .Values.storage.s3.pathPrefix }}", on {{ if .Values.storage.rustfs.persistence.enabled }}the PVC {{ .Values.storage.rustfs.persistence.existingClaim | default (printf "%s-rustfs" (include "yuheng.fullname" .)) }} ({{ .Values.storage.rustfs.persistence.size }}){{ else }}an emptyDir: they are LOST whenever the RustFS pod is replaced{{ end }}.
+The app creates the bucket on its first upload. RustFS is a single server
+with no redundancy of its own; back up its volume like the database's.
+
+  # RustFS console (sign in with secrets.storageAccessKey / storageSecretKey)
+  kubectl port-forward svc/rustfs -n {{ .Release.Namespace }} {{ .Values.storage.rustfs.service.consolePort }}:{{ .Values.storage.rustfs.service.consolePort }}
+  # Then open: http://localhost:{{ .Values.storage.rustfs.service.consolePort }}
+{{- else if eq .Values.storage.type "s3" }}
+
+Uploaded files are stored in the external object storage
+{{ .Values.storage.s3.endpoint | default (printf "AWS S3 (%s)" .Values.storage.s3.region) }}, bucket "{{ .Values.storage.s3.bucket }}" under "{{ .Values.storage.s3.pathPrefix }}".
+{{- if and (not .Values.secrets.existingSecret) (not .Values.secrets.storageAccessKey) }}
+No access keys are set: the app authenticates through the AWS default
+credential chain (for example IRSA via serviceAccount.annotations).
+{{- end }}
+{{- else }}
+
+Uploaded files are stored on the app's local volume, {{ if .Values.storage.local.persistence.enabled }}the PVC {{ .Values.storage.local.persistence.existingClaim | default (printf "%s-data-files" (include "yuheng.fullname" .)) }} ({{ .Values.storage.local.persistence.size }}){{ else }}an emptyDir: they are LOST whenever the app pod is replaced{{ end }}.
+This mode supports one app replica; use storage.type=rustfs or s3 to scale.
+{{- end }}
+
+The storage location is recorded on first start. Changing storage.type, the
+bucket or a path prefix later makes the app refuse to start while files
+exist at the old location: that is a data migration, not an upgrade.
 
 --------------------------------------------------------------------------------
   CONNECTING TO LLM

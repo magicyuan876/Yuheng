@@ -63,8 +63,8 @@ spec:
 ---
 {{- end }}
 
-{{/* Data Files PVC */}}
-{{- if and .Values.dataFiles.persistence.enabled (not .Values.dataFiles.persistence.existingClaim) }}
+{{/* Local file storage PVC (storage.type=local) */}}
+{{- if and (eq .Values.storage.type "local") .Values.storage.local.persistence.enabled (not .Values.storage.local.persistence.existingClaim) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -72,11 +72,34 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "yuheng.componentLabels" (dict "component" "storage" "context" .) | nindent 4 }}
+  annotations:
+    {{- include "yuheng.storage.keepAnnotation" . | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.dataFiles.persistence.size }}
-  {{- include "yuheng.storageClass" . | nindent 2 }}
+      storage: {{ .Values.storage.local.persistence.size }}
+  {{- include "yuheng.persistenceStorageClass" (dict "root" . "storageClass" .Values.storage.local.persistence.storageClass) | nindent 2 }}
+---
+{{- end }}
+
+{{/* RustFS PVC (storage.type=rustfs) */}}
+{{- if and (eq .Values.storage.type "rustfs") .Values.storage.rustfs.persistence.enabled (not .Values.storage.rustfs.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "yuheng.fullname" . }}-rustfs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "yuheng.componentLabels" (dict "component" "object-storage" "context" .) | nindent 4 }}
+  annotations:
+    {{- include "yuheng.storage.keepAnnotation" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.storage.rustfs.persistence.size }}
+  {{- include "yuheng.persistenceStorageClass" (dict "root" . "storageClass" .Values.storage.rustfs.persistence.storageClass) | nindent 2 }}
 {{- end }}

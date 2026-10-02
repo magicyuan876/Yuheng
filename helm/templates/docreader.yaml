@@ -46,9 +46,20 @@ spec:
             - containerPort: 50051
               name: grpc
               protocol: TCP
+          {{- if include "yuheng.storage.sharedWithDocreader" . }}
+          # Local storage: the app's volume, read-only. The app passes large
+          # videos as a path under it instead of sending their bytes over
+          # gRPC; the directory is also the path-traversal boundary for
+          # those paths. Every other storage type sends bytes, and docreader
+          # needs no volume and no storage settings at all.
           env:
-            - name: STORAGE_TYPE
-              value: {{ .Values.docreader.env.STORAGE_TYPE | quote }}
+            - name: DOCREADER_SHARED_DATA_DIR
+              value: "/data/files"
+          volumeMounts:
+            - name: data-files
+              mountPath: /data/files
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.docreader.resources | nindent 12 }}
           # gRPC health check using grpc_health_probe
@@ -70,13 +81,28 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
+      {{- if include "yuheng.storage.sharedWithDocreader" . }}
+      volumes:
+        {{- include "yuheng.storage.localVolume" . | nindent 8 }}
+      {{- end }}
       {{- with .Values.docreader.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.docreader.affinity }}
+      {{- if .Values.docreader.affinity }}
       affinity:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml .Values.docreader.affinity | nindent 8 }}
+      {{- else if include "yuheng.storage.sharedWithDocreader" . }}
+      # A ReadWriteOnce volume is attachable to one node at a time, so
+      # docreader has to run where the app runs. docreader.affinity, when set,
+      # replaces this rule and then has to keep the two together itself.
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "yuheng.componentSelectorLabels" (dict "component" "app" "context" .) | nindent 18 }}
+              topologyKey: kubernetes.io/hostname
       {{- end }}
       {{- with .Values.docreader.tolerations }}
       tolerations:

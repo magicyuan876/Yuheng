@@ -100,9 +100,6 @@ app:
     GIN_MODE: release
     # -- Retrieval driver. The built-in engine is postgres (ParadeDB + pgvector).
     RETRIEVE_DRIVER: postgres
-    # -- Storage type: local, or s3 for any S3-compatible object storage (see the S3_* variables in .env.example)
-    STORAGE_TYPE: local
-    LOCAL_STORAGE_BASE_DIR: /data/files
     # -- Retry an interrupted migration automatically. Off by default: it is only safe
     # when the failed migration can run twice. See docs/migration-troubleshooting.md.
     AUTO_RECOVER_DIRTY: "false"
@@ -114,6 +111,15 @@ app:
   extraEnv: []
   # - name: OLLAMA_BASE_URL
   #   value: "http://ollama:11434"
+
+  # -- Hosts the app may reach although they resolve to private addresses
+  # (SSRF_WHITELIST_EXTRA: exact names, *.example.com wildcards, IPs or
+  # CIDRs). The chart already adds the host of the deployment storage (see
+  # `storage`), which the app cannot work without; list your own additions
+  # here rather than in extraEnv, where a second SSRF_WHITELIST_EXTRA would
+  # replace the chart's entry instead of adding to it.
+  ssrfWhitelistExtra: []
+  # - ollama.ollama.svc
 
   # -- Service configuration
   service:
@@ -246,10 +252,6 @@ docreader:
   securityContext:
     # runAsNonRoot: true  # Disabled - official images run as root
     allowPrivilegeEscalation: false
-
-  # -- Environment variables
-  env:
-    STORAGE_TYPE: local
 
   # -- Service configuration
   service:
@@ -463,16 +465,148 @@ redis:
   affinity: {}
 
 # -----------------------------------------------------------------------------
-# Data Files Storage
+# File Storage
 # -----------------------------------------------------------------------------
-dataFiles:
-  persistence:
-    # -- Enable persistence for uploaded files
-    enabled: true
-    # -- Size of the PVC
-    size: 10Gi
-    # -- Use existing PVC (leave empty to create new)
-    existingClaim: ""
+# Where uploaded documents, extracted images and exports are kept: the
+# deployment storage, which the app records as the storage backend "env" and
+# every workspace uses by default (website-docs/03-features/19-storage-backends.md).
+# The app rewrites that record from these settings on every start, and refuses
+# to start when they name a different location than one that already holds
+# files: changing storage.type, the bucket or a path prefix on a release with
+# data is a data migration, not an upgrade.
+storage:
+  # -- Where files are stored:
+  # `rustfs` - a RustFS server run by this chart (S3-compatible; the default,
+  #   as in docker-compose);
+  # `s3` - an S3-compatible service you run or buy (AWS S3, MinIO, Aliyun OSS,
+  #   Tencent COS, Volcengine TOS, Huawei OBS, ...), configured under storage.s3;
+  # `local` - a volume mounted into the app. One app replica only: the chart
+  #   refuses to render with app.replicaCount > 1.
+  type: rustfs
+
+  # -- Storage providers workspaces may use, the deployment storage included
+  # (STORAGE_ALLOW_LIST). Empty lets the chart choose what this deployment can
+  # actually hold: `s3` always, and `local` only when storage.type is local,
+  # since that is the only case with a volume behind the local directory. A
+  # workspace's local backend on any other type would write into the pod's
+  # own filesystem and lose its files with the pod.
+  # @default -- [] (chart decides)
+  allowList: []
+  # - s3
+
+  # -- Settings for the S3 API. storage.type=s3 reads all of them; with
+  # storage.type=rustfs only bucket and pathPrefix apply, because the chart
+  # runs that server and fixes its endpoint, region, SSL and addressing.
+  # Credentials are secrets.storageAccessKey / secrets.storageSecretKey.
+  s3:
+    # -- Endpoint URL, with or without a scheme (S3_ENDPOINT). Empty means AWS
+    # S3, whose endpoint the SDK derives from the region. A host that resolves
+    # to a private address (an in-cluster MinIO, a VPC endpoint) is added to
+    # the app's SSRF allow list automatically.
+    endpoint: ""
+    # -- Region (S3_REGION). Required for storage.type=s3.
+    region: us-east-1
+    # -- Bucket (S3_BUCKET_NAME). The app creates it on first use when the
+    # credentials allow that.
+    bucket: yuheng
+    # -- Key prefix inside the bucket (S3_PATH_PREFIX)
+    pathPrefix: yuheng/
+    # -- Use https when the endpoint has no scheme (S3_USE_SSL)
+    useSSL: true
+    # -- auto | path | virtual (S3_ADDRESSING_STYLE). auto picks
+    # virtual-hosted URLs for AWS and path-style for every other endpoint;
+    # Aliyun OSS, Tencent COS, Volcengine TOS and Huawei OBS need virtual.
+    addressingStyle: auto
+
+  local:
+    # -- Subdirectory of the volume that holds the deployment storage
+    # (LOCAL_STORAGE_PATH_PREFIX); empty is the volume root.
+    pathPrefix: ""
+    persistence:
+      # -- Keep files on a PersistentVolumeClaim. Without it they live in an
+      # emptyDir and are lost whenever the app pod is replaced.
+      enabled: true
+      # -- Size of the PVC
+      size: 10Gi
+      # -- Storage class of the PVC (default: global.storageClass; "-" for
+      # the cluster default)
+      storageClass: ""
+      # -- Use existing PVC (leave empty to create new)
+      existingClaim: ""
+
+  # -- The bundled RustFS server (storage.type=rustfs). A single node with a
+  # single volume, which is what docker-compose runs: it has no redundancy of
+  # its own, so it is as durable as the volume under it. For replicated object
+  # storage run a dedicated cluster and use storage.type=s3.
+  rustfs:
+    image:
+      # -- Image repository. A third-party image, so global.imageRegistry
+      # does not apply.
+      repository: rustfs/rustfs
+      # -- Image tag. Informational once a digest is set.
+      tag: latest
+      # -- Image digest, the one docker-compose.yml pins. RustFS is still
+      # pre-1.0 (1.0.0-rc.5 here) and a floating tag could change the on-disk
+      # format underneath the data; keep the two files in step.
+      digest: sha256:b7014e0ce2bc703c1316b3ef760e29dfae61fe4a50d1a66fa89638e0f8ea211f
+
+    # -- Resource requests and limits
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+    # -- Pod security context, merged over global.podSecurityContext. The
+    # image runs as the unprivileged user rustfs (10001); fsGroup makes a
+    # freshly provisioned volume writable for it, and OnRootMismatch keeps a
+    # restart from walking every object to re-chown it.
+    podSecurityContext:
+      runAsUser: 10001
+      runAsGroup: 10001
+      runAsNonRoot: true
+      fsGroup: 10001
+      fsGroupChangePolicy: OnRootMismatch
+
+    # -- Container security context. RustFS writes only to its data volume
+    # once its logs go to stdout, so the root filesystem can be read-only.
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
+
+    persistence:
+      # -- Enable persistence. Without it every object is lost with the pod.
+      enabled: true
+      # -- Size of the PVC: every uploaded document and extracted image.
+      size: 20Gi
+      # -- Storage class of the PVC (default: global.storageClass; "-" for
+      # the cluster default)
+      storageClass: ""
+      # -- Use existing PVC (leave empty to create new)
+      existingClaim: ""
+
+    # -- Service configuration. The Service is named "rustfs", which is the
+    # endpoint the app is given.
+    service:
+      type: ClusterIP
+      # -- S3 API port
+      port: 9000
+      # -- Web console port (reach it with kubectl port-forward)
+      consolePort: 9001
+
+    # -- Node selector
+    nodeSelector: {}
+
+    # -- Tolerations
+    tolerations: []
+
+    # -- Affinity rules
+    affinity: {}
 
 # -----------------------------------------------------------------------------
 # Ingress Configuration
@@ -545,9 +679,21 @@ secrets:
   # SYSTEM_AES_KEY exclusively. The Go app no longer reads TENANT_AES_KEY and
   # it has been removed from the Secret.
   systemAesKey: ""
+  # -- Access key of the deployment storage (S3_ACCESS_KEY). With
+  # storage.type=rustfs it is also the RustFS root user, and REQUIRED. With
+  # storage.type=s3 it is optional together with storageSecretKey: both empty
+  # selects the AWS default credential chain (IRSA, instance roles). Unused for
+  # storage.type=local.
+  storageAccessKey: ""
+  # -- Secret key of the deployment storage (S3_SECRET_KEY); with
+  # storage.type=rustfs the RustFS root password, and REQUIRED.
+  # Generate with: openssl rand -base64 24
+  storageSecretKey: ""
 
   # -- Use existing secret instead of creating one
-  # The secret must contain keys: DB_USER, DB_PASSWORD, DB_NAME, REDIS_USERNAME, REDIS_PASSWORD, JWT_SECRET, SYSTEM_AES_KEY
+  # The secret must contain keys: DB_USER, DB_PASSWORD, DB_NAME, REDIS_USERNAME, REDIS_PASSWORD, JWT_SECRET, SYSTEM_AES_KEY,
+  # and S3_ACCESS_KEY / S3_SECRET_KEY for storage.type=rustfs (optional for s3: absent means the AWS default credential
+  # chain), plus COLLAB_SHARED_SECRET and NEO4J_USERNAME / NEO4J_PASSWORD when those components are enabled.
   existingSecret: ""
 
 # -----------------------------------------------------------------------------

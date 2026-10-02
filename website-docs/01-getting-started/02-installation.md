@@ -274,7 +274,7 @@ make docker-build-app / docker-build-docreader / docker-build-frontend
 
 `helm/Chart.yaml`：chart 名 `yuheng`，`appVersion` 为 `v0.1.0`，要求 Kubernetes >= 1.25.0。
 
-Chart 包含 `app`、`frontend`、`docreader`、`postgresql`（ParadeDB 镜像）、`redis`，可选启用 `neo4j`、在线文档（`docs.enabled`）与协同服务（`collab.enabled`）。本版本不发布镜像，请自行构建、推到自己的仓库，再用 `global.imageRegistry` 告诉 chart 去哪里拉（`<仓库>/yuheng-app` 等，标签默认 `appVersion`；单个组件可用 `image.repository` / `image.tag` 覆盖）。不设时 `helm install` / `helm template` 直接报错，而不是装出一堆拉不到镜像的 Pod。构建与推送步骤见 `helm/README.md` 的「Images」。
+Chart 包含 `app`、`frontend`、`docreader`、`postgresql`（ParadeDB 镜像）、`redis`，默认还带一个 RustFS 存文件（见下文「文件存储」），可选启用 `neo4j`、在线文档（`docs.enabled`）与协同服务（`collab.enabled`）。本版本不发布镜像，请自行构建、推到自己的仓库，再用 `global.imageRegistry` 告诉 chart 去哪里拉（`<仓库>/yuheng-app` 等，标签默认 `appVersion`；单个组件可用 `image.repository` / `image.tag` 覆盖）。不设时 `helm install` / `helm template` 直接报错，而不是装出一堆拉不到镜像的 Pod。构建与推送步骤见 `helm/README.md` 的「Images」。
 
 `helm/values.yaml` 关键配置：
 
@@ -286,7 +286,6 @@ app:
   env:
     GIN_MODE: release
     RETRIEVE_DRIVER: postgres      # 只支持 postgres（ParadeDB + pgvector）
-    STORAGE_TYPE: local            # local / s3（任何 S3 兼容服务）
     STREAM_MANAGER_TYPE: redis
 postgresql:
   enabled: true
@@ -294,8 +293,13 @@ postgresql:
 redis:
   enabled: true
   persistence: { enabled: true, size: 1Gi }
-dataFiles:
-  persistence: { enabled: true, size: 10Gi }
+storage:
+  type: rustfs                      # rustfs（默认，chart 自带）/ s3（外部 S3 兼容服务）/ local（卷，仅单副本）
+  s3: { bucket: yuheng, pathPrefix: yuheng/ }   # type=s3 时还有 endpoint / region / useSSL / addressingStyle
+  rustfs:
+    persistence: { enabled: true, size: 20Gi }
+  local:
+    persistence: { enabled: true, size: 10Gi }
 docs:
   enabled: false
 collab:
@@ -306,16 +310,27 @@ secrets:                            # 或用 existingSecret 引用已有 Secret
   jwtSecret: ""                     # 必填，至少 32 个字符
   systemAesKey: ""                  # 32 字节；留空时首次安装随机生成并在升级时复用
   collabSharedSecret: ""            # collab.enabled 时必填，至少 16 个字符
+  storageAccessKey: ""              # storage.type=rustfs 时必填（RustFS 的 root 用户，app 也用它）
+  storageSecretKey: ""              # 同上；type=s3 时与 storageAccessKey 同填或同空（同空走 AWS 默认凭证链）
 ```
 
 ```bash
 helm install yuheng ./helm -n yuheng --create-namespace \
   --set global.imageRegistry=registry.example.com/yuheng \
   --set secrets.dbPassword=xxx --set secrets.redisPassword=xxx \
-  --set secrets.jwtSecret=$(openssl rand -hex 32) --set secrets.systemAesKey=$(openssl rand -hex 16)
+  --set secrets.jwtSecret=$(openssl rand -hex 32) --set secrets.systemAesKey=$(openssl rand -hex 16) \
+  --set secrets.storageAccessKey=yuheng --set secrets.storageSecretKey=$(openssl rand -hex 24)
 ```
 
 `systemAesKey` 建议显式设置：留空时生成的随机值保存在 chart 创建的 Secret 里，一旦这个 Secret 被删除重建，旧数据就再也解不开。app 的 `startupProbe` 与 `livenessProbe` 指向 `/health`，`readinessProbe` 指向 `/ready`。
+
+**文件存储**（`storage.type`，详见 `helm/README.md` 的「File storage」）：
+
+- `rustfs`（默认）：与 docker compose 一样，chart 自己跑一个 RustFS（同一个按 digest 固定的镜像，单副本 Deployment + PVC，Service 名为 `rustfs`），app 通过 `http://rustfs:9000` 访问。`secrets.storageAccessKey` / `storageSecretKey` 既是 RustFS 的 root 凭证也是 app 的凭证，必填。桶（`storage.s3.bucket`）由 app 首次使用时自动创建，不需要初始化 Job。它是单节点、无冗余的，可靠性等于底下那块卷，要和数据库一起备份；需要多副本对象存储时自建集群并改用 `s3`。
+- `s3`：外部 S3 兼容服务（AWS S3、MinIO、阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS）。在 `storage.s3` 里设 `endpoint`（留空即 AWS）、`region`、`bucket`、`pathPrefix`、`useSSL`、`addressingStyle`（OSS / COS / TOS / OBS 必须 `virtual`）；两把密钥都不填时走 AWS 默认凭证链（EKS 上用 `serviceAccount.annotations` 配 IRSA）。
+- `local`：文件写在挂进 app 的 ReadWriteOnce 卷上，只支持一个 app 副本——`app.replicaCount` 大于 1 时 chart 直接拒绝渲染。docreader 以只读方式挂同一个卷、按路径直读大视频，因此会被调度到 app 所在的节点。
+
+chart 会把存储端点的主机（`rustfs` 或 `storage.s3.endpoint` 的主机）加进 app 的 `SSRF_WHITELIST_EXTRA`，否则 app 的 S3 客户端会拒绝解析到私网地址的集群内服务；其他需要放行的主机写在 `app.ssrfWhitelistExtra`。`STORAGE_ALLOW_LIST` 默认只放行 `s3`（`storage.type=local` 时再加 `local`）。已经存了文件之后不能再改存储位置（类型、端点、区域、桶、路径前缀），app 会拒绝启动；从 chart 0.3.x 升级、继续用原来卷上文件的，要设 `storage.type=local` 并把 `dataFiles.persistence.*` 挪到 `storage.local.persistence.*`——不能直接用默认值升级：旧 chart 的数据卷没有 keep 注解，Helm 会在旧 Pod 释放它后把它连同文件一起删掉（0.4.0 起存文件的 PVC 都带 `helm.sh/resource-policy: keep`），见 `helm/README.md` 的「Upgrading」。
 
 chart 的 ParadeDB 镜像（`postgresql.image.tag`）与 `docker-compose.yml` 一致，都是 `v0.22.2-pg17`。从旧 chart（`v0.18.9-pg17`）升级时要在数据库里执行一次 `ALTER EXTENSION pg_search UPDATE;`，见 `helm/README.md` 的「Upgrading」。
 
@@ -352,8 +367,9 @@ flowchart TB
     subgraph k8s["Kubernetes (Helm)"]
         direction LR
         ING["Ingress"] --> FE2["frontend Deployment"] --> A2["app Deployment"]
-        A2 --> PVC1[("PVC: postgres 10Gi / redis 1Gi / data-files 10Gi")]
+        A2 --> PVC1[("PVC: postgres 10Gi / redis 1Gi")]
         A2 --> D2["docreader Deployment"]
+        A2 --> S2[("rustfs Deployment + PVC 20Gi")]
     end
 ```
 

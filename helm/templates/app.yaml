@@ -5,6 +5,7 @@ SPDX-License-Identifier: MIT
 
 Yuheng Backend API Server Deployment and Service.
 */}}
+{{- include "yuheng.storage.validate" . }}
 {{- if .Values.app.enabled }}
 apiVersion: apps/v1
 kind: Deployment
@@ -19,10 +20,17 @@ spec:
     matchLabels:
       {{- include "yuheng.componentSelectorLabels" (dict "component" "app" "context" .) | nindent 6 }}
   strategy:
+    {{- if eq .Values.storage.type "local" }}
+    # Local storage is a ReadWriteOnce volume: a surge pod scheduled onto
+    # another node could never attach it and would hold the rollout forever,
+    # so the old pod goes first and the new one takes over its volume.
+    type: Recreate
+    {{- else }}
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
+    {{- end }}
   template:
     metadata:
       labels:
@@ -106,13 +114,15 @@ spec:
                 secretKeyRef:
                   name: {{ include "yuheng.secretName" . }}
                   key: SYSTEM_AES_KEY
-            # Retrieval & Storage
+            # Retrieval
             - name: RETRIEVE_DRIVER
               value: {{ .Values.app.env.RETRIEVE_DRIVER | quote }}
-            - name: STORAGE_TYPE
-              value: {{ .Values.app.env.STORAGE_TYPE | quote }}
-            - name: LOCAL_STORAGE_BASE_DIR
-              value: {{ .Values.app.env.LOCAL_STORAGE_BASE_DIR | quote }}
+            # File storage (storage.* in values.yaml)
+            {{- include "yuheng.storage.env" . | nindent 12 }}
+            {{- with include "yuheng.app.ssrfWhitelistExtra" . }}
+            - name: SSRF_WHITELIST_EXTRA
+              value: {{ . | quote }}
+            {{- end }}
             # Document reader
             - name: DOCREADER_ADDR
               value: "docreader:50051"
@@ -180,9 +190,11 @@ spec:
             # Additional environment variables
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- if eq .Values.storage.type "local" }}
           volumeMounts:
             - name: data-files
               mountPath: /data/files
+          {{- end }}
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}
           {{- with .Values.app.startupProbe }}
@@ -197,14 +209,10 @@ spec:
           readinessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- if eq .Values.storage.type "local" }}
       volumes:
-        - name: data-files
-          {{- if .Values.dataFiles.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ .Values.dataFiles.persistence.existingClaim | default (printf "%s-data-files" (include "yuheng.fullname" .)) }}
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
+        {{- include "yuheng.storage.localVolume" . | nindent 8 }}
+      {{- end }}
       {{- with .Values.app.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

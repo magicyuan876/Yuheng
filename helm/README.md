@@ -32,14 +32,20 @@ helm install yuheng ./helm \
   --set global.imageRegistry=<your-registry>/yuheng \
   --set secrets.dbPassword=<your-db-password> \
   --set secrets.redisPassword=<your-redis-password> \
-  --set secrets.jwtSecret=<your-jwt-secret>
+  --set secrets.jwtSecret=<your-jwt-secret> \
+  --set secrets.storageAccessKey=<rustfs-user> \
+  --set secrets.storageSecretKey=<rustfs-password>
 ```
+
+Files go to the bundled RustFS by default; see [File storage](#file-storage)
+for an external S3-compatible service or a local volume.
 
 ## Images
 
 The chart runs four images that come from this repository — `yuheng-app`,
 `yuheng-ui` (frontend), `yuheng-docreader` and, with `collab.enabled`,
-`yuheng-collab` — and pulls the third-party ones (ParadeDB, Redis, Neo4j) from
+`yuheng-collab` — and pulls the third-party ones (ParadeDB, Redis, RustFS,
+Neo4j) from
 Docker Hub as usual. Nothing publishes the first four: the release workflow
 only runs on version tags and none has been cut. So the chart has no default
 for them, and `helm install` / `helm template` stop with an error naming
@@ -88,13 +94,13 @@ images kept under different paths. A private registry needs
     │  (Vue.js)   │                 │   (Go/Gin)  │
     └─────────────┘                 └──────┬──────┘
                                            │
-                    ┌──────────────────────┼──────────────────────┐
-                    │                      │                      │
-                    ▼                      ▼                      ▼
-             ┌─────────────┐        ┌─────────────┐        ┌─────────────┐
-             │  Docreader  │        │  PostgreSQL │        │    Redis    │
-             │   (gRPC)    │        │  (ParadeDB) │        │   (Queue)   │
-             └─────────────┘        └─────────────┘        └─────────────┘
+           ┌───────────────┬───────────────┼───────────────┐
+           │               │               │               │
+           ▼               ▼               ▼               ▼
+    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+    │  Docreader  │ │  PostgreSQL │ │    Redis    │ │   RustFS    │  (or an external S3
+    │   (gRPC)    │ │  (ParadeDB) │ │   (Queue)   │ │  (files)    │   service, or a volume)
+    └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
 ```
 
 ## Installation
@@ -108,7 +114,9 @@ helm install yuheng ./helm \
   --set global.imageRegistry=registry.example.com/yuheng \
   --set secrets.dbPassword=secure-password \
   --set secrets.redisPassword=secure-password \
-  --set secrets.jwtSecret=$(openssl rand -base64 32)
+  --set secrets.jwtSecret=$(openssl rand -base64 32) \
+  --set secrets.storageAccessKey=yuheng \
+  --set secrets.storageSecretKey=$(openssl rand -base64 24)
 ```
 
 ### With Ingress
@@ -124,7 +132,9 @@ helm install yuheng ./helm \
   --set ingress.tls.secretName=yuheng-tls \
   --set secrets.dbPassword=secure-password \
   --set secrets.redisPassword=secure-password \
-  --set secrets.jwtSecret=$(openssl rand -base64 32)
+  --set secrets.jwtSecret=$(openssl rand -base64 32) \
+  --set secrets.storageAccessKey=yuheng \
+  --set secrets.storageSecretKey=$(openssl rand -base64 24)
 ```
 
 ### With External LLM (Ollama)
@@ -140,7 +150,9 @@ helm install yuheng ./helm \
   --set app.extraEnv[1].value=qwen2.5:7b \
   --set secrets.dbPassword=secure-password \
   --set secrets.redisPassword=secure-password \
-  --set secrets.jwtSecret=$(openssl rand -base64 32)
+  --set secrets.jwtSecret=$(openssl rand -base64 32) \
+  --set secrets.storageAccessKey=yuheng \
+  --set secrets.storageSecretKey=$(openssl rand -base64 24)
 ```
 
 ### Production Installation
@@ -167,6 +179,13 @@ postgresql:
   persistence:
     size: 100Gi
 
+storage:                          # several app replicas need object storage
+  type: s3
+  s3:
+    endpoint: https://s3.eu-west-1.amazonaws.com
+    region: eu-west-1
+    bucket: yuheng-files
+
 ingress:
   enabled: true
   host: yuheng.company.com
@@ -192,7 +211,7 @@ helm install yuheng ./helm \
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `global.imageRegistry` | Registry/path of Yuheng's own images (see [Images](#images)) | `""` (required) |
-| `global.storageClass` | Storage class for PVCs | `""` |
+| `global.storageClass` | Storage class for PVCs (`-` for the cluster default) | `""` |
 | `global.imagePullSecrets` | Image pull secrets | `[]` |
 | `global.podSecurityContext` | Pod security context | See values.yaml |
 | `global.containerSecurityContext` | Container security context | See values.yaml |
@@ -216,6 +235,7 @@ helm install yuheng ./helm \
 | `app.resources` | Resource limits | See values.yaml |
 | `app.env` | Environment variables | See values.yaml |
 | `app.extraEnv` | Additional env vars | `[]` |
+| `app.ssrfWhitelistExtra` | Private hosts the app may reach (`SSRF_WHITELIST_EXTRA`), in addition to the storage host the chart adds | `[]` |
 
 ### Frontend
 
@@ -246,6 +266,34 @@ helm install yuheng ./helm \
 | `redis.persistence.enabled` | Enable persistence | `true` |
 | `redis.persistence.size` | PVC size | `1Gi` |
 
+### File storage
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `storage.type` | `rustfs` (bundled), `s3` (external) or `local` (volume, one app replica) | `rustfs` |
+| `storage.allowList` | Providers workspaces may use (`STORAGE_ALLOW_LIST`); empty: `s3`, plus `local` when `storage.type=local` | `[]` |
+| `storage.s3.endpoint` | Endpoint, with or without scheme; empty is AWS S3 (`s3` only) | `""` |
+| `storage.s3.region` | Region (`s3` only) | `us-east-1` |
+| `storage.s3.bucket` | Bucket, created by the app on first use (`rustfs` and `s3`) | `yuheng` |
+| `storage.s3.pathPrefix` | Key prefix in the bucket (`rustfs` and `s3`) | `yuheng/` |
+| `storage.s3.useSSL` | https when the endpoint has no scheme (`s3` only) | `true` |
+| `storage.s3.addressingStyle` | `auto`, `path` or `virtual` (`s3` only) | `auto` |
+| `storage.local.pathPrefix` | Subdirectory of the volume (`local` only) | `""` |
+| `storage.local.persistence.enabled` | PVC instead of an emptyDir | `true` |
+| `storage.local.persistence.size` | PVC size | `10Gi` |
+| `storage.local.persistence.storageClass` | PVC storage class (default `global.storageClass`) | `""` |
+| `storage.local.persistence.existingClaim` | Use an existing PVC | `""` |
+| `storage.rustfs.image.repository` | RustFS image | `rustfs/rustfs` |
+| `storage.rustfs.image.tag` / `.digest` | Tag and the digest docker-compose.yml pins | `latest` / `sha256:b7014e0c…` |
+| `storage.rustfs.resources` | Resource limits | See values.yaml |
+| `storage.rustfs.podSecurityContext` | Pod security context (uid/fsGroup 10001) | See values.yaml |
+| `storage.rustfs.securityContext` | Container security context (read-only root, no capabilities) | See values.yaml |
+| `storage.rustfs.persistence.enabled` | PVC instead of an emptyDir | `true` |
+| `storage.rustfs.persistence.size` | PVC size | `20Gi` |
+| `storage.rustfs.persistence.storageClass` | PVC storage class (default `global.storageClass`) | `""` |
+| `storage.rustfs.persistence.existingClaim` | Use an existing PVC | `""` |
+| `storage.rustfs.service.port` / `.consolePort` | S3 API and console ports | `9000` / `9001` |
+
 ### Ingress
 
 | Parameter | Description | Default |
@@ -265,7 +313,9 @@ helm install yuheng ./helm \
 | `secrets.dbName` | Database name | `yuheng` |
 | `secrets.redisPassword` | Redis password | `""` (required) |
 | `secrets.jwtSecret` | JWT signing secret | `""` (required) |
-| `secrets.existingSecret` | Use existing secret | `""` |
+| `secrets.storageAccessKey` | Storage access key; the RustFS root user | `""` (required for `rustfs`) |
+| `secrets.storageSecretKey` | Storage secret key; the RustFS root password | `""` (required for `rustfs`) |
+| `secrets.existingSecret` | Use existing secret (keys listed in values.yaml) | `""` |
 
 ### Optional Components
 
@@ -320,6 +370,69 @@ believe they are correct, and whichever stores last overwrites the other.
 That failure is silent, which is why the chart templates the Redis URL rather
 than leaving it to be remembered.
 
+## File storage
+
+Uploaded documents, the images extracted from them and exports are kept in
+the *deployment storage*: one record the app rewrites from its environment on
+every start and every workspace uses by default
+(`website-docs/03-features/19-storage-backends.md`). `storage.type` chooses
+it.
+
+**`rustfs` (default).** The chart runs RustFS, the S3-compatible server
+docker-compose runs, from the same image digest: one Deployment (Recreate)
+with one PVC, a Service named `rustfs`, and the app pointed at
+`http://rustfs:9000`. `secrets.storageAccessKey` / `storageSecretKey` are its
+root credentials and the app's, so the two cannot drift apart; they are
+required, like the database password, because whoever holds them controls
+every stored file. The app creates the bucket (`storage.s3.bucket`) on its
+first upload, as under compose, so there is no init job. RustFS here is a
+single server without redundancy: it is as durable as its volume, so back the
+volume up with the database. For replicated object storage run a RustFS or
+MinIO cluster of your own and use `s3`.
+
+**`s3`.** Any S3-compatible service: AWS S3, MinIO, Aliyun OSS, Tencent COS,
+Volcengine TOS, Huawei OBS. Set `storage.s3.endpoint` (empty is AWS),
+`region`, `bucket`, `pathPrefix`, `useSSL` and `addressingStyle` (OSS, COS,
+TOS and OBS need `virtual`). Give `secrets.storageAccessKey` and
+`storageSecretKey` together, or neither: without keys the app uses the AWS
+default credential chain, so on EKS annotate the ServiceAccount for IRSA
+(`serviceAccount.annotations`). The keys need permission to create the bucket,
+or create it beforehand.
+
+```bash
+helm install yuheng ./helm ... \
+  --set storage.type=s3 \
+  --set storage.s3.endpoint=https://oss-cn-hangzhou.aliyuncs.com \
+  --set storage.s3.region=cn-hangzhou \
+  --set storage.s3.bucket=yuheng-files \
+  --set storage.s3.addressingStyle=virtual \
+  --set secrets.storageAccessKey=<key> --set secrets.storageSecretKey=<secret>
+```
+
+**`local`.** Files on a ReadWriteOnce volume mounted into the app. One app
+replica only: the chart refuses to render with `app.replicaCount` above 1,
+and the app Deployment uses Recreate so that a rollout never waits on a
+volume another node holds. docreader mounts the same volume read-only to read
+large videos in place instead of through gRPC, and is scheduled onto the app's
+node for that (a `docreader.affinity` of your own replaces the rule).
+
+Two rules hold for every type:
+
+- **The app must reach its storage.** Its S3 client refuses hosts that resolve
+  to private addresses unless they are allow-listed, which every in-cluster
+  Service does, so the chart adds the storage endpoint's host to
+  `SSRF_WHITELIST_EXTRA` (`rustfs`, or the host of `storage.s3.endpoint`). Put
+  further hosts in `app.ssrfWhitelistExtra`, not in `app.extraEnv`.
+- **The location is fixed once files exist.** The app refuses to start when
+  `storage.type`, the endpoint, region, bucket or a path prefix names a
+  different place than the one holding files. Moving storage is a data
+  migration, not a `helm upgrade`.
+
+`STORAGE_ALLOW_LIST` defaults to `s3`, plus `local` only with
+`storage.type=local`: a workspace's local backend on any other type would
+write into the pod's own filesystem and lose its files with the pod, so the
+chart refuses such an `allowList` too.
+
 ## Security Best Practices
 
 ### Secret Management
@@ -350,7 +463,9 @@ values.yaml):
 
 - every pod uses the `RuntimeDefault` seccomp profile, and every container has
   `allowPrivilegeEscalation: false`;
-- only the collaboration service runs with `runAsNonRoot: true`. The app and
+- only the collaboration service and RustFS run with `runAsNonRoot: true`
+  (RustFS also with a read-only root filesystem and every capability
+  dropped). The app and
   docreader images start as root and drop to an unprivileged user in their
   entrypoint (after fixing volume ownership); the frontend, PostgreSQL and
   Redis images run as their upstream images do;
@@ -365,6 +480,27 @@ helm upgrade yuheng ./helm \
   --namespace yuheng \
   --reuse-values
 ```
+
+**Chart 0.3.x → 0.4.0.** File storage moves into a `storage` section and
+defaults to the bundled RustFS, as in docker-compose. The old values are gone:
+`app.env.STORAGE_TYPE`, `app.env.LOCAL_STORAGE_BASE_DIR`,
+`docreader.env.STORAGE_TYPE` (docreader never read it) and `dataFiles.*`.
+
+- A release that keeps its files keeps local storage: set
+  `storage.type=local` and move `dataFiles.persistence.*` to
+  `storage.local.persistence.*`. The PVC keeps its name
+  (`<release>-yuheng-data-files`), so the files stay where they are.
+  **Do not upgrade with the default.** The new pod would point at RustFS, see
+  files recorded on the volume and refuse to start, which is harmless; but the
+  0.3 chart's PVC carries no keep annotation, so Helm deletes it, and the
+  files with it, as soon as the old app pod lets go. From 0.4.0 on, the
+  storage PVCs are annotated `helm.sh/resource-policy: keep` and survive a
+  changed `storage.type`.
+- A new or empty release needs `secrets.storageAccessKey` and
+  `secrets.storageSecretKey` (or `S3_ACCESS_KEY` / `S3_SECRET_KEY` in an
+  `existingSecret`); the chart refuses to render without them.
+- Moving an existing release from local files to RustFS or S3 is a data
+  migration (see the storage-backends page); there is no in-place switch.
 
 **Chart 0.2.x → 0.3.0.** Redis is served by Valkey (`valkey/valkey:8.1.10-alpine`),
 the BSD-licensed continuation of Redis, as in docker-compose. The old default
@@ -402,6 +538,10 @@ helm uninstall yuheng --namespace yuheng
 # Optional: Remove PVCs
 kubectl delete pvc -n yuheng -l app.kubernetes.io/instance=yuheng
 ```
+
+The PVCs holding stored files (`<release>-yuheng-rustfs`,
+`<release>-yuheng-data-files`) are annotated `helm.sh/resource-policy: keep`
+and outlive `helm uninstall` on purpose; the command above removes them too.
 
 ## Troubleshooting
 
