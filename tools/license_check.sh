@@ -85,11 +85,17 @@ check_attribution() {
     && pass "mcp-server/LICENSE keeps its original copyright" \
     || fail "mcp-server/LICENSE lost 'Copyright (c) 2024 WeKnora Team'"
 
-  # Every file that inherited a Tencent header must still say so.
+  # Every file that inherited a Tencent header must still say so. The list is
+  # the chart as the initial import (978b666) brought it in, written out because
+  # CI checks out shallow and cannot ask git; a template written here later is
+  # ours alone and carries no Tencent line. A listed file that has since been
+  # deleted owes nothing.
   local hdr missing=0
-  while IFS= read -r hdr; do
+  for hdr in helm/values.yaml helm/templates/{NOTES.txt,_helpers.tpl,app.yaml,docreader.yaml,frontend.yaml} \
+    helm/templates/{ingress.yaml,neo4j.yaml,postgres.yaml,pvc.yaml,redis.yaml,secrets.yaml,serviceaccount.yaml}; do
+    [[ -f $hdr ]] || continue
     grep -q "Portions Copyright (c) 2025 Tencent" "$hdr" || { red "      $hdr"; missing=1; }
-  done < <(git ls-files 'helm/templates/*' helm/values.yaml)
+  done
   (( missing )) && fail "helm files above lost their Tencent attribution header" \
                 || pass "helm files keep 'Portions Copyright (c) 2025 Tencent'"
 
