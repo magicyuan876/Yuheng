@@ -82,7 +82,7 @@ Optional components enabled:
 
 Uploaded files are stored in the bundled RustFS, bucket "{{ .Values.storage.s3.bucket }}" under
 "{{ .Values.storage.s3.pathPrefix }}", on {{ if .Values.storage.rustfs.persistence.enabled }}the PVC {{ .Values.storage.rustfs.persistence.existingClaim | default (printf "%s-rustfs" (include "yuheng.fullname" .)) }} ({{ .Values.storage.rustfs.persistence.size }}){{ else }}an emptyDir: they are LOST whenever the RustFS pod is replaced{{ end }}.
-The app creates the bucket on its first upload. RustFS is a single server
+The app creates the bucket the first time it needs it (an upload, or testing the backend). RustFS is a single server
 with no redundancy of its own; back up its volume like the database's.
 
   # RustFS console (sign in with secrets.storageAccessKey / storageSecretKey)

@@ -62,7 +62,7 @@ Helm chart（`helm/`）用 `storage.type` 选部署存储，取值与 compose �
 入口在「设置 → 存储引擎」（「数据与扩展」分组）：
 
 1. 新建后端，选 provider（`local` 或 `s3`）。选 `s3` 时可以从预设填充端点、区域与寻址方式：RustFS、MinIO、AWS S3、阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS；
-2. **保存前点「测试」**：连通性测试会真实读写一次，配错的桶或过期的密钥能立刻发现，而不是等到上传文档时才报错；
+2. **保存前点「测试」**：测试用这套参数真实连一次存储：端点不通、密钥不对、没有建桶权限都能立刻发现，而不是等到上传文档时才报错。桶不存在时测试会把它建出来，和第一次上传时驱动的做法一样，所以全新的 RustFS 部署完马上就能测通；本地目录同理会被创建；
 3. 需要的话把它设为空间默认（`PUT /storage-backends/:id/default`，写入 `tenants.default_storage_backend_id`）。空间能看到的任何启用中的实例都可以设为默认：自己的、平台共享的、部署存储 `env`。新建知识库和文档空间不指定实例时用它；聊天图片、会话附件、临时文档这些不属于任何知识库的文件也写到它；
 4. 单个知识库想用别的实例，在知识库设置「存储与数据」分组的「存储引擎」页里选——对应 `knowledge_bases.storage_backend_id`。文档空间的绑定是 `docs_spaces.storage_backend_id`（`PUT /docs/spaces/:id/knowledge-base` 的 `storage_backend_id`，传空字符串表示改回空间默认）。
 

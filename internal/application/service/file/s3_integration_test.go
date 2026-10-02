@@ -53,17 +53,27 @@ func TestS3Integration(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	// The bucket does not exist yet, so the read-only probe must say so
-	// without creating it; the constructor must then create it.
-	if err := CheckS3Connectivity(ctx, opts); err == nil || !strings.Contains(err.Error(), "does not exist") {
-		t.Fatalf("CheckS3Connectivity on a missing bucket: err = %v, want a does-not-exist error", err)
+	// The bucket does not exist yet: the read-only probe says so, and testing
+	// the backend creates it, as the driver would on first use.
+	svc0, err := newS3Client(opts)
+	if err != nil {
+		t.Fatalf("newS3Client() error = %v", err)
+	}
+	if err := svc0.CheckConnectivity(ctx); err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("CheckConnectivity on a missing bucket: err = %v, want a does-not-exist error", err)
+	}
+	if err := PrepareS3Backend(ctx, opts); err != nil {
+		t.Fatalf("PrepareS3Backend() on a missing bucket: %v", err)
+	}
+	if err := svc0.CheckConnectivity(ctx); err != nil {
+		t.Fatalf("CheckConnectivity after PrepareS3Backend: %v", err)
+	}
+	if err := PrepareS3Backend(ctx, opts); err != nil {
+		t.Fatalf("PrepareS3Backend() on an existing bucket: %v", err)
 	}
 	svc, err := NewS3FileService(opts)
 	if err != nil {
-		t.Fatalf("NewS3FileService() (bucket auto-create) error = %v", err)
-	}
-	if err := CheckS3Connectivity(ctx, opts); err != nil {
-		t.Fatalf("CheckS3Connectivity after creation: %v", err)
+		t.Fatalf("NewS3FileService() error = %v", err)
 	}
 
 	const content = "hello from the s3 integration test"

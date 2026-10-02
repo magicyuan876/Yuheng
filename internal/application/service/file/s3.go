@@ -130,23 +130,46 @@ func newS3Client(opts S3Options) (*s3FileService, error) {
 	}, nil
 }
 
-// NewS3FileService creates an S3-compatible file service.
-// It verifies that the bucket exists and creates it if missing.
+// NewS3FileService creates an S3-compatible file service, creating its bucket
+// if it does not exist yet.
 func NewS3FileService(opts S3Options) (interfaces.FileService, error) {
 	svc, err := newS3Client(opts)
 	if err != nil {
 		return nil, err
 	}
-	exists, err := svc.bucketExists(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to check bucket: %w", err)
-	}
-	if !exists {
-		if err = svc.createBucket(context.Background()); err != nil {
-			return nil, fmt.Errorf("failed to create bucket: %w", err)
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), bucketSetupTimeout)
+	defer cancel()
+	if err := svc.ensureBucket(ctx); err != nil {
+		return nil, err
 	}
 	return svc, nil
+}
+
+// bucketSetupTimeout bounds the bucket check and creation, so an unreachable
+// endpoint fails the request that needed storage instead of hanging it.
+const bucketSetupTimeout = 30 * time.Second
+
+// ensureBucket makes the configured bucket exist. A bucket is part of what a
+// backend's configuration names, not something an operator is expected to
+// create beforehand: a fresh object store, such as the bundled RustFS on its
+// first start, has none.
+func (s *s3FileService) ensureBucket(ctx context.Context) error {
+	exists, err := s.bucketExists(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check bucket: %w", err)
+	}
+	if exists {
+		return nil
+	}
+	if err := s.createBucket(ctx); err != nil {
+		// Another replica, or a concurrent request, created it in between.
+		var owned *s3types.BucketAlreadyOwnedByYou
+		if errors.As(err, &owned) {
+			return nil
+		}
+		return fmt.Errorf("failed to create bucket: %w", err)
+	}
+	return nil
 }
 
 // bucketExists checks if the bucket exists
@@ -195,15 +218,21 @@ func (s *s3FileService) CheckConnectivity(ctx context.Context) error {
 	return err
 }
 
-// CheckS3Connectivity tests S3 connectivity using the provided settings.
-// It creates a temporary service instance internally and delegates to CheckConnectivity.
-func CheckS3Connectivity(ctx context.Context, opts S3Options) error {
+// PrepareS3Backend checks that the settings reach working storage the way a
+// driver built from them will use it: the endpoint answers, the credentials
+// are accepted, and the bucket exists, created here when missing exactly as
+// the driver would create it on first use. A read-only probe would report a
+// correct configuration as broken until the first upload happened to create
+// the bucket.
+func PrepareS3Backend(ctx context.Context, opts S3Options) error {
 	opts.PathPrefix = ""
 	svc, err := newS3Client(opts)
 	if err != nil {
 		return err
 	}
-	return svc.CheckConnectivity(ctx)
+	ctx, cancel := context.WithTimeout(ctx, bucketSetupTimeout)
+	defer cancel()
+	return svc.ensureBucket(ctx)
 }
 
 // parseS3FilePath extracts the object name from a provider scheme: s3://{bucket}/{objectKey}

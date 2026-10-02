@@ -384,8 +384,9 @@ with one PVC, a Service named `rustfs`, and the app pointed at
 `http://rustfs:9000`. `secrets.storageAccessKey` / `storageSecretKey` are its
 root credentials and the app's, so the two cannot drift apart; they are
 required, like the database password, because whoever holds them controls
-every stored file. The app creates the bucket (`storage.s3.bucket`) on its
-first upload, as under compose, so there is no init job. RustFS here is a
+every stored file. The app creates the bucket (`storage.s3.bucket`) the first
+time it needs it, on an upload or when an operator tests the backend, as under
+compose, so there is no init job. RustFS here is a
 single server without redundancy: it is as durable as its volume, so back the
 volume up with the database. For replicated object storage run a RustFS or
 MinIO cluster of your own and use `s3`.

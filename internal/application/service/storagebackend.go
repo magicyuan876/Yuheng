@@ -348,7 +348,8 @@ func (s *StorageBackendService) Test(ctx context.Context, backend *types.Storage
 		}
 		return driver.CheckConnectivity(ctx)
 	case types.StorageProviderS3:
-		return filesvc.CheckS3Connectivity(ctx, filesvc.S3Options{
+		// As for a local directory above, the bucket is created if missing.
+		return filesvc.PrepareS3Backend(ctx, filesvc.S3Options{
 			Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey,
 			BucketName: c.BucketName, UseSSL: c.UseSSL, AddressingStyle: c.AddressingStyle,
 		})
