@@ -107,11 +107,10 @@ func (h *AuditLogHandler) ListTenantAuditLog(c *gin.Context) {
 }
 
 // ListKnowledgeBaseActivity returns the durable activity projection for one
-// knowledge base. The route has already resolved KB access; this handler adds
-// an owner-tenant check so organization-shared consumers cannot inspect source
-// workspace actors or configuration history.
+// knowledge base. The route has already resolved KB access (the base belongs
+// to the caller's workspace); this handler only reads the stashed result.
 // @Summary      获取知识库活动记录
-// @Description  返回知识库的重要变更与后台任务入口。仅知识库创建者或所属空间管理员可读，共享空间不可读。
+// @Description  返回知识库的重要变更与后台任务入口。仅知识库创建者或所属空间管理员可读。
 // @Tags         知识库
 // @Produce      json
 // @Param        id        path   string  true   "知识库ID"
@@ -130,11 +129,6 @@ func (h *AuditLogHandler) ListKnowledgeBaseActivity(c *gin.Context) {
 	access, ok := middleware.KBAccessFromContext(c)
 	if !ok || access == nil || access.KnowledgeBase == nil || access.KnowledgeBase.ID != kbID {
 		c.Error(errors.NewNotFoundError("knowledge base not found"))
-		return
-	}
-	callerTenantID := c.GetUint64(types.TenantIDContextKey.String())
-	if callerTenantID == 0 || access.KnowledgeBase.TenantID != callerTenantID {
-		c.Error(errors.NewForbiddenError("knowledge base activity is only available in the owner workspace"))
 		return
 	}
 	actorID, _ := types.UserIDFromContext(ctx)

@@ -65,12 +65,13 @@ func RegisterInitializationRoutes(r *gin.RouterGroup, handler *handler.Initializ
 	// 初始化接口
 	// GetCurrentConfigByKB 是只读，Viewer+ 即可（KB 受限 key 可读其范围内的 KB）。
 	g.apiKeyRoute(r, http.MethodGet, "/initialization/config/:kbId",
-		apiKeyRetrieve(apiKeyFullAccess()), g.Viewer(), g.KBAccessRead("kbId"), handler.GetCurrentConfigByKB)
+		apiKeyRetrieve(apiKeyFullAccess()), g.Viewer(), g.KBAccess("kbId"), handler.GetCurrentConfigByKB)
 	// UpdateKBConfig 改 KB 的核心模型/storage 配置 —
-	// 跟 PUT /knowledge-bases/:id 同等敏感，挂同款 OwnedKB 矩阵 + KBAccessWrite
+	// 跟 PUT /knowledge-bases/:id 同等敏感，挂同款 OwnedKB 矩阵 + KBAccess
 	//（API-key 主体短路 Owned* 守卫，KB allow-list 只能靠 KBAccess 兜底）。
 	g.apiKeyRoute(r, http.MethodPut, "/initialization/config/:kbId",
-		apiKeyManageKnowledgeBases(apiKeyFullAccess()), g.OwnedKBOrAdminFromKbIDParam(), g.KBAccessWrite("kbId"), handler.UpdateKBConfig)
+		apiKeyManageKnowledgeBases(apiKeyFullAccess()), g.OwnedKBOrAdminFromKbIDParam(), g.KBAccess("kbId"),
+		handler.UpdateKBConfig)
 
 	// Ollama / 远程 API / 抽取等系统级检测/下载操作。这些不绑某个 KB，
 	// 会改空间级模型配置或拉远端模型；JWT 侧只读探测 Viewer+、变更 Admin+。

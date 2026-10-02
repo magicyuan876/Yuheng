@@ -32,33 +32,15 @@ func (s *knowledgeService) ListFAQEntries(ctx context.Context,
 		return nil, err
 	}
 
-	// Check if this is a shared knowledge base access
+	// A knowledge base is reachable only from its own workspace. The route
+	// guard already enforces this; the service repeats it so a direct caller
+	// gets the same answer, and the same 404 so ids cannot be probed.
 	tenantID := ctx.Value(types.TenantIDContextKey).(uint64)
-	effectiveTenantID := tenantID
-
-	// If the kb belongs to a different tenant, check for shared access
 	if kb.TenantID != tenantID {
-		// Cross-tenant reads through an org share are for signed-in users only.
-		if ctx.Value(types.UserIDContextKey) == nil {
-			return nil, werrors.NewForbiddenError("无权访问该知识库")
-		}
-		callerTenantRole := types.TenantRoleFromContext(ctx)
-
-		// Check if the caller's tenant has at least viewer permission via org sharing.
-		hasPermission, err := s.kbShareService.HasTenantKBPermission(ctx, kbID, tenantID, callerTenantRole, types.OrgRoleViewer)
-		if err != nil || !hasPermission {
-			return nil, werrors.NewForbiddenError("无权访问该知识库")
-		}
-
-		// Use the source tenant ID for data access
-		sourceTenantID, err := s.kbShareService.GetKBSourceTenant(ctx, kbID)
-		if err != nil {
-			return nil, werrors.NewForbiddenError("无权访问该知识库")
-		}
-		effectiveTenantID = sourceTenantID
+		return nil, werrors.NewNotFoundError("knowledge base not found")
 	}
 
-	faqKnowledge, err := s.findFAQKnowledge(ctx, effectiveTenantID, kb.ID)
+	faqKnowledge, err := s.findFAQKnowledge(ctx, tenantID, kb.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +50,8 @@ func (s *knowledgeService) ListFAQEntries(ctx context.Context,
 
 	chunkType := []types.ChunkType{types.ChunkTypeFAQ}
 	chunks, total, err := s.chunkRepo.ListPagedChunksByKnowledgeID(
-		ctx, effectiveTenantID, faqKnowledge.ID, page, chunkType, tagUUIDs, keyword, searchField, sortOrder, types.KnowledgeTypeFAQ,
+		ctx, tenantID, faqKnowledge.ID, page, chunkType, tagUUIDs, keyword, searchField, sortOrder,
+		types.KnowledgeTypeFAQ,
 		nil,
 	)
 	if err != nil {
@@ -89,7 +72,7 @@ func (s *knowledgeService) ListFAQEntries(ctx context.Context,
 		}
 	}
 	if len(tagIDs) > 0 {
-		tags, err := s.tagRepo.GetByIDs(ctx, effectiveTenantID, tagIDs)
+		tags, err := s.tagRepo.GetByIDs(ctx, tenantID, tagIDs)
 		if err == nil {
 			for _, tag := range tags {
 				tagNameMap[tag.ID] = tag.Name

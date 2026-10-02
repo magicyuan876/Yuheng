@@ -167,12 +167,9 @@ func serveResourceGrants(r *gin.Engine, files interfaces.FileStore, catalog inte
 }
 
 // serveKBScopedFiles registers the KB-scoped file proxy used to render images
-// embedded in a knowledge base's content (chunks / wiki pages). Unlike the
-// tenant-scoped /files route — which only serves the caller's own resources —
-// this route is gated by RequireKBAccess. That guard resolves own and
-// org-shared KBs and rewrites the request context's tenant ID to the KB's
-// *owner* (source) tenant, so the owner's images become reachable by tenants
-// that legitimately share the KB.
+// embedded in a knowledge base's content (chunks / wiki pages). It is gated by
+// RequireKBAccess, so the base must belong to the caller's workspace, and it
+// serves only that workspace's exported content — never raw uploads.
 //
 // Route:
 //   - GET /api/v1/knowledge-bases/:id/files?file_path=resource://<handle>
@@ -184,37 +181,34 @@ func serveKBScopedFiles(
 ) {
 	logger.Infof(context.Background(), "[Router] Serving KB-scoped files from /knowledge-bases/:id/files")
 	// API-key access mirrors /files: KB-restricted keys are denied (an
-	// arbitrary resource of the KB owner cannot be bounded to a key's
+	// arbitrary resource of the workspace cannot be bounded to a key's
 	// allow-list), while full-access and tenant-wide retrieve keys pass —
-	// KBAccessRead still confines them to KBs they may read (own /
-	// org-shared), exactly as it does for a JWT Viewer. The route is declared
-	// to the gate with the retrieve policy so it is reachable at all;
-	// AllowFileServeAPIKey then applies the stricter not-KB-restricted
-	// constraint.
+	// KBAccess still confines them to the workspace's own KBs, exactly as it
+	// does for a JWT Viewer. The route is declared to the gate with the
+	// retrieve policy so it is reachable at all; AllowFileServeAPIKey then
+	// applies the stricter not-KB-restricted constraint.
 	g.apiKeyRoute(r, http.MethodGet, "/knowledge-bases/:id/files",
 		apiKeyRetrieve(apiKeyFullAccess()),
 		middleware.AllowFileServeAPIKey(),
 		g.Viewer(),
-		g.KBAccessRead("id"),
+		g.KBAccess("id"),
 		newKBScopedFileServeHandler(files, catalog),
 	)
 }
 
 // newKBScopedFileServeHandler builds the handler backing serveKBScopedFiles.
-// The effective (owner) tenant is taken from the request context, which
-// RequireKBAccess has already rewritten to the KB's source tenant.
+// The workspace is taken from the request context.
 //
-// Two checks bound what a borrower can read. The resource must belong to the
-// owner, and its object must live in the owner's exports/ namespace, where
-// embedded chunk and wiki images are written: a borrower renders the
-// owner's content, never downloads the owner's raw uploads
-// ({tenant}/{knowledgeID}/...), which go through /knowledge/{id}/download and
-// its own permission check.
+// Two checks bound what a reader can get here. The resource must belong to the
+// workspace, and its object must live in the workspace's exports/ namespace,
+// where embedded chunk and wiki images are written: this route renders
+// content, it never hands out raw uploads ({tenant}/{knowledgeID}/...), which
+// go through /knowledge/{id}/download and its own, stricter, permission check.
 func newKBScopedFileServeHandler(files interfaces.FileStore, catalog interfaces.ResourceCatalog) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
-		ownerTenantID, ok := types.TenantIDFromContext(ctx)
-		if !ok || ownerTenantID == 0 {
+		tenantID, ok := types.TenantIDFromContext(ctx)
+		if !ok || tenantID == 0 {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: workspace context missing"})
 			return
 		}
@@ -222,27 +216,27 @@ func newKBScopedFileServeHandler(files interfaces.FileStore, catalog interfaces.
 		if !ok {
 			return
 		}
-		if resource.TenantID != ownerTenantID {
+		if resource.TenantID != tenantID {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: resource not accessible"})
 			return
 		}
-		if !secutils.IsKBExportsPath(resource.PhysicalPath, ownerTenantID) {
+		if !secutils.IsKBExportsPath(resource.PhysicalPath, tenantID) {
 			logger.Warnf(ctx, "[Router] /knowledge-bases/:id/files denied resource outside the exports namespace: "+
-				"owner_tenant_id=%d resource=%s", ownerTenantID, ref)
+				"tenant_id=%d resource=%s", tenantID, ref)
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: file path not accessible"})
 			return
 		}
-		// Cross-tenant shared content — keep it private so shared proxies /
-		// CDNs do not cache one tenant's view for another.
+		// Workspace content — keep it private so shared proxies / CDNs do not
+		// cache one workspace's view for another.
 		streamResource(c, files, ref, "private, max-age=86400", "/knowledge-bases/:id/files")
 	}
 }
 
 // newMessageScopedFileServeHandler serves resources rendered inside one
 // assistant message. The message service first proves that the caller owns the
-// containing session; the resource row then says where the bytes are, so
-// cross-workspace references (e.g. citations from an organization-shared KB)
-// keep rendering without accepting a client-provided source workspace ID.
+// containing session; the resource row then says where the bytes are, so a
+// citation renders from wherever it was written without accepting a
+// client-provided source workspace ID.
 func newMessageScopedFileServeHandler(
 	messageService messageFileLookup,
 	files interfaces.FileStore,

@@ -112,18 +112,6 @@ func (r *chunkRepository) ListChunksByID(
 	return chunks, nil
 }
 
-// ListChunksByIDOnly retrieves multiple chunks by their IDs without tenant filter (for shared KB resolution).
-func (r *chunkRepository) ListChunksByIDOnly(ctx context.Context, ids []string) ([]*types.Chunk, error) {
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	var chunks []*types.Chunk
-	if err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&chunks).Error; err != nil {
-		return nil, err
-	}
-	return chunks, nil
-}
-
 // ListChunksBySeqID retrieves multiple chunks by their seq_ids
 func (r *chunkRepository) ListChunksBySeqID(
 	ctx context.Context, tenantID uint64, seqIDs []int64,

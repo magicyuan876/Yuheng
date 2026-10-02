@@ -74,8 +74,6 @@ type KnowledgeService interface {
 	GetOwningKBCreatorID(ctx context.Context, knowledgeID string) (string, error)
 	// GetKnowledgeBatch retrieves a batch of knowledge by IDs.
 	GetKnowledgeBatch(ctx context.Context, tenantID uint64, ids []string) ([]*types.Knowledge, error)
-	// GetKnowledgeBatchWithSharedAccess retrieves knowledge by IDs including items from shared KBs the user has access to.
-	GetKnowledgeBatchWithSharedAccess(ctx context.Context, tenantID uint64, ids []string) ([]*types.Knowledge, error)
 	// ListKnowledgeIDsByTagIDs returns document knowledge IDs carrying any of
 	// the specified KB-local tags.
 	ListKnowledgeIDsByTagIDs(ctx context.Context, tenantID uint64, kbID string, tagIDs []string) ([]string, error)

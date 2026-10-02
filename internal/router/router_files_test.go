@@ -282,16 +282,16 @@ func TestResourceGrantServesShortPublicURL(t *testing.T) {
 }
 
 // newKBScopedFilesTestEngine wires newKBScopedFileServeHandler behind a
-// middleware that injects effectiveTenantID into the request context, mirroring
-// what RequireKBAccess does after resolving an org-shared KB to its source
-// tenant. This lets the handler be exercised without the full RBAC stack.
+// middleware that injects the caller's tenant into the request context, as
+// the auth middleware does. This lets the handler be exercised without the
+// full RBAC stack.
 func newKBScopedFilesTestEngine(
-	effectiveTenantID uint64, files interfaces.FileStore, catalog interfaces.ResourceCatalog,
+	tenantID uint64, files interfaces.FileStore, catalog interfaces.ResourceCatalog,
 ) *gin.Engine {
 	engine := gin.New()
 	engine.GET("/knowledge-bases/:id/files",
 		func(c *gin.Context) {
-			ctx := context.WithValue(c.Request.Context(), types.TenantIDContextKey, effectiveTenantID)
+			ctx := context.WithValue(c.Request.Context(), types.TenantIDContextKey, tenantID)
 			c.Request = c.Request.WithContext(ctx)
 			c.Next()
 		},
@@ -300,25 +300,24 @@ func newKBScopedFilesTestEngine(
 	return engine
 }
 
-// A borrowing tenant renders the owner's (10008) embedded image through a
-// shared KB: the effective tenant in context is the owner, the resource is
-// the owner's and lives in its exports namespace, so it is served.
-func TestKBScopedFilesServesOwnerExportsResource(t *testing.T) {
+// A workspace (10008) renders its own embedded image: the resource is the
+// workspace's and lives in its exports namespace, so it is served.
+func TestKBScopedFilesServesOwnExportsResource(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	files, catalog := newStubStorage(10008, "s3://bucket/yuheng/10008/exports/img.jpg", "img.jpg", "shared-body")
+	files, catalog := newStubStorage(10008, "s3://bucket/yuheng/10008/exports/img.jpg", "img.jpg", "image-body")
 	engine := newKBScopedFilesTestEngine(10008, files, catalog)
 
 	recorder := filesRequest(t, engine, "/knowledge-bases/kb-1/files?file_path="+url.QueryEscape(testRef), 0)
-	if recorder.Code != http.StatusOK || recorder.Body.String() != "shared-body" {
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "image-body" {
 		t.Fatalf("status=%d body=%q", recorder.Code, recorder.Body.String())
 	}
 	if got := recorder.Header().Get("Cache-Control"); !strings.HasPrefix(got, "private") {
-		t.Fatalf("Cache-Control = %q, shared content must not be publicly cacheable", got)
+		t.Fatalf("Cache-Control = %q, workspace content must not be publicly cacheable", got)
 	}
 }
 
-// The resource must belong to the effective (owner) tenant, so the guard
-// cannot be used to reach arbitrary tenants' files.
+// The resource must belong to the caller's tenant, so the route cannot be
+// used to reach arbitrary tenants' files.
 func TestKBScopedFilesRejectsResourceOfAnotherTenant(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	files, catalog := newStubStorage(9999, "local://9999/exports/other.jpg", "other.jpg", "x")
@@ -381,8 +380,10 @@ func ownedMessage(t *testing.T) *stubMessageFileLookup {
 	}}
 }
 
-// A reply may cite an image owned by another workspace (an organization-shared
-// knowledge base); the resource row says where it lives.
+// Authorization comes from owning the message, not from the resource's
+// workspace: a reply's citation is served from wherever its resource row says
+// the bytes live, which may be another workspace for answers that predate the
+// one-workspace model.
 func TestMessageScopedFilesServesCrossTenantResource(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	files, catalog := newStubStorage(7, "local://7/exports/chart.png", "chart.png", "cross-tenant-image")

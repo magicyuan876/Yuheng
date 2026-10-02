@@ -86,9 +86,9 @@ func TestNormalizeAPIKeyCapabilities(t *testing.T) {
 		"bogus",
 		"",
 	})
-	// Dead scopes from removed surfaces (agents, MCP services, channels)
-	// normalize away; the rest survive in order.
-	want := []string{"retrieve", "chat", "manage_kbs", "message_history", "manage_members", "manage_spaces"}
+	// Dead scopes from removed surfaces (organizations, agents, MCP services,
+	// channels) normalize away; the rest survive in order.
+	want := []string{"retrieve", "chat", "manage_kbs", "message_history", "manage_members"}
 	if len(got) != len(want) {
 		t.Fatalf("normalized = %#v, want %#v", got, want)
 	}

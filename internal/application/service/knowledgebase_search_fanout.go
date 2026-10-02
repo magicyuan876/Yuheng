@@ -74,7 +74,6 @@ func (s *knowledgeBaseService) retrieveFromStores(
 			res, err := grp.Engine.Retrieve(gcCtx, paramsWithTopK(grp))
 			if err != nil {
 				logger.WarnWithFields(gctx, logger.Fields{
-					"tenant_id":  grp.OwnerTenantID,
 					"kb_count":   len(grp.KBIDs),
 					"store_kind": storeKindLabel(grp.StoreID),
 				}, fmt.Sprintf("multi-store retrieve failed: %v", err))

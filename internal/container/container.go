@@ -128,8 +128,6 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(repository.NewAuthTokenRepository))
 	must(container.Provide(repository.NewSystemSettingRepository))
 	must(container.Provide(neo4jRepo.NewNeo4jRepository))
-	must(container.Provide(repository.NewOrganizationRepository))
-	must(container.Provide(repository.NewKBShareRepository))
 	must(container.Provide(repository.NewUserResourceFavoriteRepository))
 	must(container.Provide(service.NewWebSearchStateService))
 	must(container.Provide(repository.NewDataSourceRepository))
@@ -150,8 +148,6 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(service.NewAuditLogService))
 	must(container.Provide(service.NewAuditLogRetentionRunner))
 	must(container.Provide(service.NewKnowledgeBaseService))
-	must(container.Provide(service.NewOrganizationService))
-	must(container.Provide(service.NewKBShareService)) // KBShareService must be registered before KnowledgeService and KnowledgeTagService
 	must(container.Provide(service.NewKnowledgeService))
 	must(container.Provide(service.NewSpanTracker))
 	must(container.Provide(service.NewChunkService))
@@ -330,7 +326,6 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(handler.NewVectorStoreHandler))
 	must(container.Provide(handler.NewStorageBackendHandler))
 	must(container.Provide(handler.NewUserResourceFavoriteHandler))
-	must(container.Provide(handler.NewOrganizationHandler))
 
 	// Data source handler
 	must(container.Provide(handler.NewDataSourceHandler))
@@ -373,9 +368,8 @@ func BuildContainer(container *dig.Container) *dig.Container {
 
 // registerChatStoredImageResolver wires the chat package's StoredImageResolver
 // hook, which multimodal chat uses to inline stored images as bytes. The
-// reference's resource row says which backend holds the image, so images from
-// a shared knowledge base or on a user-registered backend resolve the same way
-// as the caller's own.
+// reference's resource row says which backend holds the image, so images on a
+// user-registered backend resolve the same way as those on the deployment's.
 func registerChatStoredImageResolver(files interfaces.FileStore) {
 	chat.StoredImageResolver = func(ref string) ([]byte, bool) {
 		ctx := context.Background()

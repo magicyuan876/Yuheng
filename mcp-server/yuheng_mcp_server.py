@@ -101,27 +101,16 @@ class MCPAuthMiddleware:
 
 
 def _normalize_kb_entries(resp: object) -> list[Dict]:
-    """Flatten owned and shared knowledge-base list API responses.
+    """Extract the knowledge-base rows from a list API response.
 
     GET /knowledge-bases returns ``data: [{id, name, ...}, ...]`` (see
-    KnowledgeBaseHandler.buildKBListResponse).
-
-    GET /shared-knowledge-bases returns ``data: [{knowledge_base: {id, name,
-    ...}, share_id, ...}, ...]`` (see organization handler sharedKBRow).
+    KnowledgeBaseHandler.buildKBListResponse); a bare list or a paginated
+    ``list`` / ``items`` wrapper is accepted as well.
     """
     data = resp.get("data", resp) if isinstance(resp, dict) else resp
     if isinstance(data, dict):
         data = data.get("list", data.get("items", []))
-    out: list[Dict] = []
-    for item in (data or []):
-        if not isinstance(item, dict):
-            continue
-        nested = item.get("knowledge_base")
-        if isinstance(nested, dict) and nested.get("id"):
-            out.append(nested)
-        elif item.get("id"):
-            out.append(item)
-    return out
+    return [item for item in (data or []) if isinstance(item, dict) and item.get("id")]
 
 
 class YuhengClient:
@@ -219,10 +208,6 @@ class YuhengClient:
         """List all knowledge bases"""
         return self._request("GET", "/knowledge-bases")
 
-    def list_shared_knowledge_bases(self) -> Dict:
-        """List knowledge bases shared from other workspaces"""
-        return self._request("GET", "/shared-knowledge-bases")
-
     def get_knowledge_base(self, kb_id: str) -> Dict:
         """Get knowledge base details"""
         return self._request("GET", f"/knowledge-bases/{kb_id}")
@@ -245,21 +230,19 @@ class YuhengClient:
         """Resolve a knowledge base name to its UUID if needed.
 
         If *kb_id_or_name* is already a UUID it is returned unchanged.
-        Otherwise all knowledge bases are listed and the first one whose
-        ``name`` matches (case-insensitive) is returned.
+        Otherwise the workspace's knowledge bases are listed and the first
+        one whose ``name`` matches (case-insensitive) is returned.
         Raises ValueError when no match is found.
         """
         if self._UUID_RE.match(kb_id_or_name):
             return kb_id_or_name
-        # Search own + shared knowledge bases for a name match
         needle = kb_id_or_name.lower()
-        for source in (self.list_knowledge_bases, self.list_shared_knowledge_bases):
-            for kb in _normalize_kb_entries(source()):
-                if kb.get("name", "").lower() == needle:
-                    return kb["id"]
+        for kb in _normalize_kb_entries(self.list_knowledge_bases()):
+            if kb.get("name", "").lower() == needle:
+                return kb["id"]
         raise ValueError(
             f"Knowledge base {kb_id_or_name!r} not found. "
-            "Use list_knowledge_bases or list_shared_knowledge_bases to see available IDs and names."
+            "Use list_knowledge_bases to see available IDs and names."
         )
 
     def hybrid_search(self, kb_id: str, query: str, config: Dict) -> Dict:
@@ -595,12 +578,6 @@ def list_knowledge_bases() -> dict:
 
 
 @mcp.tool()
-def list_shared_knowledge_bases() -> dict:
-    """List knowledge bases shared from other workspaces."""
-    return client.list_shared_knowledge_bases()
-
-
-@mcp.tool()
 def get_knowledge_base(kb_id: str) -> dict:
     """Get knowledge base details."""
     return client.get_knowledge_base(kb_id)
@@ -623,7 +600,7 @@ def hybrid_search(
     """Perform hybrid (vector + keyword) search in a knowledge base.
 
     kb_id may be a UUID or a knowledge-base name (resolved automatically).
-    Use list_knowledge_bases or list_shared_knowledge_bases to discover available knowledge bases.
+    Use list_knowledge_bases to discover available knowledge bases.
     """
     config = {
         "vector_threshold": vector_threshold,
@@ -732,7 +709,7 @@ async def chat(
     the backend requires at least one knowledge base per query. A fresh chat
     session is created automatically for each call; the returned dict includes
     its session_id.
-    Use list_knowledge_bases or list_shared_knowledge_bases to discover available knowledge bases.
+    Use list_knowledge_bases to discover available knowledge bases.
     """
     kb_ids = (
         [client.resolve_kb_id(k) for k in knowledge_base_ids]

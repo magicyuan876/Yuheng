@@ -196,7 +196,7 @@ echo "YUHENG_API_KEY=your_api_key_here" >> .env
 }
 ```
 
-`chat` 每次调用都会自动创建一个新会话，无需手动管理会话；`knowledge_base_ids` 可传知识库名称或 UUID（可用 `list_knowledge_bases` / `list_shared_knowledge_bases` 查询）。
+`chat` 每次调用都会自动创建一个新会话，无需手动管理会话；`knowledge_base_ids` 可传知识库名称或 UUID（可用 `list_knowledge_bases` 查询）。
 
 ### 块管理
 

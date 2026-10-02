@@ -12,7 +12,6 @@ import (
 	"github.com/magicyuan876/yuheng/internal/handler"
 	"github.com/magicyuan876/yuheng/internal/middleware"
 	"github.com/magicyuan876/yuheng/internal/types"
-	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,31 +26,14 @@ func (s *downloadKnowledgeLookup) GetKnowledgeByIDOnly(_ context.Context, id str
 	return nil, apprepo.ErrKnowledgeNotFound
 }
 
-type downloadKBShareStub struct {
-	interfaces.KBShareService
-	permission types.OrgMemberRole
-	source     uint64
-}
-
-func (s *downloadKBShareStub) CheckTenantKBPermission(
-	_ context.Context,
-	_ string,
-	_ uint64,
-	_ types.TenantRole,
-) (types.OrgMemberRole, bool, error) {
-	return s.permission, true, nil
-}
-
-func (s *downloadKBShareStub) GetKBSourceTenant(_ context.Context, _ string) (uint64, error) {
-	return s.source, nil
-}
-
+// newKnowledgeDownloadRouteTestEngine wires the knowledge routes with the
+// given caller role (tenant 1) and a single document in a single base, so
+// the download route's guard chain can be exercised end to end.
 func newKnowledgeDownloadRouteTestEngine(
 	t *testing.T,
 	role types.TenantRole,
 	knowledge *types.Knowledge,
 	kb *types.KnowledgeBase,
-	share interfaces.KBShareService,
 ) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -61,7 +43,6 @@ func newKnowledgeDownloadRouteTestEngine(
 		cfg:              &config.Config{Tenant: &config.TenantConfig{EnableRBAC: &enabled}},
 		knowledgeService: &downloadKnowledgeLookup{knowledge: knowledge},
 		kbService:        &stubWikiKBLookup{kbs: map[string]*types.KnowledgeBase{kb.ID: kb}},
-		kbShareService:   share,
 	}
 
 	r := gin.New()
@@ -83,7 +64,6 @@ func TestKnowledgeDownloadRejectsTenantViewer(t *testing.T) {
 		types.TenantRoleViewer,
 		&types.Knowledge{ID: "knowledge-own", KnowledgeBaseID: "kb-own", TenantID: 1},
 		&types.KnowledgeBase{ID: "kb-own", TenantID: 1},
-		nil,
 	)
 
 	rec := httptest.NewRecorder()
@@ -93,18 +73,19 @@ func TestKnowledgeDownloadRejectsTenantViewer(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, rec.Code, "body=%s", rec.Body.String())
 }
 
-func TestKnowledgeDownloadRejectsReadOnlySharedKB(t *testing.T) {
+// A document in another workspace's base does not exist from here: even a
+// Contributor gets the same 404 a missing document would produce.
+func TestKnowledgeDownloadForeignKBIsNotFound(t *testing.T) {
 	engine := newKnowledgeDownloadRouteTestEngine(
 		t,
 		types.TenantRoleContributor,
-		&types.Knowledge{ID: "knowledge-shared", KnowledgeBaseID: "kb-shared", TenantID: 2},
-		&types.KnowledgeBase{ID: "kb-shared", TenantID: 2},
-		&downloadKBShareStub{permission: types.OrgRoleViewer, source: 2},
+		&types.Knowledge{ID: "knowledge-foreign", KnowledgeBaseID: "kb-foreign", TenantID: 2},
+		&types.KnowledgeBase{ID: "kb-foreign", TenantID: 2},
 	)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/knowledge/knowledge-shared/download", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/knowledge/knowledge-foreign/download", nil)
 	engine.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusForbidden, rec.Code, "body=%s", rec.Body.String())
+	require.Equal(t, http.StatusNotFound, rec.Code, "body=%s", rec.Body.String())
 }

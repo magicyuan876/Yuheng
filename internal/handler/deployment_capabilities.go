@@ -11,7 +11,6 @@ import (
 // DeploymentCapabilityKeys is the canonical capability key list shared with
 // frontend/src/config/deploymentCapabilities.ts — keep both in sync.
 var DeploymentCapabilityKeys = []string{
-	"organizations",
 	"settings.websearch",
 	"settings.vectorstore",
 	"settings.storage",
@@ -43,11 +42,10 @@ type DeploymentCapabilitiesData struct {
 
 // DeploymentFeatureAvailability mirrors injected backend handlers/services.
 type DeploymentFeatureAvailability struct {
-	Organizations bool
-	WebSearch     bool
-	VectorStore   bool
-	Storage       bool
-	Docs          bool
+	WebSearch   bool
+	VectorStore bool
+	Storage     bool
+	Docs        bool
 	// DocsCollabURL is passed through verbatim into DeploymentCapabilitiesData.
 	DocsCollabURL string
 	// DocsPublicSharing reports whether pages may be published to anonymous
@@ -69,7 +67,6 @@ func BuildDeploymentCapabilities(
 ) DeploymentCapabilitiesData {
 	return DeploymentCapabilitiesData{
 		Capabilities: map[string]DeploymentCapability{
-			"organizations":        supportedDeploymentCapability(available.Organizations),
 			"settings.websearch":   supportedDeploymentCapability(available.WebSearch),
 			"settings.vectorstore": supportedDeploymentCapability(available.VectorStore),
 			"settings.storage":     supportedDeploymentCapability(available.Storage),

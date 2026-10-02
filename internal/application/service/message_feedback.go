@@ -25,10 +25,8 @@ import (
 // the knowledge base, so it shows what the person wrote for it and, only when
 // they attached it, the question from their own conversation.
 //
-// Feedback stays in its workspace. A shared knowledge base from another
-// workspace may be cited, but a question asked here is not shown to its
-// maintainers there: only documents of the conversation's own workspace are
-// checked.
+// Feedback stays in its workspace: whatever an answer cites, only documents
+// of the conversation's own workspace are checked.
 
 // maxDisputedCitations bounds how many cited documents one piece of feedback
 // has checked. Answers cite a handful; this only stops a pathological one.

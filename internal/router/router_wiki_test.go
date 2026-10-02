@@ -89,7 +89,9 @@ func tenantKBLookupFixture() *stubWikiKBLookup {
 	}
 }
 
-func TestInitializationConfigRouteDenyCrossTenantKB(t *testing.T) {
+// A knowledge base of another workspace does not exist from here: the route
+// answers 404, not 403, so ids cannot be probed for their owner.
+func TestInitializationConfigRouteHidesCrossTenantKB(t *testing.T) {
 	kbLookup := &stubWikiKBLookup{
 		kbs: map[string]*types.KnowledgeBase{
 			"kb-victim": {ID: "kb-victim", TenantID: 999},
@@ -100,10 +102,10 @@ func TestInitializationConfigRouteDenyCrossTenantKB(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/initialization/config/kb-victim", nil)
 	engine.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusForbidden, rec.Code, "body=%s", rec.Body.String())
+	require.Equal(t, http.StatusNotFound, rec.Code, "body=%s", rec.Body.String())
 }
 
-func TestWikiReadRoutesDenyCrossTenantKB(t *testing.T) {
+func TestWikiReadRoutesHideCrossTenantKB(t *testing.T) {
 	kbLookup := &stubWikiKBLookup{
 		kbs: map[string]*types.KnowledgeBase{
 			"kb-victim": {
@@ -132,7 +134,7 @@ func TestWikiReadRoutesDenyCrossTenantKB(t *testing.T) {
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, path, nil)
 			engine.ServeHTTP(rec, req)
-			require.Equal(t, http.StatusForbidden, rec.Code, "body=%s", rec.Body.String())
+			require.Equal(t, http.StatusNotFound, rec.Code, "body=%s", rec.Body.String())
 		})
 	}
 }

@@ -20,11 +20,10 @@ import (
 
 func allDeploymentFeaturesAvailable() handler.DeploymentFeatureAvailability {
 	return handler.DeploymentFeatureAvailability{
-		Organizations: true,
-		WebSearch:     true,
-		VectorStore:   true,
-		Storage:       true,
-		Docs:          true,
+		WebSearch:   true,
+		VectorStore: true,
+		Storage:     true,
+		Docs:        true,
 	}
 }
 

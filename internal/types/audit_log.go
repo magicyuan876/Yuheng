@@ -165,10 +165,7 @@ const (
 	AuditActionDataSourcePaused        AuditAction = "datasource.paused"
 	AuditActionDataSourceResumed       AuditAction = "datasource.resumed"
 
-	AuditActionKBShareAdded             AuditAction = "kb.share_added"
-	AuditActionKBSharePermissionChanged AuditAction = "kb.share_permission_changed"
-	AuditActionKBShareRemoved           AuditAction = "kb.share_removed"
-	AuditActionWikiContentChanged       AuditAction = "wiki.content_changed"
+	AuditActionWikiContentChanged AuditAction = "wiki.content_changed"
 
 	AuditActionFAQImportStarted   AuditAction = "faq.import_started"
 	AuditActionFAQImportCompleted AuditAction = "faq.import_completed"

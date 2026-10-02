@@ -32,11 +32,10 @@ func TestDeploymentCapabilityKeysMatchFrontend(t *testing.T) {
 
 func TestBuildDeploymentCapabilitiesIncludesAllKeys(t *testing.T) {
 	result := BuildDeploymentCapabilities(DeploymentFeatureAvailability{
-		Organizations: true,
-		WebSearch:     true,
-		VectorStore:   true,
-		Storage:       true,
-		Docs:          true,
+		WebSearch:   true,
+		VectorStore: true,
+		Storage:     true,
+		Docs:        true,
 	})
 
 	for _, key := range DeploymentCapabilityKeys {

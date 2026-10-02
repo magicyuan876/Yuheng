@@ -19,13 +19,10 @@ import (
 // this bounds the total rather than the individual attempt.
 const storeResolveBudget = 12 * time.Second
 
-// storeGroup is one fan-out unit of HybridSearch: a set of KB IDs that share
-// the same (VectorStore, owning tenant) pair.
-//
-// Partition key is (VectorStoreID, OwnerTenantID), not VectorStoreID alone,
-// because Organization-shared KBs (kb.TenantID != requestTenantID) need
-// their own group whose ownership lookup runs against kb.TenantID — the
-// store is owned by the source tenant, not the caller.
+// storeGroup is one fan-out unit of HybridSearch: a set of KB IDs bound to
+// the same vector store. Every KB in a search belongs to the caller's
+// workspace (authorizeKBAccess rejects anything else), so the store is
+// always the caller's own and the store id alone partitions the scope.
 //
 // BaseParams are immutable across iterations and goroutines. TopK is the
 // only mutable per-iteration value; paramsWithTopK builds a fresh
@@ -37,11 +34,6 @@ type storeGroup struct {
 	// (KBs with VectorStoreID = NULL). Never echo this in user-facing
 	// errors; use secutils.SanitizeForLog when emitting in structured logs.
 	StoreID string
-
-	// OwnerTenantID is the tenant that owns the KBs and the store for this
-	// group. For Organization-shared KBs this differs from the request's
-	// tenant; the factory's StoreOwnedBy must be called with this value.
-	OwnerTenantID uint64
 
 	// KBIDs are the knowledge base IDs in this group. The caller MUST have
 	// authorized the request to access every ID here (the trust boundary
@@ -63,15 +55,16 @@ type storeGroup struct {
 	TopK int
 }
 
-// resolveStoreGroups partitions kbs by (VectorStoreID, KB.TenantID),
-// resolves the engine per group via the PR2 factory using the OWNING
-// tenant for ownership lookup, and builds the per-store base RetrieveParams
-// once. Returns groups in non-deterministic order (caller must not rely on
-// iteration order).
+// resolveStoreGroups partitions kbs by VectorStoreID, resolves the engine
+// per group via the PR2 factory, and builds the per-store base
+// RetrieveParams once. Returns groups in non-deterministic order (caller
+// must not rely on iteration order).
 //
-// The primary KB supplies the embedding model and FAQ type for params; the
-// caller MUST invoke validateSameEmbeddingModel first to guarantee a
-// single embedding model identity across kbs.
+// The primary KB supplies the embedding model and FAQ type for params, and
+// its tenant is the one the store ownership lookup runs against: the caller
+// MUST have run authorizeKBAccess (every kb is the caller's) and
+// validateSameEmbeddingModel (a single embedding model identity across kbs)
+// first.
 //
 // Errors are translated from sentinel to typed AppError so that the
 // upstream handler reports a stable error code without leaking storeIDs:
@@ -90,18 +83,13 @@ func (s *knowledgeBaseService) resolveStoreGroups(
 	params types.SearchParams,
 	matchCount int,
 ) ([]*storeGroup, error) {
-	type partitionKey struct {
-		storeID  string
-		tenantID uint64
-	}
-	buckets := make(map[partitionKey][]*types.KnowledgeBase)
+	buckets := make(map[string][]*types.KnowledgeBase)
 	for _, kb := range kbs {
 		sid := ""
 		if kb.HasVectorStore() {
 			sid = *kb.VectorStoreID
 		}
-		key := partitionKey{storeID: sid, tenantID: kb.TenantID}
-		buckets[key] = append(buckets[key], kb)
+		buckets[sid] = append(buckets[sid], kb)
 	}
 
 	// Resolving a group can rebuild a missing store engine, which dials a
@@ -114,16 +102,16 @@ func (s *knowledgeBaseService) resolveStoreGroups(
 	defer cancelResolve()
 
 	groups := make([]*storeGroup, 0, len(buckets))
-	for key, groupKBs := range buckets {
+	for storeID, groupKBs := range buckets {
 		var storeIDPtr *string
-		if key.storeID != "" {
-			sid := key.storeID
+		if storeID != "" {
+			sid := storeID
 			storeIDPtr = &sid
 		}
 		engine, err := retriever.CreateRetrieveEngineForKB(
-			resolveCtx, s.retrieveEngine, s.ownership, key.tenantID, storeIDPtr)
+			resolveCtx, s.retrieveEngine, s.ownership, primary.TenantID, storeIDPtr)
 		if err != nil {
-			return nil, classifyFactoryError(ctx, err, key.tenantID, key.storeID)
+			return nil, classifyFactoryError(ctx, err, primary.TenantID, storeID)
 		}
 		baseParams, err := s.buildRetrievalParams(
 			ctx, engine, primary, groupKBs, params, matchCount)
@@ -135,12 +123,11 @@ func (s *knowledgeBaseService) resolveStoreGroups(
 			ids[i] = kb.ID
 		}
 		groups = append(groups, &storeGroup{
-			StoreID:       key.storeID,
-			OwnerTenantID: key.tenantID,
-			KBIDs:         ids,
-			Engine:        engine,
-			BaseParams:    baseParams,
-			TopK:          matchCount,
+			StoreID:    storeID,
+			KBIDs:      ids,
+			Engine:     engine,
+			BaseParams: baseParams,
+			TopK:       matchCount,
 		})
 	}
 	return groups, nil
@@ -183,53 +170,31 @@ func classifyFactoryError(
 	}
 }
 
-// authorizeKBAccess rejects multi-KB searches whose scope includes a KB
-// that the caller is not entitled to read. Same-tenant KBs always pass.
-// Foreign-tenant KBs (Organization-shared) must pass an explicit
-// tenant-scoped permission check via kbShareService.HasTenantKBPermission,
-// applying the 3-D cap (share role + caller's tenant-org role + tenant
-// Viewer cap) introduced in Plan 3 of #1303.
+// authorizeKBAccess rejects multi-KB searches whose scope includes a
+// knowledge base owned by another workspace. A knowledge base is reachable
+// only from the workspace that owns it; same-tenant KBs always pass.
 //
 // Returning NotFound rather than Forbidden avoids leaking the existence
-// of unauthorized KB IDs that the caller could not otherwise observe.
-// Structured logs record the rejection with the offending kb_id (always
-// safe — KB IDs are UUIDs without sensitive content) and the requesting
-// tenant for audit.
+// of KB IDs that the caller could not otherwise observe. Structured logs
+// record the rejection with the offending kb_id (always safe — KB IDs
+// are UUIDs without sensitive content) and the requesting tenant for
+// audit.
 func (s *knowledgeBaseService) authorizeKBAccess(
 	ctx context.Context,
 	kbs []*types.KnowledgeBase,
 	requestTenantID uint64,
 ) error {
-	if len(kbs) == 0 {
-		return nil
-	}
-
-	callerTenantRole := types.TenantRoleFromContext(ctx)
-
 	for _, kb := range kbs {
 		if kb.TenantID == requestTenantID {
 			continue
 		}
-		hasPermission, permErr := s.kbShareService.HasTenantKBPermission(
-			ctx, kb.ID, requestTenantID, callerTenantRole, types.OrgRoleViewer)
-		if permErr != nil {
-			logger.ErrorWithFields(ctx, permErr, map[string]interface{}{
-				"caller_tenant_id": requestTenantID,
-				"kb_tenant_id":     kb.TenantID,
-				"kb_id":            kb.ID,
-				"reason":           "shared-KB permission lookup failed",
-			})
-			return apperrors.NewInternalServerError("failed to verify knowledge base access")
-		}
-		if !hasPermission {
-			logger.WarnWithFields(ctx, logger.Fields{
-				"caller_tenant_id": requestTenantID,
-				"kb_tenant_id":     kb.TenantID,
-				"kb_id":            kb.ID,
-				"reason":           "tenant lacks viewer permission for foreign-tenant KB",
-			}, "search scope rejected: unauthorized foreign-tenant KB")
-			return apperrors.NewNotFoundError("knowledge base not found")
-		}
+		logger.WarnWithFields(ctx, logger.Fields{
+			"caller_tenant_id": requestTenantID,
+			"kb_tenant_id":     kb.TenantID,
+			"kb_id":            kb.ID,
+			"reason":           "knowledge base belongs to another workspace",
+		}, "search scope rejected: foreign-tenant KB")
+		return apperrors.NewNotFoundError("knowledge base not found")
 	}
 	return nil
 }

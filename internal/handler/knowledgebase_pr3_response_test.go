@@ -22,13 +22,6 @@ import (
 // generic 500 via NewInternalServerError. Without the IsAppError unwrap in
 // the handler, the typed error codes would be silently nullified at the
 // HTTP boundary and clients would lose the ability to branch on the cause.
-//
-// Shared-KB UUID suppression — responses for cross-tenant shared KBs must
-// not leak the owner tenant's vector_store_id UUID. SharedStoreDisplay
-// suppresses store name + engine_type for cross-tenant callers, but the
-// underlying KnowledgeBase.MarshalJSON still emits the UUID; the
-// buildKBResponse strip closes the gap so the UUID cannot be correlated
-// across multiple shared KBs.
 
 // stubKBCreateService drives CreateKnowledgeBase end-to-end with a
 // service that returns a chosen error. Embedding the interface keeps
@@ -121,44 +114,11 @@ type errSentinel string
 func (e errSentinel) Error() string { return string(e) }
 
 // ---------------------------------------------------------------------------
-// buildKBResponse must strip vector_store_id for shared KB responses
+// buildKBResponse carries the store metadata alongside the row
 // ---------------------------------------------------------------------------
 
-func TestBuildKBResponse_StripsVectorStoreIDForSharedKB(t *testing.T) {
-	storeID := "aaaa-bbbb-cccc-dddd"
-	kb := &types.KnowledgeBase{
-		ID:               "kb-1",
-		Name:             "shared-kb",
-		TenantID:         42, // different from caller
-		EmbeddingModelID: "e",
-		SummaryModelID:   "s",
-		VectorStoreID:    &storeID,
-	}
-	got := buildKBResponse(kb, types.SharedStoreDisplay(), kbStorageView{Hidden: true}, nil)
-	m, ok := got.(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected map result, got %T", got)
-	}
-	if _, exists := m["vector_store_id"]; exists {
-		t.Fatalf("shared KB response must not expose vector_store_id, got %v", m["vector_store_id"])
-	}
-	if _, exists := m["vector_store_name"]; exists {
-		t.Fatalf("shared KB response must not expose vector_store_name, got %v", m["vector_store_name"])
-	}
-	if m["vector_store_source"] != types.StoreSourceShared {
-		t.Fatalf("expected vector_store_source=shared, got %v", m["vector_store_source"])
-	}
-	// Defensive: ensure the source UUID does not appear *anywhere* in
-	// the serialized output (paranoid check against future map keys).
-	serialized, _ := json.Marshal(m)
-	if strings.Contains(string(serialized), storeID) {
-		t.Fatalf("shared KB response leaked vector store UUID via some path: %s", serialized)
-	}
-}
-
 func TestBuildKBResponse_KeepsVectorStoreIDForOwnerKB(t *testing.T) {
-	// Same setup but with the user-source display — owner caller should
-	// still see the UUID alongside the resolved metadata.
+	// The owner sees the UUID alongside the resolved metadata.
 	storeID := "aaaa-bbbb-cccc-dddd"
 	kb := &types.KnowledgeBase{
 		ID:               "kb-1",
@@ -241,24 +201,6 @@ func TestKBResponseNamesTheStorageBackend(t *testing.T) {
 		}
 		if strings.Contains(string(serialized), "secret-bucket") {
 			t.Fatalf("%s: the backend's location leaked: %s", name, serialized)
-		}
-	}
-}
-
-// A borrower of a shared knowledge base learns nothing about the owner's
-// storage: neither the backend id nor its reference.
-func TestKBResponseHidesStorageFromBorrowers(t *testing.T) {
-	h := &KnowledgeBaseHandler{storageBackends: &stubStorageBackendRepo{backends: []*types.StorageBackend{{
-		ID: "owner-s3", Name: "Owner S3", Provider: "s3",
-	}}}}
-	kb := &types.KnowledgeBase{ID: "kb-1", Name: "kb", TenantID: 42, StorageBackendID: "owner-s3"}
-
-	list := h.buildKBListResponse(context.Background(), []*types.KnowledgeBase{kb}, 1)
-	single := buildKBResponse(kb, types.SharedStoreDisplay(), h.kbStorageBackend(context.Background(), kb, 1), nil)
-	for name, got := range map[string]interface{}{"list": list[0], "single": single} {
-		serialized, _ := json.Marshal(got)
-		if strings.Contains(string(serialized), "owner-s3") || strings.Contains(string(serialized), "Owner S3") {
-			t.Fatalf("%s: shared KB response leaked the owner's storage: %s", name, serialized)
 		}
 	}
 }

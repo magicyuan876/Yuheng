@@ -6,59 +6,39 @@ import (
 
 	"github.com/gin-gonic/gin"
 	apprepo "github.com/magicyuan876/yuheng/internal/application/repository"
-	"github.com/magicyuan876/yuheng/internal/config"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
-	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 )
 
-// kb_access.go centralises the share-fallback that previously lived as
-// near-identical 30-line helpers in five handler files (chunk.go,
-// faq.go, tag.go, knowledge.go, knowledgebase.go). Each was a copy of
-// the same three checks:
+// kb_access.go is the single place that answers "is this knowledge base
+// reachable from the caller's workspace?" for KB-scoped routes. It
+// replaced near-identical 30-line helpers in five handler files (chunk.go,
+// faq.go, tag.go, knowledge.go, knowledgebase.go), so a change in the
+// resolution propagates to every gated route at once.
 //
-//   1. KB belongs to caller's tenant   -> grant own access
-//   2. Org-shared KB                    -> grant min(share, role) cap
+// The answer is deliberately binary. A knowledge base belongs to exactly
+// one workspace and is reachable only from there; what the caller may
+// then *do* with it is the sibling role and ownership guards' business
+// (RequireRole, RequireOwnershipOrRole). A knowledge base owned by another
+// workspace does not exist as far as the caller is concerned and is
+// reported as not found, so probing ids never reveals which workspace
+// owns what.
 //
-// Putting the resolution in a route-level gin.HandlerFunc makes the
-// route declaration the single source of truth for "what permission
-// is required" and "where does the kb_id come from". Handlers no
-// longer carry an effectiveCtxForKB / validateAndGetKnowledgeBase
-// helper — the guard runs first, stashes the resolution under
-// KBAccessContextKey and rewrites c.Request to carry the
-// effective-tenant-ID context, then handlers just read TenantIDFromContext
-// the way they always did.
+// The guard also runs the per-API-key knowledge base allow-list
+// (types.AuthorizeTenantAPIKeyKnowledgeBases) so a key restricted to some
+// knowledge bases is confined to them on every route that names one,
+// including routes whose only parameter is a document or chunk id.
 //
-// Plan 3's 3-D cap (tenant Viewer pinned to OrgRoleViewer) is enforced
-// inside CheckTenantKBPermission itself, so the guard here just
-// propagates the result.
-//
-// ⚠️  Tenant id has TWO surfaces on a gin.Context:
-//
-//   - c.Request.Context()         (read via types.TenantIDFromContext)
-//   - c.Keys[TenantIDContextKey]  (read via c.Get / c.GetUint64)
-//
-// The guard rewrites ONLY the request context — c.Keys is intentionally
-// left at the caller's own tenant so handlers that still run their own
-// share resolution (currently knowledge.go / knowledgebase.go, via their
-// own validate* helpers) keep working unchanged. New handlers
-// MUST read tenant from c.Request.Context() (the "effective" tenant
-// for shared KBs); reading from c.Keys after this guard runs gives
-// the caller's own tenant, which is almost always the wrong answer
-// for KB-scoped routes. The FAQ / Tag / Chunk handlers in this PR
-// were converted to the ctx-based read; the migration of knowledge.go
-// / knowledgebase.go is a follow-up.
+// The ACL design hangs its per-knowledge-base access-mode gate here: a base
+// whose entries carry their own permissions, served by a build that cannot
+// evaluate them, must be refused as a whole at this point.
 
 // KBAccess captures the result of a successful KB access resolution.
-// Stashed on gin.Context under KBAccessContextKey so handlers that
-// need the resolved KB / permission (e.g. to render
-// my_permission in the response) can pull it without re-running the
-// resolution.
+// Stashed on gin.Context under KBAccessContextKey so handlers that need
+// the resolved knowledge base can pull it without re-running the lookup.
 type KBAccess struct {
-	KnowledgeBase     *types.KnowledgeBase
-	EffectiveTenantID uint64
-	Permission        types.OrgMemberRole
+	KnowledgeBase *types.KnowledgeBase
 }
 
 // KBAccessContextKey is the gin.Context key under which a successful
@@ -66,8 +46,8 @@ type KBAccess struct {
 const KBAccessContextKey = "rbac.kb_access"
 
 // KBAccessFromContext returns the KBAccess stashed by the guard, if
-// any. Handlers that don't care can just rely on the rewritten
-// c.Request.Context() for tenant scoping.
+// any. Handlers that only need the tenant keep reading it from the request
+// context, which the guard leaves untouched.
 func KBAccessFromContext(c *gin.Context) (*KBAccess, bool) {
 	v, ok := c.Get(KBAccessContextKey)
 	if !ok {
@@ -197,38 +177,17 @@ func isResourceNotFound(err error) bool {
 		stderrors.Is(err, ErrResourceNotFound)
 }
 
-// RequireKBAccess returns a gin.HandlerFunc that resolves KB access
-// (own / org-shared), enforces the minimum required
-// org-level permission, and on success stores the result under
-// KBAccessContextKey AND rewrites c.Request.Context() to carry the
-// effective tenant ID. Handlers downstream just read tenant from
-// context as before.
+// RequireKBAccess returns a gin.HandlerFunc that resolves the knowledge
+// base a route addresses, checks that it belongs to the caller's workspace
+// (and to the API key's allow-list, if the caller is a restricted key) and
+// on success stores it under KBAccessContextKey for the handler.
 //
-// On failure the guard aborts with the appropriate HTTP status (400 /
-// 401 / 404 / 403 / 503). Behaviour matches what each handler's
-// effectiveCtxForKB helper used to do; the guard is what consolidates
-// the repetition so a fix in the resolution order propagates to every
-// gated route at once.
-//
-// Required permission semantics:
-//   - OrgRoleViewer -> read-only routes
-//   - OrgRoleEditor -> mutating routes (org-shared editor or own KB)
-//   - OrgRoleAdmin  -> share-management routes (only the original
-//     sharer / KB owner / Org admin should pass)
-//
-// When cfg.Tenant.EnableRBAC is false the guard mirrors the sibling
-// role/ownership guards: it logs the would-be rejection and lets the
-// request through. The point is to keep the rollout window safe — the
-// guard runs full enforcement once the flag flips on, with no code
-// changes elsewhere.
-func RequireKBAccess(
-	resolveKBID KBIDResolver,
-	requiredPermission types.OrgMemberRole,
-	kbService KBLookup,
-	kbShareService interfaces.KBShareService,
-	cfg *config.Config,
-) gin.HandlerFunc {
-	warnOnNilConfig(cfg)
+// On failure the guard aborts with the appropriate HTTP status: 400 for an
+// unresolvable id, 401 without a workspace, 404 for a missing or
+// foreign-workspace base, 503 when the lookup itself failed. A base that
+// cannot be found is not an authorisation event, so unlike the role
+// guards this one has no rollout flag: it enforces unconditionally.
+func RequireKBAccess(resolveKBID KBIDResolver, kbService KBLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		kbID, err := resolveKBID(c)
 		if err != nil {
@@ -244,43 +203,14 @@ func RequireKBAccess(
 			return
 		}
 
-		// Rollout window: enforcement off -> log the would-be check and
-		// pass through. We still resolve the KB (best-effort) so the
-		// effective-tenant context rewrite still happens for shared
-		// KBs; that way embedding queries hit the right tenant
-		// regardless of whether RBAC enforcement is active.
-		enforcing := rbacEnforcementEnabled(cfg)
-
-		access, err := resolveKBAccessOnce(ctx, kbID, requiredPermission, kbService, kbShareService)
+		access, err := resolveKBAccess(ctx, kbID, kbService)
 		switch {
 		case stderrors.Is(err, errKBAccessUnauthorized):
-			if !enforcing {
-				logger.Warnf(ctx, "[rbac] kb-access would 401 (enforcement off): kb=%s", kbID)
-				c.Next()
-				return
-			}
 			_ = c.Error(apperrors.NewUnauthorizedError("Unauthorized"))
 			c.Abort()
 			return
 		case stderrors.Is(err, errKBAccessNotFound):
-			// 404 still fires when enforcement is off — a missing KB is
-			// not an authorisation event, the client genuinely asked
-			// for nothing.
 			_ = c.Error(apperrors.NewNotFoundError("knowledge base not found"))
-			c.Abort()
-			return
-		case stderrors.Is(err, errKBAccessForbidden):
-			if !enforcing {
-				logger.Warnf(ctx, "[rbac] kb-access would 403 (enforcement off): kb=%s required=%s",
-					kbID, requiredPermission)
-				c.Next()
-				return
-			}
-			_ = c.Error(apperrors.NewForbiddenError("Permission denied to access this knowledge base"))
-			c.Abort()
-			return
-		case stderrors.Is(err, errKBAccessBadRequest):
-			_ = c.Error(apperrors.NewBadRequestError("invalid agent_source_tenant_id"))
 			c.Abort()
 			return
 		case err != nil:
@@ -292,32 +222,19 @@ func RequireKBAccess(
 			return
 		}
 
-		// Stash the resolution and rewrite the request to carry the
-		// effective tenant id. Handlers reading tenant from context now
-		// see the source-tenant for shared KBs (so retrieval queries
-		// hit the right embedding store) without having to know.
 		c.Set(KBAccessContextKey, access)
-		newCtx := context.WithValue(ctx, types.TenantIDContextKey, access.EffectiveTenantID)
-		c.Request = c.Request.WithContext(newCtx)
 		c.Next()
 	}
 }
 
-// resolveKBAccessOnce performs the actual two-step resolution. Kept
+// resolveKBAccess performs the lookup and the ownership check. Kept
 // unexported and using package-private sentinel errors so the guard's
 // error mapping is the only public surface.
-func resolveKBAccessOnce(
-	ctx context.Context,
-	kbID string,
-	requiredPermission types.OrgMemberRole,
-	kbService KBLookup,
-	kbShareService interfaces.KBShareService,
-) (*KBAccess, error) {
+func resolveKBAccess(ctx context.Context, kbID string, kbService KBLookup) (*KBAccess, error) {
 	tenantID, ok := types.TenantIDFromContext(ctx)
 	if !ok || tenantID == 0 {
 		return nil, errKBAccessUnauthorized
 	}
-	callerTenantRole := types.TenantRoleFromContext(ctx)
 
 	kb, err := kbService.GetKnowledgeBaseByID(ctx, kbID)
 	if err != nil {
@@ -329,42 +246,18 @@ func resolveKBAccessOnce(
 	if kb == nil {
 		return nil, errKBAccessNotFound
 	}
-
-	// 1. Own KB.
-	if kb.TenantID == tenantID {
-		return &KBAccess{
-			KnowledgeBase:     kb,
-			EffectiveTenantID: tenantID,
-			Permission:        types.OrgRoleAdmin,
-		}, nil
+	if kb.TenantID != tenantID {
+		// Logged at warn level: a client that holds a valid session and asks
+		// for another workspace's base is either stale or probing, and either
+		// is worth seeing in the logs even though the response is a plain 404.
+		logger.Warnf(ctx, "[kb_access] tenant %d -> KB %s owned by tenant %d; reported as not found",
+			tenantID, kbID, kb.TenantID)
+		return nil, errKBAccessNotFound
 	}
-
-	// 2. Org-shared KB. Plan 3's 3-D cap is applied inside
-	//    CheckTenantKBPermission; we just check the result satisfies
-	//    the minimum requirement.
-	if kbShareService != nil {
-		permission, isShared, permErr := kbShareService.CheckTenantKBPermission(ctx, kbID, tenantID, callerTenantRole)
-		if permErr == nil && isShared && permission.HasPermission(requiredPermission) {
-			source, srcErr := kbShareService.GetKBSourceTenant(ctx, kbID)
-			if srcErr == nil {
-				logger.Infof(ctx, "[kb_access] tenant %d -> shared KB %s perm=%s source=%d",
-					tenantID, kbID, permission, source)
-				return &KBAccess{
-					KnowledgeBase:     kb,
-					EffectiveTenantID: source,
-					Permission:        permission,
-				}, nil
-			}
-		}
-	}
-
-	logger.Warnf(ctx, "[kb_access] tenant %d -> KB %s denied (required=%s)", tenantID, kbID, requiredPermission)
-	return nil, errKBAccessForbidden
+	return &KBAccess{KnowledgeBase: kb}, nil
 }
 
 var (
 	errKBAccessUnauthorized = stderrors.New("kb_access: unauthorized")
 	errKBAccessNotFound     = stderrors.New("kb_access: not found")
-	errKBAccessForbidden    = stderrors.New("kb_access: forbidden")
-	errKBAccessBadRequest   = stderrors.New("kb_access: bad request")
 )

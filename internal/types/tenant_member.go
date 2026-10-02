@@ -9,10 +9,9 @@ import (
 // TenantRole represents a user's role inside a single tenant.
 //
 // Tenant roles govern intra-tenant authority (who can create/edit/delete
-// resources, manage tenant settings, etc.) and are orthogonal to the
-// OrgMemberRole defined in organization.go, which governs cross-tenant
-// sharing. A user may therefore carry different TenantRole values in
-// different tenants (one TenantMember row per (user, tenant) pair).
+// resources, manage tenant settings, etc.). A user may carry different
+// TenantRole values in different tenants (one TenantMember row per
+// (user, tenant) pair).
 type TenantRole string
 
 const (

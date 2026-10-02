@@ -67,7 +67,6 @@ type knowledgeService struct {
 	taskInspector   interfaces.TaskInspector
 	graphEngine     interfaces.RetrieveGraphRepository
 	redisClient     *redis.Client
-	kbShareService  interfaces.KBShareService
 	imageResolver   *docparser.ImageResolver
 	taskPendingRepo interfaces.TaskPendingOpsRepository
 
@@ -114,7 +113,6 @@ func NewKnowledgeService(
 	retrieveEngine interfaces.RetrieveEngineRegistry,
 	ownership retriever.TenantStoreOwnership,
 	redisClient *redis.Client,
-	kbShareService interfaces.KBShareService,
 	imageResolver *docparser.ImageResolver,
 	wikiRepo interfaces.WikiPageRepository,
 	wikiService interfaces.WikiPageService,
@@ -143,7 +141,6 @@ func NewKnowledgeService(
 		retrieveEngine:  retrieveEngine,
 		ownership:       ownership,
 		redisClient:     redisClient,
-		kbShareService:  kbShareService,
 		imageResolver:   imageResolver,
 		wikiRepo:        wikiRepo,
 		wikiService:     wikiService,
@@ -747,53 +744,6 @@ func (s *knowledgeService) GetKnowledgeBatch(ctx context.Context,
 	return s.repo.GetKnowledgeBatch(ctx, tenantID, ids)
 }
 
-// GetKnowledgeBatchWithSharedAccess retrieves knowledge by IDs, including items from shared KBs the user has access to.
-// Used when building search targets so that @mentioned files from shared KBs are included.
-func (s *knowledgeService) GetKnowledgeBatchWithSharedAccess(ctx context.Context,
-	tenantID uint64, ids []string,
-) ([]*types.Knowledge, error) {
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	ownList, err := s.repo.GetKnowledgeBatch(ctx, tenantID, ids)
-	if err != nil {
-		return nil, err
-	}
-	foundSet := make(map[string]bool)
-	for _, k := range ownList {
-		if k != nil {
-			foundSet[k.ID] = true
-		}
-	}
-	userIDVal := ctx.Value(types.UserIDContextKey)
-	if userIDVal == nil {
-		return ownList, nil
-	}
-	userID, ok := userIDVal.(string)
-	if !ok || userID == "" {
-		return ownList, nil
-	}
-	// Plan 3: shared-KB permission is keyed on (tenant, tenant_role)
-	// rather than user. callerTenantRole drives the 3-D cap.
-	callerTenantRole := types.TenantRoleFromContext(ctx)
-	for _, id := range ids {
-		if foundSet[id] {
-			continue
-		}
-		k, err := s.repo.GetKnowledgeByIDOnly(ctx, id)
-		if err != nil || k == nil || k.KnowledgeBaseID == "" {
-			continue
-		}
-		hasPermission, err := s.kbShareService.HasTenantKBPermission(ctx, k.KnowledgeBaseID, tenantID, callerTenantRole, types.OrgRoleViewer)
-		if err != nil || !hasPermission {
-			continue
-		}
-		foundSet[k.ID] = true
-		ownList = append(ownList, k)
-	}
-	return ownList, nil
-}
-
 // SetKnowledgeTags replaces all tags for a single knowledge entry.
 func (s *knowledgeService) SetKnowledgeTags(ctx context.Context, knowledgeID string, tagIDs []string) error {
 	return s.repo.SetKnowledgeTags(ctx, knowledgeID, tagIDs)
@@ -1004,7 +954,8 @@ func (s *knowledgeService) UpdateKnowledgeTagBatch(ctx context.Context, authoriz
 	return nil
 }
 
-// SearchKnowledge searches knowledge items by keyword across the tenant and shared knowledge bases.
+// SearchKnowledge searches knowledge items by keyword across the workspace's document
+// knowledge bases.
 // fileTypes: optional list of file extensions to filter by (e.g., ["csv", "xlsx"])
 func (s *knowledgeService) SearchKnowledge(ctx context.Context, keyword string, offset, limit int, fileTypes []string) ([]*types.Knowledge, bool, int64, error) {
 	tenantID, ok := ctx.Value(types.TenantIDContextKey).(uint64)
@@ -1014,32 +965,12 @@ func (s *knowledgeService) SearchKnowledge(ctx context.Context, keyword string, 
 
 	scopes := make([]types.KnowledgeSearchScope, 0)
 
-	// Own tenant: document-type knowledge bases
+	// Document-type knowledge bases of the workspace
 	ownKBs, err := s.kbService.ListKnowledgeBases(ctx)
 	if err == nil {
 		for _, kb := range ownKBs {
 			if kb != nil && kb.Type == types.KnowledgeBaseTypeDocument {
 				scopes = append(scopes, types.KnowledgeSearchScope{TenantID: tenantID, KBID: kb.ID})
-			}
-		}
-	}
-
-	// Shared knowledge bases (document type only). Plan 3 of #1303 keys
-	// the share lookup on (tenantID, callerTenantRole); userID is no
-	// longer load-bearing for org-share access.
-	if userIDVal := ctx.Value(types.UserIDContextKey); userIDVal != nil {
-		if userID, ok := userIDVal.(string); ok && userID != "" {
-			callerTenantRole := types.TenantRoleFromContext(ctx)
-			sharedList, err := s.kbShareService.ListSharedKnowledgeBases(ctx, tenantID, callerTenantRole)
-			if err == nil {
-				for _, info := range sharedList {
-					if info != nil && info.KnowledgeBase != nil && info.KnowledgeBase.Type == types.KnowledgeBaseTypeDocument {
-						scopes = append(scopes, types.KnowledgeSearchScope{
-							TenantID: info.SourceTenantID,
-							KBID:     info.KnowledgeBase.ID,
-						})
-					}
-				}
 			}
 		}
 	}

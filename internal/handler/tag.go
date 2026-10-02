@@ -16,11 +16,10 @@ import (
 
 // TagHandler handles knowledge base tag operations.
 //
-// All KB-access checks (own KB / org-shared KB) are now
-// performed by the route-level g.KBAccessRead / g.KBAccessWrite
-// guards in router.go — the guard rewrites c.Request.Context() to
-// carry the effective tenant ID, so handlers below just use
-// c.Request.Context() the way they always did.
+// The check that the addressed knowledge base belongs to the caller's
+// workspace is performed by the route-level g.KBAccess guard in the
+// router, so handlers below just use c.Request.Context() the way they
+// always did.
 type TagHandler struct {
 	tagService interfaces.KnowledgeTagService
 	tagRepo    interfaces.KnowledgeTagRepository
@@ -42,8 +41,7 @@ func NewTagHandler(
 }
 
 // resolveTagID resolves tag_id parameter which can be either UUID or seq_id (integer).
-// Uses tenant from c's context — which the route-level KB-access guard
-// has already rewritten to the effective tenant for shared KBs.
+// Uses the tenant from c's request context.
 func (h *TagHandler) resolveTagID(c *gin.Context) (string, error) {
 	return h.resolveTagIDWithCtx(c, c.Request.Context())
 }

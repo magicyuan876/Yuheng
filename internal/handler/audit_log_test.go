@@ -202,21 +202,6 @@ func TestKnowledgeBaseActivityHandler_UsesKBScope(t *testing.T) {
 	}
 }
 
-func TestKnowledgeBaseActivityHandler_BlocksSharedWorkspace(t *testing.T) {
-	svc := &stubAuditService{list: func(_ context.Context, _ uint64, _ *interfaces.AuditLogQuery) ([]*types.AuditLog, error) {
-		t.Fatal("audit list must not be called for a shared workspace")
-		return nil, nil
-	}}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/knowledge-bases/kb-1/activity", nil)
-	newKBActivityHandlerTestRouter(t, svc, 8,
-		&types.KnowledgeBase{ID: "kb-1", TenantID: 7, CreatorID: "creator"},
-		"creator", types.TenantRoleOwner).ServeHTTP(w, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d body=%s", w.Code, w.Body.String())
-	}
-}
-
 func TestKnowledgeBaseActivityHandler_RequiresCreatorOrAdmin(t *testing.T) {
 	svc := &stubAuditService{list: func(_ context.Context, _ uint64, _ *interfaces.AuditLogQuery) ([]*types.AuditLog, error) {
 		t.Fatal("audit list must not be called for ordinary members")

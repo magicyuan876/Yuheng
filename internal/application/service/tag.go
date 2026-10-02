@@ -28,7 +28,6 @@ type knowledgeTagService struct {
 	ownership      retriever.TenantStoreOwnership
 	modelService   interfaces.ModelService
 	task           interfaces.TaskEnqueuer
-	kbShareService interfaces.KBShareService
 	audit          interfaces.AuditLogService
 }
 
@@ -42,7 +41,6 @@ func NewKnowledgeTagService(
 	ownership retriever.TenantStoreOwnership,
 	modelService interfaces.ModelService,
 	task interfaces.TaskEnqueuer,
-	kbShareService interfaces.KBShareService,
 	audit interfaces.AuditLogService,
 ) (interfaces.KnowledgeTagService, error) {
 	return &knowledgeTagService{
@@ -54,7 +52,6 @@ func NewKnowledgeTagService(
 		ownership:      ownership,
 		modelService:   modelService,
 		task:           task,
-		kbShareService: kbShareService,
 		audit:          audit,
 	}, nil
 }
@@ -79,28 +76,15 @@ func (s *knowledgeTagService) ListTags(
 		return nil, err
 	}
 
-	// Check access permission
+	// A knowledge base is reachable only from its own workspace. The route
+	// guard already enforces this; the service repeats it so a direct caller
+	// gets the same answer, and the same 404 so ids cannot be probed.
 	tenantID := types.MustTenantIDFromContext(ctx)
 	if kb.TenantID != tenantID {
-		// Get user ID from context
-		userIDVal := ctx.Value(types.UserIDContextKey)
-		if userIDVal == nil {
-			return nil, werrors.NewForbiddenError("无权访问该知识库")
-		}
-		_ = userIDVal.(string)
-		callerTenantRole := types.TenantRoleFromContext(ctx)
-
-		// Check whether the caller's tenant has at least viewer permission via org sharing.
-		hasPermission, err := s.kbShareService.HasTenantKBPermission(ctx, kbID, tenantID, callerTenantRole, types.OrgRoleViewer)
-		if err != nil || !hasPermission {
-			return nil, werrors.NewForbiddenError("无权访问该知识库")
-		}
+		return nil, werrors.NewNotFoundError("knowledge base not found")
 	}
 
-	// Use kb's tenant ID for data access
-	effectiveTenantID := kb.TenantID
-
-	tags, total, err := s.repo.ListByKB(ctx, effectiveTenantID, kbID, page, keyword)
+	tags, total, err := s.repo.ListByKB(ctx, tenantID, kbID, page, keyword)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +102,7 @@ func (s *knowledgeTagService) ListTags(
 	}
 
 	// Batch query all reference counts in 2 SQL queries instead of 2*N
-	countsMap, err := s.repo.BatchCountReferences(ctx, effectiveTenantID, kbID, tagIDs)
+	countsMap, err := s.repo.BatchCountReferences(ctx, tenantID, kbID, tagIDs)
 	if err != nil {
 		logger.ErrorWithFields(ctx, err, map[string]interface{}{
 			"kb_id": kbID,

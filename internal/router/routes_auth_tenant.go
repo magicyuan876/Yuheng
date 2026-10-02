@@ -176,6 +176,23 @@ func RegisterMyInvitationRoutes(r *gin.RouterGroup, invitationHandler *handler.T
 	}
 }
 
+// RegisterUserFavoriteRoutes wires the per-user starred-resource endpoints.
+//
+// Authorization: the handler always derives (user_id, tenant_id) from the
+// auth context — there is no admin-style "see another user's favorites"
+// path — so a Viewer floor is the right gate. The endpoints intentionally
+// don't follow the OwnedXOrAdmin pattern: favorites aren't owned by the
+// resource's creator, they're owned by the user *doing* the starring.
+func RegisterUserFavoriteRoutes(r *gin.RouterGroup, h *handler.UserResourceFavoriteHandler, g *rbacGuards) {
+	// Favorites are per-user; not declared for API keys (default-deny).
+	favs := r.Group("/user/favorites")
+	{
+		favs.GET("", g.Viewer(), h.ListFavorites)
+		favs.POST("", g.Viewer(), h.AddFavorite)
+		favs.DELETE("/:type/:id", g.Viewer(), h.RemoveFavorite)
+	}
+}
+
 // RegisterAuthRoutes registers authentication routes
 func RegisterAuthRoutes(r *gin.RouterGroup, handler *handler.AuthHandler, g *rbacGuards) {
 	// Credential endpoints get a per-IP budget of their own (the per-account

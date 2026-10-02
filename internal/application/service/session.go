@@ -97,7 +97,6 @@ type sessionService struct {
 	chunkService          interfaces.ChunkService                // Service for chunk operations
 	webSearchStateRepo    interfaces.WebSearchStateService       // Service for web search state
 	webSearchProviderRepo interfaces.WebSearchProviderRepository // Repository for web search provider entities
-	kbShareService        interfaces.KBShareService              // Service for KB sharing operations
 	suggestionRepo        interfaces.MessageSuggestionRepository
 }
 
@@ -113,7 +112,6 @@ func NewSessionService(cfg *config.Config,
 	eventManager *chatpipeline.EventManager,
 	webSearchStateRepo interfaces.WebSearchStateService,
 	webSearchProviderRepo interfaces.WebSearchProviderRepository,
-	kbShareService interfaces.KBShareService,
 	suggestionRepo interfaces.MessageSuggestionRepository,
 ) interfaces.SessionService {
 	return &sessionService{
@@ -128,7 +126,6 @@ func NewSessionService(cfg *config.Config,
 		eventManager:          eventManager,
 		webSearchStateRepo:    webSearchStateRepo,
 		webSearchProviderRepo: webSearchProviderRepo,
-		kbShareService:        kbShareService,
 		suggestionRepo:        suggestionRepo,
 	}
 }

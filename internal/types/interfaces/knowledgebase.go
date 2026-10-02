@@ -34,8 +34,9 @@ type KnowledgeBaseService interface {
 	//   - Possible errors such as not existing, insufficient permissions, etc.
 	GetKnowledgeBaseByID(ctx context.Context, id string) (*types.KnowledgeBase, error)
 
-	// GetKnowledgeBaseByIDOnly retrieves knowledge base by ID without tenant filter
-	// Used for cross-tenant shared KB access where permission is checked elsewhere
+	// GetKnowledgeBaseByIDOnly retrieves knowledge base by ID without tenant filter.
+	// Used where the caller resolves the owning workspace itself (search-target
+	// building, background tasks without a tenant context).
 	// Parameters:
 	//   - ctx: Context information
 	//   - id: Unique identifier of the knowledge base

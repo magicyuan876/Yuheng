@@ -241,19 +241,21 @@ func TestFindingRoutesFollowTheKBRoleMatrix(t *testing.T) {
 			scanFindings, 200,
 		},
 		{"an admin dismisses", findingCaller{role: types.TenantRoleAdmin, userID: "a"}, dismissFinding, 200},
+		// A base of another workspace does not exist from here, whatever
+		// the caller's role; the answer is the same 404 a missing id gets.
 		{
-			"no cross-tenant read",
+			"another workspace's base cannot be read",
 			findingCaller{role: types.TenantRoleOwner, userID: "o"},
 			findingRequest{http.MethodGet, "/api/v1/knowledge-bases/kb-foreign/findings", ""},
-			403,
+			404,
 		},
 		{
-			"no cross-tenant dismiss",
+			"another workspace's findings cannot be dismissed",
 			findingCaller{role: types.TenantRoleOwner, userID: "o"},
 			findingRequest{
 				http.MethodPatch, "/api/v1/knowledge-bases/kb-foreign/findings/f1", `{"status":"dismissed"}`,
 			},
-			403,
+			404,
 		},
 	}
 	for _, tc := range cases {
@@ -322,30 +324,4 @@ func TestFindingRoutesAPIKeyPolicy(t *testing.T) {
 	scan := mustLookupAPIKeyPolicy(t, g, http.MethodPost, "/api/v1/knowledge-bases/:id/findings/scan")
 	assert.True(t, policyHasCapability(scan, types.APIKeyCapabilityManageKnowledgeBases))
 	assert.False(t, policyHasCapability(scan, types.APIKeyCapabilityIngest))
-}
-
-// An organisation member with editor access to a shared base may dismiss its
-// findings but not start a re-check of the owner's whole base.
-func TestFindingScanIsTheOwningWorkspaces(t *testing.T) {
-	svc := &stubFindingService{}
-	r := gin.New()
-	r.Use(middleware.ErrorHandler())
-	r.Use(func(c *gin.Context) {
-		// What the KB-access guard leaves behind for a sharee: the request
-		// context carries the owner's tenant, the gin keys the caller's.
-		ctx := context.WithValue(c.Request.Context(), types.TenantIDContextKey, uint64(999))
-		c.Request = c.Request.WithContext(ctx)
-		c.Set(types.TenantIDContextKey.String(), uint64(1))
-	})
-	h := handler.NewKnowledgeFindingHandler(svc)
-	r.POST("/scan/:id", h.ScanFindings)
-	r.PATCH("/findings/:id/:finding_id", h.UpdateFinding)
-
-	code, _ := serveFinding(t, r, findingRequest{http.MethodPost, "/scan/kb-shared", ""})
-	assert.Equal(t, http.StatusForbidden, code)
-	assert.Zero(t, svc.scans)
-
-	code, _ = serveFinding(t, r, findingRequest{http.MethodPatch, "/findings/kb-shared/f1", `{"status":"dismissed"}`})
-	assert.Equal(t, http.StatusOK, code)
-	assert.Equal(t, []uint64{999}, svc.tenants, "the change is made in the owner's tenant")
 }

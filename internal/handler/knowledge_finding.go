@@ -265,20 +265,9 @@ func (h *KnowledgeFindingHandler) CountAssignedFindings(c *gin.Context) {
 // @Router       /knowledge-bases/{id}/findings/scan [post]
 func (h *KnowledgeFindingHandler) ScanFindings(c *gin.Context) {
 	ctx := c.Request.Context()
-	kbTenant := types.MustTenantIDFromContext(ctx)
-	// The KB-access guard lets an organisation member with editor access
-	// through to a shared base. Dismissing a finding is an edit like any
-	// other; re-checking every document of somebody else's base is not a
-	// sharee's to start. The caller's own tenant, which the guard leaves in
-	// the gin keys, must be the owner.
-	if own, ok := c.Get(types.TenantIDContextKey.String()); ok {
-		if ownID, isID := own.(uint64); isID && ownID != kbTenant {
-			_ = c.Error(apperrors.NewForbiddenError("only the workspace that owns the knowledge base can re-check it"))
-			return
-		}
-	}
+	tenantID := types.MustTenantIDFromContext(ctx)
 	kbID := secutils.SanitizeForLog(c.Param("id"))
-	queued, err := h.svc.Scan(ctx, kbTenant, kbID)
+	queued, err := h.svc.Scan(ctx, tenantID, kbID)
 	if err != nil {
 		logger.Warnf(ctx, "[Findings] re-check of %s failed after %d scheduled: %v", kbID, queued, err)
 		_ = c.Error(err)

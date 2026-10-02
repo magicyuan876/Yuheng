@@ -66,7 +66,7 @@ func newExtensionEngine(t *testing.T, regs ...extension.RouteRegistrar) *gin.Eng
 		}
 		c.Next()
 	})
-	g := newRBACGuards(&config.Config{}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	g := newRBACGuards(&config.Config{}, nil, nil, nil, nil, nil, nil, nil, nil)
 	v1 := engine.Group("/api/v1")
 	v1.Use(g.apiKeyAuthorizer.Middleware())
 	require.NoError(t, RegisterExtensionRoutes(v1, regs, g))
@@ -128,7 +128,7 @@ func TestExtensionRoutesHonourRequireFeature(t *testing.T) {
 
 func TestRegisterExtensionRoutesReportsAFailingRegistrar(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	g := newRBACGuards(&config.Config{}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	g := newRBACGuards(&config.Config{}, nil, nil, nil, nil, nil, nil, nil, nil)
 	v1 := gin.New().Group("/api/v1")
 	err := RegisterExtensionRoutes(v1, []extension.RouteRegistrar{nil, fakeRegistrar{err: errors.New("boom")}}, g)
 	require.Error(t, err)
@@ -138,7 +138,7 @@ func TestRegisterExtensionRoutesReportsAFailingRegistrar(t *testing.T) {
 
 func TestExtensionRoutesCannotShadowACoreRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	g := newRBACGuards(&config.Config{}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	g := newRBACGuards(&config.Config{}, nil, nil, nil, nil, nil, nil, nil, nil)
 	engine := gin.New()
 	v1 := engine.Group("/api/v1")
 	v1.GET("/models", func(*gin.Context) {})

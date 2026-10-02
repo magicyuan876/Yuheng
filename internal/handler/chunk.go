@@ -15,12 +15,11 @@ import (
 
 // ChunkHandler defines HTTP handlers for chunk operations.
 //
-// All KB-access checks (own KB / org-shared KB) are now
-// performed by the route-level g.KBAccessRead*FromKnowledgeIDParam /
-// g.KBAccessWrite*FromKnowledgeIDParam / g.KBAccess*FromChunkIDParam
-// guards in router.go — the guard rewrites c.Request.Context() to
-// carry the effective tenant ID, so the handler reads tenant from
-// context the way it always did.
+// The check that the addressed chunk's knowledge base belongs to the
+// caller's workspace is performed by the route-level
+// g.KBAccessFromKnowledgeIDParam / g.KBAccessFromChunkIDParam guards in
+// the router, so the handlers read tenant from context the way they
+// always did.
 //
 // kgService is retained because the route-level *creator-ownership*
 // lookup KBCreatorLookupFromKnowledgeIDParam still walks
@@ -133,8 +132,6 @@ func (h *ChunkHandler) ListKnowledgeChunks(c *gin.Context) {
 		}
 	}
 
-	// The route-level guard has rewritten the request's tenant context
-	// to the effective tenant for shared KBs.
 	result, err := h.service.ListPagedChunksByKnowledgeID(ctx, knowledgeID, &pagination, chunkType)
 	if err != nil {
 		logger.ErrorWithFields(ctx, err, nil)

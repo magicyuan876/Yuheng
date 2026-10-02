@@ -41,7 +41,6 @@ type RouterParams struct {
 	MessageService               interfaces.MessageService
 	ModelService                 interfaces.ModelService
 	EvaluationService            interfaces.EvaluationService
-	KBShareService               interfaces.KBShareService
 	KBHandler                    *handler.KnowledgeBaseHandler
 	KnowledgeHandler             *handler.KnowledgeHandler
 	TenantHandler                *handler.TenantHandler
@@ -74,7 +73,6 @@ type RouterParams struct {
 	FAQHandler                   *handler.FAQHandler
 	TagHandler                   *handler.TagHandler
 	UserFavoriteHandler          *handler.UserResourceFavoriteHandler
-	OrganizationHandler          *handler.OrganizationHandler
 	RedisClient                  *redis.Client
 	DB                           *gorm.DB
 	DataSourceHandler            *handler.DataSourceHandler
@@ -193,7 +191,6 @@ func NewRouter(params RouterParams) *gin.Engine {
 			params.KBService,
 			params.KnowledgeService,
 			params.ChunkService,
-			params.KBShareService,
 			params.SystemSettingService,
 		)
 
@@ -209,14 +206,11 @@ func NewRouter(params RouterParams) *gin.Engine {
 		RegisterMyInvitationRoutes(v1, params.TenantInvitationHandler)
 		RegisterKnowledgeBaseRoutes(v1, params.KBHandler, rbacGuards)
 		RegisterKnowledgeBaseActivityRoutes(v1, params.AuditLogHandler, rbacGuards)
-		// KB-scoped image proxy: lets tenants render images embedded in
-		// org-shared KB content, which the tenant-scoped
-		// /files route cannot serve because it enforces same-tenant paths.
+		// KB-scoped image proxy: renders images embedded in a knowledge
+		// base's content (chunks / wiki pages) under the base's own gate.
 		serveKBScopedFiles(v1, rbacGuards, params.FileStore, params.ResourceCatalog)
-		// Message-scoped image proxy: replies may reference resources stored
-		// in another workspace (e.g. org-shared content). Authorization is
-		// derived from the persisted message, never from a client-provided
-		// workspace ID.
+		// Message-scoped image proxy: authorization is derived from the
+		// persisted message, never from a client-provided workspace ID.
 		serveMessageScopedFiles(v1, rbacGuards, params.MessageService, params.FileStore, params.ResourceCatalog)
 		RegisterKnowledgeTagRoutes(v1, params.TagHandler, rbacGuards)
 		RegisterKnowledgeRoutes(v1, params.KnowledgeHandler, rbacGuards)
@@ -240,7 +234,6 @@ func NewRouter(params RouterParams) *gin.Engine {
 		RegisterVectorStoreRoutes(v1, params.VectorStoreHandler, rbacGuards)
 		RegisterStorageBackendRoutes(v1, params.StorageBackendHandler, rbacGuards)
 		RegisterUserFavoriteRoutes(v1, params.UserFavoriteHandler, rbacGuards)
-		RegisterOrganizationRoutes(v1, params.OrganizationHandler, rbacGuards)
 		RegisterDataSourceRoutes(v1, params.DataSourceHandler, params.DataSourceCredentialsHandler, rbacGuards)
 		RegisterWikiPageRoutes(v1, params.WikiPageHandler, rbacGuards)
 		RegisterKnowledgeFindingRoutes(v1, params.KnowledgeFindingHandler, rbacGuards)

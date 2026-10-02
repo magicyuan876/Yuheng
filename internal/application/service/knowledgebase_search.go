@@ -115,10 +115,9 @@ func (s *knowledgeBaseService) HybridSearch(ctx context.Context,
 
 	// Batch-load every KB in scope. Required for store grouping,
 	// embedding-model consistency validation, and FAQ type detection.
-	// GetKnowledgeBaseByIDs is intentionally tenant-agnostic at the
-	// repository layer so that Organization-shared KBs (owned by a
-	// different tenant) can be loaded here; authorization for each
-	// returned row is enforced explicitly below.
+	// GetKnowledgeBaseByIDs is tenant-agnostic at the repository layer;
+	// the ownership of each returned row is checked explicitly below so a
+	// foreign id is answered with the same 404 as a missing one.
 	kbs, err := s.repo.GetKnowledgeBaseByIDs(ctx, searchKBIDs)
 	if err != nil {
 		logger.ErrorWithFields(ctx, err, map[string]interface{}{
@@ -130,10 +129,9 @@ func (s *knowledgeBaseService) HybridSearch(ctx context.Context,
 		return nil, apperrors.NewNotFoundError("knowledge base not found")
 	}
 
-	// Authorize every KB the caller asked for. Same-tenant KBs are
-	// always accessible; foreign-tenant KBs (Organization-shared) must
-	// pass an explicit per-KB permission check. Without this guard, a
-	// caller could pass arbitrary KB UUIDs in params.KnowledgeBaseIDs
+	// Authorize every KB the caller asked for: a knowledge base is
+	// reachable only from the workspace that owns it. Without this guard,
+	// a caller could pass arbitrary KB UUIDs in params.KnowledgeBaseIDs
 	// and reach foreign tenants' bound vector stores via the per-group
 	// engine resolution downstream.
 	if err := s.authorizeKBAccess(ctx, kbs, requestTenantID); err != nil {
@@ -443,8 +441,7 @@ func (s *knowledgeBaseService) buildRetrievalParams(
 // resolveQueryEmbedding returns the query embedding for a store group. It
 // reuses params.QueryEmbedding when the caller pre-computed it (the common
 // path — HybridSearch embeds once before fan-out), otherwise it embeds the
-// query text using the embedding model of the supplied KB. For cross-tenant
-// shared KBs the source tenant's embedding model is used so the produced
+// query text using the embedding model of the supplied KB, so the produced
 // vector is compatible with the index it will be searched against.
 func (s *knowledgeBaseService) resolveQueryEmbedding(
 	ctx context.Context,

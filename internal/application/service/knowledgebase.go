@@ -31,8 +31,6 @@ type knowledgeBaseService struct {
 	repo            interfaces.KnowledgeBaseRepository
 	kgRepo          interfaces.KnowledgeRepository
 	chunkRepo       interfaces.ChunkRepository
-	shareRepo       interfaces.KBShareRepository
-	kbShareService  interfaces.KBShareService
 	modelService    interfaces.ModelService
 	retrieveEngine  interfaces.RetrieveEngineRegistry
 	ownership       retriever.TenantStoreOwnership
@@ -54,8 +52,6 @@ type knowledgeBaseService struct {
 func NewKnowledgeBaseService(repo interfaces.KnowledgeBaseRepository,
 	kgRepo interfaces.KnowledgeRepository,
 	chunkRepo interfaces.ChunkRepository,
-	shareRepo interfaces.KBShareRepository,
-	kbShareService interfaces.KBShareService,
 	modelService interfaces.ModelService,
 	retrieveEngine interfaces.RetrieveEngineRegistry,
 	ownership retriever.TenantStoreOwnership,
@@ -76,8 +72,6 @@ func NewKnowledgeBaseService(repo interfaces.KnowledgeBaseRepository,
 		repo:            repo,
 		kgRepo:          kgRepo,
 		chunkRepo:       chunkRepo,
-		shareRepo:       shareRepo,
-		kbShareService:  kbShareService,
 		modelService:    modelService,
 		retrieveEngine:  retrieveEngine,
 		ownership:       ownership,
@@ -269,8 +263,9 @@ func (s *knowledgeBaseService) GetKnowledgeBaseByID(ctx context.Context, id stri
 	return kb, nil
 }
 
-// GetKnowledgeBaseByIDOnly retrieves knowledge base by ID without tenant filter
-// Used for cross-tenant shared KB access where permission is checked elsewhere
+// GetKnowledgeBaseByIDOnly retrieves knowledge base by ID without tenant filter.
+// Used where the caller resolves the owning workspace itself, such as the
+// search-target builder and background tasks that carry no tenant context.
 func (s *knowledgeBaseService) GetKnowledgeBaseByIDOnly(ctx context.Context, id string) (*types.KnowledgeBase, error) {
 	if id == "" {
 		logger.Error(ctx, "Knowledge base ID is empty")
@@ -553,7 +548,7 @@ func (s *knowledgeBaseService) UpdateKnowledgeBase(ctx context.Context,
 // move.
 //
 // The KB still has to belong to the caller's tenant — the route is
-// already gated behind KBAccessRead, but we re-check via
+// already gated behind KBAccess, but we re-check via
 // GetKnowledgeBaseByIDAndTenant so a stale param survives a tenant
 // switch cleanly.
 func (s *knowledgeBaseService) TogglePinKnowledgeBase(
@@ -571,12 +566,7 @@ func (s *knowledgeBaseService) TogglePinKnowledgeBase(
 		return nil, errors.New("pin requires an authenticated user")
 	}
 
-	// Look the KB up without a tenant filter: the route's KBAccessRead
-	// guard already validated that this caller can see this KB (own or
-	// org-shared). Filtering by the caller's tenant
-	// here would 404 every legitimate pin against a shared KB whose
-	// owning tenant differs from the caller's active tenant.
-	kb, err := s.repo.GetKnowledgeBaseByID(ctx, id)
+	kb, err := s.repo.GetKnowledgeBaseByIDAndTenant(ctx, id, tenantID)
 	if err != nil {
 		logger.ErrorWithFields(ctx, err, map[string]interface{}{
 			"knowledge_base_id": id,
@@ -725,14 +715,7 @@ func (s *knowledgeBaseService) DeleteKnowledgeBase(ctx context.Context, id strin
 	s.cleanupTasksForKnowledgeBase(kbCleanupCtx, id, nil, nil)
 	cancelKBCleanup()
 
-	// Step 1b: Remove all organization shares for this KB so org settings no longer show them
-	if s.shareRepo != nil {
-		if delErr := s.shareRepo.DeleteByKnowledgeBaseID(ctx, id); delErr != nil {
-			logger.Warnf(ctx, "Failed to delete KB shares for knowledge base %s: %v", id, delErr)
-		}
-	}
-
-	// Step 1c: Stop and soft-delete all data sources bound to this KB so cron
+	// Step 1b: Stop and soft-delete all data sources bound to this KB so cron
 	// schedules and in-flight sync logs do not keep running against a deleted KB.
 	dataSourceIDs := s.deleteDataSourcesForKnowledgeBase(ctx, id)
 	if len(dataSourceIDs) > 0 {
@@ -1202,7 +1185,6 @@ func (s *knowledgeBaseService) DuplicateKnowledgeBase(
 	targetKB.ChunkCount = 0
 	targetKB.IsProcessing = false
 	targetKB.ProcessingCount = 0
-	targetKB.ShareCount = 0
 	targetKB.CreatorName = ""
 	targetKB.EnsureDefaults()
 	targetKB.Normalize()
