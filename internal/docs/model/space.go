@@ -49,36 +49,10 @@ type SpaceMember struct {
 func (SpaceMember) TableName() string { return "docs_space_members" }
 
 // Principal returns the member's principal.
+//
+// A group principal names a workspace group (types.TenantGroup). Groups are
+// not modelled here: they belong to the workspace, and this module is one of
+// their consumers.
 func (m SpaceMember) Principal() Principal {
 	return Principal{Type: m.PrincipalType, ID: m.PrincipalID}
 }
-
-// TenantGroup is a tenant-level user group.
-type TenantGroup struct {
-	ID          string      `json:"id"           gorm:"type:varchar(36);primaryKey"`
-	TenantID    uint64      `json:"tenant_id"    gorm:"not null;index"`
-	Name        string      `json:"name"         gorm:"type:varchar(128);not null"`
-	Description string      `json:"description"  gorm:"type:text;not null;default:''"`
-	IsDefault   bool        `json:"is_default"   gorm:"not null;default:false"`
-	Source      GroupSource `json:"source"       gorm:"type:varchar(16);not null;default:'manual'"`
-	ExternalID  *string     `json:"external_id,omitempty" gorm:"type:varchar(255)"`
-	CreatorID   *string     `json:"creator_id,omitempty"  gorm:"type:varchar(36)"`
-	CreatedAt   time.Time   `json:"created_at"   gorm:"autoCreateTime"`
-	UpdatedAt   time.Time   `json:"updated_at"   gorm:"autoUpdateTime"`
-	DeletedAt   *time.Time  `json:"deleted_at,omitempty"`
-}
-
-// TableName pins the table name.
-func (TenantGroup) TableName() string { return "tenant_groups" }
-
-// TenantGroupMember links a user to a group.
-type TenantGroupMember struct {
-	GroupID   string    `json:"group_id"   gorm:"type:varchar(36);primaryKey"`
-	UserID    string    `json:"user_id"    gorm:"type:varchar(36);primaryKey"`
-	TenantID  uint64    `json:"tenant_id"  gorm:"not null"`
-	AddedBy   *string   `json:"added_by,omitempty" gorm:"type:varchar(36)"`
-	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
-}
-
-// TableName pins the table name.
-func (TenantGroupMember) TableName() string { return "tenant_group_members" }

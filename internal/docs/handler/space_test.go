@@ -173,10 +173,6 @@ func newSpaceRouter(t *testing.T, opts ...func(*service.Deps)) (*gin.Engine, *re
 	docs.DELETE("/pages/:pid/lease", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Leases.Release)
 	docs.GET("/pages/:pid/ydoc", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Leases.LoadYDoc)
 	docs.PUT("/pages/:pid/ydoc", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Leases.SaveYDoc)
-	groups := r.Group("/groups")
-	groups.GET("", guard.RequireMember(), h.Groups.List)
-	groups.POST("", guard.RequireMember(), h.Groups.Create)
-	groups.PUT("/:gid/members", guard.RequireMember(), h.Groups.AddMembers)
 	return r, repos
 }
 
@@ -265,30 +261,29 @@ func TestSpaceRoutesVisibilityAndRoles(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, call(t, r, "alice", http.MethodGet, "/docs/spaces/"+sid, nil).Code)
 }
 
-func TestGroupRoutesGrantThroughGroups(t *testing.T) {
-	r, _ := newSpaceRouter(t)
+// A space grant to a workspace group reaches the group's members over HTTP,
+// and nobody else. The group routes themselves live in the application layer
+// (internal/handler/tenant_group.go) and are tested there; this is the docs
+// side, so the group is written straight through the repository. That a
+// membership change reaches a cached identity at once is the group bridge's
+// job and is tested with it (internal/docs/groupbridge_test.go).
+func TestSpaceRoutesGrantThroughGroups(t *testing.T) {
+	r, repos := newSpaceRouter(t)
 	created := call(t, r, "alice", http.MethodPost, "/docs/spaces", map[string]any{"name": "Team"})
 	require.Equal(t, http.StatusCreated, created.Code)
 	sid := data(created)["id"].(string)
 
-	group := call(t, r, "owner", http.MethodPost, "/groups", map[string]any{"name": "Backend"})
-	require.Equal(t, http.StatusCreated, group.Code, group.Body)
-	gid := data(group)["id"].(string)
+	group := &types.TenantGroup{TenantID: 1, Name: "Backend"}
+	require.NoError(t, repos.Groups.Create(context.Background(), group, []string{"bob"}, "owner"))
 
 	set := call(t, r, "alice", http.MethodPut, "/docs/spaces/"+sid+"/members", map[string]any{
-		"members": []map[string]any{{"principal_type": "group", "principal_id": gid, "role": "writer"}},
+		"members": []map[string]any{{"principal_type": "group", "principal_id": group.ID, "role": "writer"}},
 	})
 	require.Equal(t, http.StatusOK, set.Code, set.Body)
-	require.Equal(t, http.StatusNotFound, call(t, r, "bob", http.MethodGet, "/docs/spaces/"+sid, nil).Code)
 
-	added := call(t, r, "owner", http.MethodPut, "/groups/"+gid+"/members", map[string]any{"user_ids": []string{"bob"}})
-	require.Equal(t, http.StatusOK, added.Code, added.Body)
-	require.EqualValues(t, 1, data(added)["member_count"])
 	got := call(t, r, "bob", http.MethodGet, "/docs/spaces/"+sid, nil)
-	require.Equal(t, http.StatusOK, got.Code)
+	require.Equal(t, http.StatusOK, got.Code, "bob is in the space through the group")
 	require.Equal(t, "writer", data(got)["role"])
-
-	list := call(t, r, "viewer", http.MethodGet, "/groups", nil)
-	require.Equal(t, http.StatusOK, list.Code, "any member may list groups (pickers need it)")
-	require.Len(t, list.Body["data"], 2)
+	require.Equal(t, http.StatusNotFound, call(t, r, "carol", http.MethodGet, "/docs/spaces/"+sid, nil).Code,
+		"carol is not in the group and the space is private")
 }

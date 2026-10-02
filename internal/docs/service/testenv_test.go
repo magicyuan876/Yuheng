@@ -192,6 +192,28 @@ func (e *env) identity(user string) *acl.Identity {
 	return id
 }
 
+// createGroup makes a workspace group with the given members, straight
+// through the repository: groups are managed by the application layer, and
+// what these tests exercise is how this module grants to one. Identities
+// are cached with their principals, so the cache is dropped afterwards the
+// way the group service's dependent hook would.
+func (e *env) createGroup(name string, memberIDs ...string) *types.TenantGroup {
+	e.t.Helper()
+	g := &types.TenantGroup{TenantID: 1, Name: name}
+	require.NoError(e.t, e.repos.Groups.Create(ctx(), g, memberIDs, "owner"))
+	e.resolver.Invalidate(ctx(), 1)
+	return g
+}
+
+// defaultGroup returns the workspace's implicit "everyone" group, creating
+// it on first use as listing the groups would.
+func (e *env) defaultGroup() *types.TenantGroup {
+	e.t.Helper()
+	g, err := e.repos.Groups.EnsureDefault(ctx(), 1, "owner")
+	require.NoError(e.t, err)
+	return g
+}
+
 func (e *env) eventTypes() []events.Type {
 	e.mu.Lock()
 	defer e.mu.Unlock()

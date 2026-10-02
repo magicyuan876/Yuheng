@@ -27,6 +27,13 @@ export const TENANT_MEMBER_AUDIT_ACTIONS = [
   "rbac.invitation_declined",
   "rbac.invitation_revoked",
   "rbac.invitation_expired",
+  // Workspace groups are the other half of membership, so their events sit
+  // in the same drawer as the member events.
+  "rbac.group_created",
+  "rbac.group_updated",
+  "rbac.group_deleted",
+  "rbac.group_member_added",
+  "rbac.group_member_removed",
 ] as const;
 
 /** Platform control-plane audit events (system settings → audit tab). */

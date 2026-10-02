@@ -242,13 +242,13 @@ import {
 import {
   addPageGrant,
   getPageAccess,
-  listGroups,
   removePageGrant,
   setPageRestricted,
   type GrantView,
   type PageAccessView,
   type SpaceRole,
 } from "@/api/docs";
+import { listGroups } from "@/api/tenant/groups";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

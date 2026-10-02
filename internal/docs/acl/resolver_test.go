@@ -118,8 +118,8 @@ func TestTenantLayer(t *testing.T) {
 func TestSpaceLayer(t *testing.T) {
 	w := newWorld(t)
 	w.page("root", "")
-	require.NoError(t, w.repos.Groups.Create(ctx(), &model.TenantGroup{ID: "g-backend", TenantID: 1, Name: "backend"}))
-	require.NoError(t, w.repos.Groups.AddMembers(ctx(), 1, "g-backend", []string{"bob"}, ""))
+	require.NoError(t, w.repos.Groups.Create(ctx(), &types.TenantGroup{ID: "g-backend", TenantID: 1, Name: "backend"},
+		[]string{"bob"}, ""))
 	w.member(model.GroupPrincipal("g-backend"), model.RoleWriter)
 	w.member(model.UserPrincipal("bob"), model.RoleReader)
 
@@ -220,8 +220,8 @@ func TestSubjectsSnapshotAndQueryExpansion(t *testing.T) {
 	w.page("root", "")
 	w.page("child", "root")
 	w.page("grand", "child")
-	require.NoError(t, w.repos.Groups.Create(ctx(), &model.TenantGroup{ID: "g1", TenantID: 1, Name: "g1"}))
-	require.NoError(t, w.repos.Groups.AddMembers(ctx(), 1, "g1", []string{"alice"}, ""))
+	require.NoError(t, w.repos.Groups.Create(ctx(), &types.TenantGroup{ID: "g1", TenantID: 1, Name: "g1"},
+		[]string{"alice"}, ""))
 	w.member(model.UserPrincipal("alice"), model.RoleWriter)
 
 	subjects, err := w.res.PageSubjects(ctx(), 1, w.pages["root"].ID)

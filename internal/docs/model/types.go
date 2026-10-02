@@ -270,19 +270,6 @@ const (
 	JobFailed    = ImportFailed
 )
 
-// GroupSource records where a group's membership is managed.
-type GroupSource string
-
-// Group sources.
-const (
-	GroupSourceManual GroupSource = "manual"
-	GroupSourceOIDC   GroupSource = "oidc"
-	GroupSourceLDAP   GroupSource = "ldap"
-)
-
-// DefaultGroupName is the reserved name of the implicit "everyone" group.
-const DefaultGroupName = "everyone"
-
 // SupersededBy records that a page was superseded by another document: a
 // snapshot of the replacement taken when it happened, so that it still reads
 // after the replacement is renamed or gone. Stored as JSONB; nil when the page

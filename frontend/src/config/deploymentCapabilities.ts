@@ -69,11 +69,11 @@ export function extensionState(extensions: ExtensionCapabilityMap, key: string):
   return entry.supported === true ? "enabled" : "locked";
 }
 
+// Workspace groups are deliberately absent: they are a workspace concept the
+// backend serves whether or not the docs module (their first consumer) is on,
+// so the section is always available.
 export const SETTINGS_SECTION_CAPABILITY: Partial<Record<string, DeploymentCapabilityKey>> = {
   websearch: "settings.websearch",
   vectorstore: "settings.vectorstore",
   storage: "settings.storage",
-  // Tenant user groups are part of the docs module's permission model, so
-  // the section follows that capability rather than one of its own.
-  groups: "docs",
 };

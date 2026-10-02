@@ -2,13 +2,13 @@
   <div class="flex flex-col gap-4">
     <div>
       <div class="flex items-center justify-between gap-3">
-        <h2 class="text-foreground m-0 text-lg leading-[26px] font-semibold">{{ t("docs.groups.title") }}</h2>
+        <h2 class="text-foreground m-0 text-lg leading-[26px] font-semibold">{{ t("workspaceGroups.title") }}</h2>
         <Button v-if="canManage" size="sm" @click="openCreate">
           <PlusIcon />
-          {{ t("docs.groups.create") }}
+          {{ t("workspaceGroups.create") }}
         </Button>
       </div>
-      <p class="text-muted-foreground mt-1.5 mb-0 text-[13px] leading-5">{{ t("docs.groups.subtitle") }}</p>
+      <p class="text-muted-foreground mt-1.5 mb-0 text-[13px] leading-5">{{ t("workspaceGroups.subtitle") }}</p>
     </div>
 
     <Table>
@@ -32,12 +32,12 @@
               <div class="text-foreground inline-flex items-center gap-2">
                 <UsersIcon class="text-primary size-4" />
                 <span>{{ row.name }}</span>
-                <Badge v-if="row.is_default" variant="outline">{{ t("docs.groups.defaultBadge") }}</Badge>
+                <Badge v-if="row.is_default" variant="outline">{{ t("workspaceGroups.defaultBadge") }}</Badge>
               </div>
             </TableCell>
             <TableCell>
               <span class="text-muted-foreground">
-                {{ row.is_default ? t("docs.groups.defaultHint") : row.description || "—" }}
+                {{ row.is_default ? t("workspaceGroups.defaultHint") : row.description || "—" }}
               </span>
             </TableCell>
             <TableCell>
@@ -47,7 +47,7 @@
                 class="text-primary cursor-pointer text-sm hover:underline"
                 @click="openMembers(row)"
               >
-                {{ t("docs.groups.memberCount", { count: row.member_count }) }}
+                {{ t("workspaceGroups.memberCount", { count: row.member_count }) }}
               </button>
             </TableCell>
             <TableCell>
@@ -57,13 +57,13 @@
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      :aria-label="t('docs.groups.manageMembers')"
+                      :aria-label="t('workspaceGroups.manageMembers')"
                       @click="openMembers(row)"
                     >
                       <UsersRoundIcon />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{{ t("docs.groups.manageMembers") }}</TooltipContent>
+                  <TooltipContent>{{ t("workspaceGroups.manageMembers") }}</TooltipContent>
                 </Tooltip>
                 <Tooltip v-if="canManage">
                   <TooltipTrigger as-child>
@@ -85,7 +85,7 @@
                   </PopoverTrigger>
                   <PopoverContent align="end" class="w-64">
                     <p class="text-foreground m-0 mb-3 text-sm">
-                      {{ t("docs.groups.deleteConfirm", { name: row.name }) }}
+                      {{ t("workspaceGroups.deleteConfirm", { name: row.name }) }}
                     </p>
                     <div class="flex justify-end gap-2">
                       <Button variant="outline" size="sm" @click="deleteConfirmId = null">
@@ -110,7 +110,7 @@
           <TableRow v-if="!groups.length">
             <TableCell :colspan="columns.length">
               <Empty>
-                <EmptyDescription>{{ t("docs.groups.empty") }}</EmptyDescription>
+                <EmptyDescription>{{ t("workspaceGroups.empty") }}</EmptyDescription>
               </Empty>
             </TableCell>
           </TableRow>
@@ -122,28 +122,30 @@
     <Dialog v-model:open="editVisible">
       <DialogContent class="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>{{ editing ? t("docs.groups.editTitle") : t("docs.groups.createTitle") }}</DialogTitle>
+          <DialogTitle>{{ editing ? t("workspaceGroups.editTitle") : t("workspaceGroups.createTitle") }}</DialogTitle>
         </DialogHeader>
         <form class="flex flex-col gap-3" @submit.prevent>
           <div class="flex flex-col gap-1.5">
-            <Label for="group-name-input" class="text-sm font-medium">{{ t("docs.groups.name") }}</Label>
+            <Label for="group-name-input" class="text-sm font-medium">{{ t("workspaceGroups.name") }}</Label>
             <Input
               id="group-name-input"
               v-model="form.name"
               :maxlength="100"
               :disabled="editing?.is_default"
-              :placeholder="t('docs.groups.namePlaceholder')"
+              :placeholder="t('workspaceGroups.namePlaceholder')"
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <Label for="group-description-input" class="text-sm font-medium">{{ t("docs.groups.description") }}</Label>
+            <Label for="group-description-input" class="text-sm font-medium">{{
+              t("workspaceGroups.description")
+            }}</Label>
             <Textarea
               id="group-description-input"
               v-model="form.description"
               :maxlength="4000"
               rows="2"
               class="max-h-[116px]"
-              :placeholder="t('docs.groups.descriptionPlaceholder')"
+              :placeholder="t('workspaceGroups.descriptionPlaceholder')"
             />
           </div>
         </form>
@@ -176,7 +178,7 @@
               />
               <Input
                 :model-value="memberQuery"
-                :placeholder="t('docs.groups.searchPlaceholder')"
+                :placeholder="t('workspaceGroups.searchPlaceholder')"
                 class="pr-8 pl-8"
                 @update:model-value="onMemberQueryInput"
                 @keydown.enter="() => reloadMembers(1)"
@@ -204,7 +206,9 @@
                     <!-- Like the old multi-select, the trigger lists the picked
                          people, collapsing everything past the second into "+N". -->
                     <span v-if="pendingUserIds.length" class="text-foreground truncate">{{ pendingSummary }}</span>
-                    <span v-else class="text-placeholder truncate">{{ t("docs.groups.addMembersPlaceholder") }}</span>
+                    <span v-else class="text-placeholder truncate">{{
+                      t("workspaceGroups.addMembersPlaceholder")
+                    }}</span>
                     <ChevronDownIcon />
                   </Button>
                 </PopoverTrigger>
@@ -215,7 +219,7 @@
                     />
                     <Input
                       :model-value="memberAddQuery"
-                      :placeholder="t('docs.groups.searchPlaceholder')"
+                      :placeholder="t('workspaceGroups.searchPlaceholder')"
                       class="pl-8"
                       @update:model-value="onMemberAddSearch"
                     />
@@ -245,19 +249,19 @@
                       v-if="!memberSearch.loading.value && !addableOptions.length"
                       class="text-placeholder m-0 px-1 py-2 text-xs"
                     >
-                      {{ t("docs.groups.noMembers") }}
+                      {{ t("workspaceGroups.noMembers") }}
                     </p>
                   </div>
                 </PopoverContent>
               </Popover>
               <Button size="sm" :disabled="!pendingUserIds.length || addingMembers" @click="addMembers">
                 <Loader2Icon v-if="addingMembers" class="animate-spin" />
-                {{ t("docs.groups.addMembers") }}
+                {{ t("workspaceGroups.addMembers") }}
               </Button>
             </div>
           </div>
           <p v-if="activeGroup?.is_default" class="text-muted-foreground mt-1.5 mb-0 text-[13px] leading-5">
-            {{ t("docs.groups.defaultHint") }}
+            {{ t("workspaceGroups.defaultHint") }}
           </p>
           <Table>
             <TableHeader>
@@ -307,7 +311,7 @@
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent align="end" class="w-64">
-                        <p class="text-foreground m-0 mb-3 text-sm">{{ t("docs.groups.removeMemberConfirm") }}</p>
+                        <p class="text-foreground m-0 mb-3 text-sm">{{ t("workspaceGroups.removeMemberConfirm") }}</p>
                         <div class="flex justify-end gap-2">
                           <Button variant="outline" size="sm" @click="removeConfirmId = null">
                             {{ t("common.cancel") }}
@@ -330,7 +334,7 @@
                 <TableRow v-if="!memberPage.members.length">
                   <TableCell :colspan="memberColumns.length">
                     <Empty>
-                      <EmptyDescription>{{ t("docs.groups.noMembers") }}</EmptyDescription>
+                      <EmptyDescription>{{ t("workspaceGroups.noMembers") }}</EmptyDescription>
                     </Empty>
                   </TableCell>
                 </TableRow>
@@ -381,7 +385,7 @@ import {
   type GroupMemberPage,
   type GroupMemberRow,
   type TenantGroup,
-} from "@/api/docs";
+} from "@/api/tenant/groups";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberSearch } from "@/views/docs/useMemberSearch";
 
@@ -430,17 +434,17 @@ const load = async () => {
   try {
     groups.value = await listGroups();
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t("docs.groups.loadFailed")));
+    MessagePlugin.error(errorText(err, t("workspaceGroups.loadFailed")));
   } finally {
     loading.value = false;
   }
 };
 
 const columns = computed(() => [
-  { colKey: "name", title: t("docs.groups.columns.name"), minWidth: 180, ellipsis: true },
-  { colKey: "description", title: t("docs.groups.columns.description"), ellipsis: true },
-  { colKey: "members", title: t("docs.groups.columns.members"), width: 120 },
-  { colKey: "actions", title: t("docs.groups.columns.actions"), width: 132 },
+  { colKey: "name", title: t("workspaceGroups.columns.name"), minWidth: 180, ellipsis: true },
+  { colKey: "description", title: t("workspaceGroups.columns.description"), ellipsis: true },
+  { colKey: "members", title: t("workspaceGroups.columns.members"), width: 120 },
+  { colKey: "actions", title: t("workspaceGroups.columns.actions"), width: 132 },
 ]);
 
 // ---- create / edit ------------------------------------------------------------------
@@ -469,15 +473,17 @@ const submitEdit = async () => {
       if (!editing.value.is_default) body.name = form.value.name.trim();
       const updated = await updateGroup(editing.value.id, body);
       groups.value = groups.value.map((g) => (g.id === updated.id ? updated : g));
-      MessagePlugin.success(t("docs.groups.updateSuccess"));
+      MessagePlugin.success(t("workspaceGroups.updateSuccess"));
     } else {
       const created = await createGroup({ name: form.value.name.trim(), description: form.value.description.trim() });
       groups.value = [...groups.value, created];
-      MessagePlugin.success(t("docs.groups.createSuccess"));
+      MessagePlugin.success(t("workspaceGroups.createSuccess"));
     }
     editVisible.value = false;
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, editing.value ? t("docs.groups.updateFailed") : t("docs.groups.createFailed")));
+    MessagePlugin.error(
+      errorText(err, editing.value ? t("workspaceGroups.updateFailed") : t("workspaceGroups.createFailed")),
+    );
   } finally {
     saving.value = false;
   }
@@ -487,9 +493,9 @@ const remove = async (g: TenantGroup) => {
   try {
     await deleteGroup(g.id);
     groups.value = groups.value.filter((x) => x.id !== g.id);
-    MessagePlugin.success(t("docs.groups.deleteSuccess"));
+    MessagePlugin.success(t("workspaceGroups.deleteSuccess"));
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t("docs.groups.deleteFailed")));
+    MessagePlugin.error(errorText(err, t("workspaceGroups.deleteFailed")));
   }
 };
 
@@ -509,13 +515,15 @@ const memberAddQuery = ref("");
 const memberSearch = useMemberSearch();
 
 const membersTitle = computed(() =>
-  activeGroup.value ? `${t("docs.groups.membersTitle")} · ${activeGroup.value.name}` : t("docs.groups.membersTitle"),
+  activeGroup.value
+    ? `${t("workspaceGroups.membersTitle")} · ${activeGroup.value.name}`
+    : t("workspaceGroups.membersTitle"),
 );
 
 const memberColumns = computed(() => {
   const cols = [{ colKey: "user", title: t("docs.members.columns.member"), ellipsis: true }];
   if (canManage.value && activeGroup.value && !activeGroup.value.is_default) {
-    cols.push({ colKey: "actions", title: t("docs.groups.columns.actions"), ellipsis: false, width: 72 } as never);
+    cols.push({ colKey: "actions", title: t("workspaceGroups.columns.actions"), ellipsis: false, width: 72 } as never);
   }
   return cols;
 });
@@ -576,7 +584,7 @@ const reloadMembers = async (page: number) => {
       page_size: memberPage.value.page_size,
     });
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t("docs.groups.membersLoadFailed")));
+    MessagePlugin.error(errorText(err, t("workspaceGroups.membersLoadFailed")));
   } finally {
     membersLoading.value = false;
   }
@@ -593,10 +601,10 @@ const addMembers = async () => {
   try {
     refreshCount(await addGroupMembers(activeGroup.value.id, pendingUserIds.value));
     pendingUserIds.value = [];
-    MessagePlugin.success(t("docs.groups.addSuccess"));
+    MessagePlugin.success(t("workspaceGroups.addSuccess"));
     await reloadMembers(memberPage.value.page);
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t("docs.groups.addFailed")));
+    MessagePlugin.error(errorText(err, t("workspaceGroups.addFailed")));
   } finally {
     addingMembers.value = false;
   }
@@ -607,11 +615,11 @@ const removeMember = async (row: GroupMemberRow) => {
   removingUserId.value = row.user_id;
   try {
     await removeGroupMember(activeGroup.value.id, row.user_id);
-    MessagePlugin.success(t("docs.groups.removeSuccess"));
+    MessagePlugin.success(t("workspaceGroups.removeSuccess"));
     refreshCount({ ...activeGroup.value, member_count: Math.max(0, activeGroup.value.member_count - 1) });
     await reloadMembers(memberPage.value.page);
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t("docs.groups.removeFailed")));
+    MessagePlugin.error(errorText(err, t("workspaceGroups.removeFailed")));
   } finally {
     removingUserId.value = "";
   }

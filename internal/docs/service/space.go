@@ -12,6 +12,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/events"
 	"github.com/magicyuan876/yuheng/internal/docs/model"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
+	"github.com/magicyuan876/yuheng/internal/types"
 )
 
 // SpaceService implements spaces and their membership.
@@ -607,12 +608,12 @@ func (s *SpaceService) memberViews(ctx context.Context, tenantID uint64, rows []
 	return out, nil
 }
 
-func (b *base) groupIndex(ctx context.Context, tenantID uint64) (map[string]*model.TenantGroup, error) {
+func (b *base) groupIndex(ctx context.Context, tenantID uint64) (map[string]*types.TenantGroup, error) {
 	groups, err := b.d.Repos.Groups.List(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	idx := make(map[string]*model.TenantGroup, len(groups))
+	idx := make(map[string]*types.TenantGroup, len(groups))
 	for _, g := range groups {
 		idx[g.ID] = g
 	}
@@ -621,7 +622,7 @@ func (b *base) groupIndex(ctx context.Context, tenantID uint64) (map[string]*mod
 
 // groupMemberCount counts a group's members; the default group counts every
 // active tenant member because its membership is implicit.
-func (b *base) groupMemberCount(ctx context.Context, tenantID uint64, g *model.TenantGroup) (int64, error) {
+func (b *base) groupMemberCount(ctx context.Context, tenantID uint64, g *types.TenantGroup) (int64, error) {
 	if g.IsDefault {
 		if b.d.Members == nil {
 			return 0, nil
@@ -744,7 +745,7 @@ func (s *SpaceService) SetMembers(ctx context.Context, actor *acl.Identity, spac
 
 func targetTypeFor(p model.Principal) string {
 	if p.Type == model.PrincipalGroup {
-		return audit.TargetGroup
+		return types.AuditTargetTenantGroup
 	}
 	return "user"
 }

@@ -182,7 +182,6 @@ type Deps struct {
 // Services groups the module's services.
 type Services struct {
 	Spaces *SpaceService
-	Groups *GroupService
 	Pages  *PageService
 	Collab *CollabService
 	// Leases serves the exclusive-edit transport used when no collaboration
@@ -197,7 +196,6 @@ func New(d Deps) *Services {
 	files := &AttachmentService{base: base, variants: newVariantCache(d.VariantCacheBytes)}
 	return &Services{
 		Spaces: &SpaceService{base: base},
-		Groups: &GroupService{base: base},
 		// Pages holds the attachment service because importing a bundle
 		// stores its images, and an import is a page operation that happens
 		// to carry files rather than a file operation.

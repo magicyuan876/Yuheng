@@ -14,6 +14,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	apprepo "github.com/magicyuan876/yuheng/internal/application/repository"
+	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"gorm.io/gorm"
 )
 
@@ -33,10 +35,16 @@ var (
 
 // Repositories bundles the module's repositories over one *gorm.DB.
 type Repositories struct {
-	db         *gorm.DB
-	Spaces     SpaceRepository
-	Members    SpaceMemberRepository
-	Groups     GroupRepository
+	db      *gorm.DB
+	Spaces  SpaceRepository
+	Members SpaceMemberRepository
+	// Groups is the workspace's group repository, which belongs to the
+	// application layer rather than to this module: a space membership or a
+	// page grant names a group, and the permission resolver expands a user
+	// into the groups it is in, but the groups themselves are a workspace
+	// concept the module only reads. It is bundled here so a transaction
+	// sees groups through the same handle as everything else.
+	Groups     interfaces.TenantGroupRepository
 	Pages      PageRepository
 	Access     PageAccessRepository
 	Leases     LeaseRepository
@@ -62,7 +70,7 @@ func New(db *gorm.DB) *Repositories {
 		db:         db,
 		Spaces:     &spaceRepository{db: db},
 		Members:    &spaceMemberRepository{db: db},
-		Groups:     &groupRepository{db: db},
+		Groups:     apprepo.NewTenantGroupRepository(db),
 		Pages:      &pageRepository{db: db},
 		Access:     &pageAccessRepository{db: db},
 		Leases:     &leaseRepository{db: db},

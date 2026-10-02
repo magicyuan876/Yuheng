@@ -27,12 +27,8 @@ const (
 	SpaceKBBound           types.AuditAction = "docs.space.kb_bound"
 	SpaceKBUnbound         types.AuditAction = "docs.space.kb_unbound"
 
-	GroupCreated        types.AuditAction = "docs.group.created"
-	GroupUpdated        types.AuditAction = "docs.group.updated"
-	GroupDeleted        types.AuditAction = "docs.group.deleted"
-	GroupMembersChanged types.AuditAction = "docs.group.members_changed"
-	GroupMemberAdded    types.AuditAction = "docs.group.member_added"
-	GroupMemberRemoved  types.AuditAction = "docs.group.member_removed"
+	// Workspace groups are audited by the application layer under
+	// types.AuditActionGroup*; this module only grants to them.
 
 	PageCreated           types.AuditAction = "docs.page.created"
 	PageDuplicated        types.AuditAction = "docs.page.duplicated"
@@ -75,7 +71,6 @@ const (
 	ScopeSpace       = "docs_space"
 	TargetPage       = "docs_page"
 	TargetSpace      = "docs_space"
-	TargetGroup      = "tenant_group"
 	TargetShare      = "docs_share"
 	TargetAttachment = "docs_attachment"
 	TargetComment    = "docs_comment"

@@ -427,7 +427,7 @@ const navItems = computed(() => {
     { key: "userprofile", icon: UserIcon, label: t("userProfile.title") },
     { key: "tenant", icon: CircleUserRoundIcon, label: t("settings.tenantInfo") },
     { key: "members", icon: UsersIcon, label: t("tenantMember.title") },
-    { key: "groups", icon: ListIcon, label: t("docs.groups.title") },
+    { key: "groups", icon: ListIcon, label: t("workspaceGroups.title") },
     { key: "apikeys", icon: KeyRoundIcon, label: t("workspaceApiKeys.title") },
     { key: "enterprise", icon: SparklesIcon, label: t("enterprise.title") },
   ];

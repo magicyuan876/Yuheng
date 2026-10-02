@@ -6356,9 +6356,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "用户组"
+                    "空间组"
                 ],
-                "summary": "列出用户组",
+                "summary": "列出空间组",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -6375,7 +6375,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "组名在租户内唯一（不区分大小写）；可同时指定初始成员",
+                "description": "组名在空间内唯一（不区分大小写）；可同时指定初始成员",
                 "consumes": [
                     "application/json"
                 ],
@@ -6383,17 +6383,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "用户组"
+                    "空间组"
                 ],
-                "summary": "创建用户组",
+                "summary": "创建空间组",
                 "parameters": [
                     {
-                        "description": "用户组",
+                        "description": "空间组",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.CreateGroupRequest"
+                            "$ref": "#/definitions/internal_handler.CreateTenantGroupRequest"
                         }
                     }
                 ],
@@ -6419,13 +6419,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "用户组"
+                    "空间组"
                 ],
-                "summary": "获取用户组",
+                "summary": "获取空间组",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户组 ID",
+                        "description": "空间组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6447,15 +6447,15 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "同时移除该组在所有空间与页面上的授权；默认组不可删除",
+                "description": "同时移除该组在所有模块中持有的授权（如文档空间与页面）；默认组不可删除",
                 "tags": [
-                    "用户组"
+                    "空间组"
                 ],
-                "summary": "删除用户组",
+                "summary": "删除空间组",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户组 ID",
+                        "description": "空间组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6481,13 +6481,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "用户组"
+                    "空间组"
                 ],
-                "summary": "更新用户组",
+                "summary": "更新空间组",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户组 ID",
+                        "description": "空间组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6498,7 +6498,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.UpdateGroupRequest"
+                            "$ref": "#/definitions/internal_handler.UpdateTenantGroupRequest"
                         }
                     }
                 ],
@@ -6524,13 +6524,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "用户组"
+                    "空间组"
                 ],
-                "summary": "分页列出用户组成员",
+                "summary": "分页列出空间组成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户组 ID",
+                        "description": "空间组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6580,13 +6580,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "用户组"
+                    "空间组"
                 ],
-                "summary": "向用户组添加成员",
+                "summary": "向空间组添加成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户组 ID",
+                        "description": "空间组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6597,7 +6597,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.SetGroupMembersRequest"
+                            "$ref": "#/definitions/internal_handler.AddTenantGroupMembersRequest"
                         }
                     }
                 ],
@@ -6620,13 +6620,13 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "用户组"
+                    "空间组"
                 ],
-                "summary": "从用户组移除成员",
+                "summary": "从空间组移除成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户组 ID",
+                        "description": "空间组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -18007,6 +18007,11 @@ const docTemplate = `{
                 "rbac.invitation_declined",
                 "rbac.invitation_revoked",
                 "rbac.invitation_expired",
+                "rbac.group_created",
+                "rbac.group_updated",
+                "rbac.group_deleted",
+                "rbac.group_member_added",
+                "rbac.group_member_removed",
                 "vector_store.created",
                 "vector_store.updated",
                 "vector_store.deleted",
@@ -18073,6 +18078,11 @@ const docTemplate = `{
                 "AuditActionInvitationDeclined",
                 "AuditActionInvitationRevoked",
                 "AuditActionInvitationExpired",
+                "AuditActionGroupCreated",
+                "AuditActionGroupUpdated",
+                "AuditActionGroupDeleted",
+                "AuditActionGroupMemberAdded",
+                "AuditActionGroupMemberRemoved",
                 "AuditActionVectorStoreCreated",
                 "AuditActionVectorStoreUpdated",
                 "AuditActionVectorStoreDeleted",
@@ -21976,26 +21986,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.CreateGroupRequest": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "member_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
         "handler.CreatePageRequest": {
             "type": "object",
             "required": [
@@ -22341,20 +22331,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.SetGroupMembersRequest": {
-            "type": "object",
-            "required": [
-                "user_ids"
-            ],
-            "properties": {
-                "user_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "handler.SetSpaceMembersRequest": {
             "type": "object",
             "required": [
@@ -22484,17 +22460,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.UpdateGroupRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
         "handler.UpdatePageRequest": {
             "type": "object",
             "properties": {
@@ -22551,6 +22516,20 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_handler.AddTenantGroupMembersRequest": {
+            "type": "object",
+            "required": [
+                "user_ids"
+            ],
+            "properties": {
+                "user_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -22670,6 +22649,26 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.UserInfo"
+                }
+            }
+        },
+        "internal_handler.CreateTenantGroupRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "member_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -23564,6 +23563,17 @@ const docTemplate = `{
             "properties": {
                 "value": {
                     "description": "Value is intentionally ` + "`" + `any` + "`" + ` (decoded as float64 / string / bool /\netc. by the JSON unmarshaller). Service.encodeForType normalises\nthese against the registry's declared type and rejects mismatches."
+                }
+            }
+        },
+        "internal_handler.UpdateTenantGroupRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },

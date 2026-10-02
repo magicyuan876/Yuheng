@@ -34,6 +34,13 @@ type Params struct {
 	Redis         *redis.Client `optional:"true"`
 	TenantMembers interfaces.TenantMemberRepository
 	Users         interfaces.UserRepository
+	// Groups is the workspace group service. The module grants space and
+	// page access to groups, so it enrols with the service as a dependent:
+	// a deleted group takes its grants with it, and any change drops the
+	// cached permission decisions. Required, not optional -- a build where
+	// groups could be deleted behind this module's back would leave grants
+	// to nothing.
+	Groups interfaces.TenantGroupService
 	// UserService validates the tokens the collaboration service relays.
 	UserService interfaces.UserService     `optional:"true"`
 	Audit       interfaces.AuditLogService `optional:"true"`
@@ -143,6 +150,9 @@ func NewModule(p Params) *Module {
 			resolver.Invalidate(context.Background(), e.TenantID)
 		}
 	})
+	// Workspace groups are managed outside this module; the bridge is how
+	// their changes reach the grants and the cache above.
+	p.Groups.RegisterDependent(newGroupBridge(repos, resolver, bus))
 
 	collabClient := collab.NewClient(cfg.CollabInternalURL(), cfg.CollabSharedSecret, 15*time.Second)
 	deps := service.Deps{

@@ -21,6 +21,11 @@ const TENANT_MEMBER_AUDIT_ACTION_LABELS_EN: Record<string, string> = {
   "rbac.invitation_declined": "Invitation declined",
   "rbac.invitation_revoked": "Invitation revoked",
   "rbac.invitation_expired": "Invitation expired",
+  "rbac.group_created": "Group created",
+  "rbac.group_updated": "Group updated",
+  "rbac.group_deleted": "Group deleted",
+  "rbac.group_member_added": "Added to group",
+  "rbac.group_member_removed": "Removed from group",
 };
 
 const SYSTEM_GLOBAL_AUDIT_ACTION_LABELS_EN: Record<string, string> = {

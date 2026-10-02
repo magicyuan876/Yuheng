@@ -55,32 +55,6 @@ export interface SpaceMember {
   created_at: string;
 }
 
-export interface TenantGroup {
-  id: string;
-  tenant_id: number;
-  name: string;
-  description: string;
-  is_default: boolean;
-  source: string;
-  created_at: string;
-  updated_at: string;
-  member_count: number;
-}
-
-export interface GroupMemberRow {
-  user_id: string;
-  username?: string;
-  email?: string;
-  avatar?: string;
-}
-
-export interface GroupMemberPage {
-  members: GroupMemberRow[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
 export interface CreateSpaceRequest {
   name: string;
   slug?: string;
@@ -118,23 +92,6 @@ export interface BindKnowledgeBaseRequest {
    * default. Existing attachments stay where they are and remain readable.
    */
   storage_backend_id?: string;
-}
-
-export interface CreateGroupRequest {
-  name: string;
-  description?: string;
-  member_ids?: string[];
-}
-
-export interface UpdateGroupRequest {
-  name?: string;
-  description?: string;
-}
-
-export interface ListGroupMembersParams {
-  q?: string;
-  page?: number;
-  page_size?: number;
 }
 
 interface Envelope<T> {
@@ -210,50 +167,8 @@ export async function bindSpaceKnowledgeBase(id: string, body: BindKnowledgeBase
   return unwrap<DocsSpace>(await put(`${base}/spaces/${encodeURIComponent(id)}/knowledge-base`, body));
 }
 
-// ---- tenant groups ---------------------------------------------------------
-
-const groupsBase = "/api/v1/groups";
-
-/** Backend: GET /api/v1/groups (Viewer+). The default group comes first. */
-export async function listGroups(): Promise<TenantGroup[]> {
-  return unwrap<TenantGroup[] | null>(await get(groupsBase)) ?? [];
-}
-
-/** Backend: POST /api/v1/groups (Admin+). */
-export async function createGroup(body: CreateGroupRequest): Promise<TenantGroup> {
-  return unwrap<TenantGroup>(await post(groupsBase, body));
-}
-
-/** Backend: PATCH /api/v1/groups/:gid (Admin+). */
-export async function updateGroup(id: string, body: UpdateGroupRequest): Promise<TenantGroup> {
-  return unwrap<TenantGroup>(await patch(`${groupsBase}/${encodeURIComponent(id)}`, body));
-}
-
-/** Backend: DELETE /api/v1/groups/:gid (Admin+). Removes the group's grants everywhere. */
-export async function deleteGroup(id: string): Promise<void> {
-  await del(`${groupsBase}/${encodeURIComponent(id)}`);
-}
-
-/** Backend: GET /api/v1/groups/:gid/members (Viewer+). */
-export async function listGroupMembers(id: string, params: ListGroupMembersParams = {}): Promise<GroupMemberPage> {
-  const qs = new URLSearchParams();
-  if (params.q?.trim()) qs.set("q", params.q.trim());
-  if (params.page && params.page > 0) qs.set("page", String(params.page));
-  if (params.page_size && params.page_size > 0) qs.set("page_size", String(params.page_size));
-  const suffix = qs.toString() ? `?${qs.toString()}` : "";
-  const page = unwrap<GroupMemberPage | null>(await get(`${groupsBase}/${encodeURIComponent(id)}/members${suffix}`));
-  return page ?? { members: [], total: 0, page: params.page ?? 1, page_size: params.page_size ?? 20 };
-}
-
-/** Backend: PUT /api/v1/groups/:gid/members (Admin+). Existing members are skipped. */
-export async function addGroupMembers(id: string, userIds: string[]): Promise<TenantGroup> {
-  return unwrap<TenantGroup>(await put(`${groupsBase}/${encodeURIComponent(id)}/members`, { user_ids: userIds }));
-}
-
-/** Backend: DELETE /api/v1/groups/:gid/members/:uid (Admin+). */
-export async function removeGroupMember(id: string, userId: string): Promise<void> {
-  await del(`${groupsBase}/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`);
-}
+// Workspace groups, which space members and page grants may name, are the
+// workspace's own (see @/api/tenant/groups); this module only grants to them.
 
 // ---- pages ----------------------------------------------------------------
 

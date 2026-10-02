@@ -313,15 +313,11 @@ func TestSomebodyWhoIsInTheSpaceThroughAGroupCountsAsInIt(t *testing.T) {
 	require.NoError(t, p.svc.Spaces.RemoveMember(ctx(), p.alice, p.space,
 		model.Principal{Type: model.PrincipalUser, ID: "reviewer-01"}))
 
-	group, err := p.svc.Groups.Create(ctx(), p.alice, CreateGroupInput{Name: "Editors"})
-	require.NoError(t, err)
-	require.NoError(t, p.svc.Groups.AddMembers(ctx(), p.alice, group.ID, []string{"reviewer-01"}))
-	_, err = p.svc.Spaces.SetMembers(ctx(), p.alice, p.space, []MemberInput{
+	group := p.createGroup("Editors", "reviewer-01")
+	_, err := p.svc.Spaces.SetMembers(ctx(), p.alice, p.space, []MemberInput{
 		{Type: model.PrincipalGroup, ID: group.ID, Role: model.RoleWriter},
 	})
 	require.NoError(t, err)
-	// Identities are cached and this one predates the group.
-	p.resolver.Invalidate(ctx(), 1)
 	reviewer := p.identity("reviewer-01")
 
 	p.cut(t, p.alice, page.Page.ID)
@@ -343,12 +339,7 @@ func TestAGroupCanBeGrantedAccess(t *testing.T) {
 	p := newPageEnv(t)
 	page := p.create(t, p.alice, nil, "Notes")
 
-	group, err := p.svc.Groups.Create(ctx(), p.alice, CreateGroupInput{Name: "Reviewers"})
-	require.NoError(t, err)
-	require.NoError(t, p.svc.Groups.AddMembers(ctx(), p.alice, group.ID, []string{"carol"}))
-	// Carol's identity was resolved before the group existed, and identities
-	// are cached with their principals.
-	p.resolver.Invalidate(ctx(), 1)
+	group := p.createGroup("Reviewers", "carol")
 	carol := p.identity("carol")
 
 	p.cut(t, p.alice, page.Page.ID)

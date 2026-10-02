@@ -92,8 +92,6 @@ func TestDocsRoutesDeclareCapabilities(t *testing.T) {
 		{http.MethodGet, "/api/v1/docs/favourites", types.APIKeyCapabilityDocsRead},
 		{http.MethodPut, "/api/v1/docs/pages/:pid/access", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/grants", types.APIKeyCapabilityDocsAdmin},
-		{http.MethodPost, "/api/v1/groups", types.APIKeyCapabilityDocsAdmin},
-		{http.MethodDelete, "/api/v1/groups/:gid/members/:uid", types.APIKeyCapabilityDocsAdmin},
 	}
 	for _, tc := range cases {
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {

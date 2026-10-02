@@ -7,6 +7,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/events"
 	"github.com/magicyuan876/yuheng/internal/docs/model"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
+	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -183,20 +184,11 @@ func TestSpaceMembersKeepAnAdmin(t *testing.T) {
 
 func TestSpaceMembersThroughGroupsAndOrdering(t *testing.T) {
 	e := newEnv(t)
-	owner, alice := e.identity("owner"), e.identity("alice")
+	alice := e.identity("alice")
 	sp, err := e.svc.Spaces.Create(ctx(), alice, CreateSpaceInput{Name: "Team"})
 	require.NoError(t, err)
-	g, err := e.svc.Groups.Create(ctx(), owner, CreateGroupInput{Name: "Backend", MemberIDs: []string{"bob", "carol"}})
-	require.NoError(t, err)
-	groups, err := e.svc.Groups.List(ctx(), owner)
-	require.NoError(t, err)
-	var everyone *GroupView
-	for _, gv := range groups {
-		if gv.IsDefault {
-			everyone = gv
-		}
-	}
-	require.NotNil(t, everyone)
+	g := e.createGroup("Backend", "bob", "carol")
+	everyone := e.defaultGroup()
 
 	members, err := e.svc.Spaces.SetMembers(ctx(), alice, sp.Space, []MemberInput{
 		{Type: model.PrincipalGroup, ID: g.ID, Role: model.RoleWriter},
@@ -205,7 +197,7 @@ func TestSpaceMembersThroughGroupsAndOrdering(t *testing.T) {
 	})
 	require.NoError(t, err)
 	// Ordering: admins (alice), then writers (group Backend), then readers with groups first.
-	require.Equal(t, []string{"alice", "Backend", model.DefaultGroupName, "bob"}, names(members))
+	require.Equal(t, []string{"alice", "Backend", types.DefaultTenantGroupName, "bob"}, names(members))
 	require.True(t, memberByID(members, everyone.ID).IsDefaultGroup)
 	require.EqualValues(t, 7, *memberByID(members, everyone.ID).GroupMemberCount, "default group counts every tenant member")
 	require.EqualValues(t, 2, *memberByID(members, g.ID).GroupMemberCount)

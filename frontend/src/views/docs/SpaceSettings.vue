@@ -452,7 +452,6 @@ import { useRoute, useRouter } from "vue-router";
 import {
   deleteSpace,
   getSpaceBySlug,
-  listGroups,
   listSpaceMembers,
   removeSpaceMember,
   setSpaceMembers,
@@ -461,7 +460,6 @@ import {
   type PrincipalType,
   type SpaceMember,
   type SpaceRole,
-  type TenantGroup,
   downloadExport,
   getImportJob,
   getExportJob,
@@ -471,6 +469,7 @@ import {
   type ExportJobView,
   type ImportJobView,
 } from "@/api/docs";
+import { listGroups, type TenantGroup } from "@/api/tenant/groups";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";

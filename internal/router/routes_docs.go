@@ -18,7 +18,7 @@ import (
 //     it (docs_read / docs_write / docs_admin, or full access). Undeclared
 //     routes are denied to API keys by default, like everywhere else.
 //  2. The tenant role floor: Viewer for reads, Contributor for writes, Admin
-//     for tenant-wide administration (groups).
+//     for workspace-wide administration (quotas, reindexing, maintenance).
 //  3. The docs ACL guard: the caller's effective space/page role, resolved
 //     from membership, groups and page restrictions, with 404 for resources
 //     the caller cannot see.
@@ -42,8 +42,10 @@ func apiKeyDocsAdmin(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePo
 	return base.WithCapability(types.APIKeyCapabilityDocsAdmin)
 }
 
-// RegisterDocsRoutes mounts /api/v1/docs/** and the tenant group routes.
-// A disabled module registers nothing.
+// RegisterDocsRoutes mounts /api/v1/docs/**. A disabled module registers
+// nothing. Workspace groups, which this module grants to, are not registered
+// here: they are a workspace concept and have their own routes
+// (routes_groups.go) that exist whether or not the module is on.
 func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	if m == nil || !m.Enabled || m.Handler == nil {
 		return
@@ -392,18 +394,6 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// concern at all (see the note in internal/docs/service/home.go). The
 	// T0.5 placeholder that stood here is gone rather than unimplemented: an
 	// endpoint that will always answer 501 is a worse answer than no endpoint.
-
-	// ---- tenant groups (tenant-level administration; docs is the first consumer) ----
-	gr := h.Groups
-	groups := g.apiKeyGroup(r.Group("/groups"), apiKeyDocsAdmin(apiKeyFullAccess()))
-	groups.GET("", g.Viewer(), guard.RequireMember(), gr.List)
-	groups.POST("", g.Admin(), guard.RequireMember(), idem, gr.Create)
-	groups.GET("/:gid", g.Viewer(), guard.RequireMember(), gr.Get)
-	groups.PATCH("/:gid", g.Admin(), guard.RequireMember(), idem, gr.Update)
-	groups.DELETE("/:gid", g.Admin(), guard.RequireMember(), idem, gr.Delete)
-	groups.GET("/:gid/members", g.Viewer(), guard.RequireMember(), gr.ListMembers)
-	groups.PUT("/:gid/members", g.Admin(), guard.RequireMember(), idem, gr.AddMembers)
-	groups.DELETE("/:gid/members/:uid", g.Admin(), guard.RequireMember(), idem, gr.RemoveMember)
 }
 
 // RegisterDocsInternalRoutes mounts the collaboration callbacks.

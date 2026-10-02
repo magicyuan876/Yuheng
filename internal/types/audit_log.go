@@ -51,6 +51,26 @@ const (
 	// an overdue pending row to expired. Actor is empty (system).
 	AuditActionInvitationExpired AuditAction = "rbac.invitation_expired"
 
+	// Workspace group actions. Groups are the other half of workspace
+	// membership -- a grant to a group reaches whoever is in it -- so they
+	// share the rbac namespace with the member events. TargetType is
+	// AuditTargetTenantGroup and TargetID the group.
+
+	// AuditActionGroupCreated fires when a workspace Admin creates a group.
+	AuditActionGroupCreated AuditAction = "rbac.group_created"
+	// AuditActionGroupUpdated fires when a group is renamed or re-described.
+	AuditActionGroupUpdated AuditAction = "rbac.group_updated"
+	// AuditActionGroupDeleted fires when a group is deleted, taking every
+	// grant made to it along.
+	AuditActionGroupDeleted AuditAction = "rbac.group_deleted"
+	// AuditActionGroupMemberAdded fires once per user added to a group, with
+	// the user in TargetUserID, so "who was put in which group" is
+	// answerable from the log alone.
+	AuditActionGroupMemberAdded AuditAction = "rbac.group_member_added"
+	// AuditActionGroupMemberRemoved fires when a user is taken out of a
+	// group; TargetUserID names the user.
+	AuditActionGroupMemberRemoved AuditAction = "rbac.group_member_removed"
+
 	// VectorStore lifecycle actions. Emitted by VectorStoreService.
 	// Cover both env-store-derived (__env_*) and DB store create /
 	// update / delete paths. Details payload identifies the store_id
