@@ -115,8 +115,9 @@ ReAct 循环——任何智能体——都可以来这里检索、问答、读 W
 
 ## 项目状态
 
-Yuheng 目前是 0.x 预览版，由一位维护者开发，是腾讯 [WeKnora](https://github.com/Tencent/WeKnora)
-的独立分支，已经做了大幅改造：移除了内置智能体、IM 接入与多种检索引擎，新增了在线协同文档与知识健康。
+Yuheng 处于 0.x 预览阶段。它源自腾讯 [WeKnora](https://github.com/Tencent/WeKnora)，现为独立演进的
+分支，架构已大幅重构：检索统一到 PostgreSQL（ParadeDB），聚焦知识库、在线协同文档与知识健康；上游的
+内置智能体、IM 接入与多引擎适配不再保留。
 
 - `/api/v1` REST 接口在 0.x 各版本之间仍可能变化；MCP 工具名是稳定的，不会改名。
 - 文档以中文为主（[`website-docs/`](./website-docs/)）；快速开始和安装部署另有[英文版](./website-docs/en/01-getting-started/02-installation.md)。

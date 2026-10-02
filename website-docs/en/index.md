@@ -14,6 +14,6 @@ Yuheng is not an agent framework. It does not run agents; it is what agents call
 - [Installation](./01-getting-started/02-installation.md): build and run Yuheng with Docker Compose (no Docker images are published, so you build them locally), the one-command deploy script, development mode, Helm and running from source.
 - [Quick start](./01-getting-started/03-quickstart.md): register the first account, configure models, upload documents and ask a question, in the UI and with curl.
 
-Yuheng 0.1.0 is a preview, maintained by one developer: the `/api/v1` REST API may change between 0.x releases, and MCP tool names are stable. It began as an independent fork of Tencent's WeKnora and has diverged a long way from it. The source is at [github.com/magicyuan876/Yuheng](https://github.com/magicyuan876/Yuheng); the [README](https://github.com/magicyuan876/Yuheng/blob/main/README.md) is in English.
+Yuheng 0.1.0 is a preview: the `/api/v1` REST API may change between 0.x releases, and MCP tool names are stable. It began as a fork of Tencent's WeKnora and now evolves independently with a substantially reworked architecture. The source is at [github.com/magicyuan876/Yuheng](https://github.com/magicyuan876/Yuheng); the [README](https://github.com/magicyuan876/Yuheng/blob/main/README.md) is in English.
 
 [Read the documentation in Chinese](../01-getting-started/01-introduction.md)

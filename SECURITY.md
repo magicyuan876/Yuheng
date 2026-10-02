@@ -1,7 +1,7 @@
 # Security Policy
 
-Yuheng is maintained by one person. Reports are handled on a best-effort basis
-and this policy makes no service-level promise.
+Reports are handled on a best-effort basis; this policy makes no
+service-level promise.
 
 ## Supported versions
 
@@ -38,6 +38,6 @@ of the vulnerability.
 
 ### What to expect
 
-The maintainer will read the report, reproduce it, and reply in the private
-thread with a status. Please allow reasonable time for a fix before any
+We will read the report, reproduce it, and reply in the private thread with
+a status. Please allow reasonable time for a fix before any
 public disclosure; we will credit you in the release notes if you wish.

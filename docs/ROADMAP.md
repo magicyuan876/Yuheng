@@ -1,7 +1,7 @@
 # Yuheng Roadmap
 
-Yuheng is a 0.x preview maintained by one person, so this is a list of
-directions, not a schedule or a promise. Anything not listed here is not planned.
+Yuheng is in its 0.x preview phase, so this is a list of directions, not a
+schedule or a promise. Anything not listed here is not planned.
 
 ## Where the project stands
 

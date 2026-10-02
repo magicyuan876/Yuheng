@@ -1,7 +1,7 @@
 # Contributing to Yuheng
 
-Thanks for considering a contribution. Yuheng is maintained by one person, so
-small, focused changes that come with tests are the ones that get merged fastest.
+Thanks for considering a contribution. Small, focused changes that come with
+tests are the ones that get reviewed and merged fastest.
 
 ## Before you start
 

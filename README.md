@@ -148,10 +148,12 @@ See the [architecture overview](./website-docs/02-architecture/01-overview.md) (
 
 ## Project status
 
-Yuheng is a 0.x preview maintained by one person. It is an independent fork of
-Tencent [WeKnora](https://github.com/Tencent/WeKnora) and has diverged a long
-way: the built-in agent, IM channels and the other retrieval engines are gone;
-collaborative documents and knowledge health are new.
+Yuheng is in its 0.x preview phase. It began as a fork of Tencent
+[WeKnora](https://github.com/Tencent/WeKnora) and now evolves independently
+with a substantially reworked architecture: retrieval is unified on PostgreSQL
+(ParadeDB), and the product centres on knowledge bases, collaborative documents
+and knowledge health; the upstream built-in agent, IM channels and multi-engine
+adapters are not carried forward.
 
 - The `/api/v1` REST API may change between 0.x releases; MCP tool names are
   stable.
