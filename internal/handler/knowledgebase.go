@@ -819,7 +819,9 @@ func (h *KnowledgeBaseHandler) CopyKnowledgeBase(c *gin.Context) {
 		logger.Warnf(ctx,
 			"Copy rejected: source knowledge base belongs to another tenant, source_id: %s, caller_tenant: %d, kb_tenant: %d",
 			secutils.SanitizeForLog(req.SourceID), tenantID.(uint64), sourceKB.TenantID)
-		c.Error(errors.NewForbiddenError("No permission to copy this knowledge base"))
+		// Not found, like every KBAccess-guarded route: another workspace's
+		// base does not exist for the caller, and a 403 would confirm it does.
+		c.Error(errors.NewNotFoundError("Source knowledge base not found"))
 		return
 	}
 
@@ -842,7 +844,7 @@ func (h *KnowledgeBaseHandler) CopyKnowledgeBase(c *gin.Context) {
 		if targetKB.TenantID != tenantID.(uint64) {
 			logger.Warnf(ctx, "Copy rejected: target knowledge base belongs to another tenant, target_id: %s",
 				secutils.SanitizeForLog(req.TargetID))
-			c.Error(errors.NewForbiddenError("No permission to copy to this knowledge base"))
+			c.Error(errors.NewNotFoundError("Target knowledge base not found"))
 			return
 		}
 		// Pre-flight defense 1: embedding model must match.
@@ -970,7 +972,7 @@ func (h *KnowledgeBaseHandler) DuplicateKnowledgeBase(c *gin.Context) {
 		logger.Warnf(ctx,
 			"Knowledge base duplicate rejected: source belongs to another tenant, source_id: %s, caller_tenant: %d, kb_tenant: %d",
 			secutils.SanitizeForLog(sourceID), callerTenantID, sourceKB.TenantID)
-		c.Error(errors.NewForbiddenError("No permission to duplicate this knowledge base"))
+		c.Error(errors.NewNotFoundError("Source knowledge base not found"))
 		return
 	}
 
@@ -1156,7 +1158,7 @@ func (h *KnowledgeBaseHandler) ListMoveTargets(c *gin.Context) {
 		return
 	}
 	if sourceKB.TenantID != tenantID.(uint64) {
-		c.Error(errors.NewForbiddenError("No permission to access this knowledge base"))
+		c.Error(errors.NewNotFoundError("Source knowledge base not found"))
 		return
 	}
 

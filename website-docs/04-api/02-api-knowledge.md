@@ -158,7 +158,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/kb-1/hybrid-search -H "X-API-Key: $API
 
 用途：拷贝整个知识库（配置 + 全部知识内容，异步任务）。任务入 asynq `low` 队列，最多重试 3 次、超时 2 小时，立即返回 `task_id` 供轮询。权限：Contributor+；API key `manage_kbs`/full（源/目标 KB 白名单在 handler 校验）。
 
-源 KB 与目标 KB 都必须属于调用者所在空间，否则 403（`No permission to copy this knowledge base` / `No permission to copy to this knowledge base`），不存在则 404。指定 `target_id` 时会同步预检，失败直接返回 400、不入队：
+源 KB 与目标 KB 都必须属于调用者所在空间；属于其他空间与不存在一样返回 404（`Source knowledge base not found` / `Target knowledge base not found`），和其他知识库路由的规则一致。指定 `target_id` 时会同步预检，失败直接返回 400、不入队：
 
 - 两边的 Embedding 模型不同：`source and target knowledge bases use different embedding models; ...`
 - 两边绑定的向量存储不同：`source and target knowledge bases are bound to different vector stores; ...`
@@ -181,7 +181,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/copy -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/knowledge-bases/:id/duplicate
 
-用途：同步创建 KB 副本，只复制设置（分块、模型、索引策略、FAQ/Wiki 配置等），不复制知识条目、分块、FAQ 条目、Wiki 页面、索引、数据源绑定与置顶状态。权限：Contributor+，源 KB read；API key `manage_kbs`/full。源 KB 必须属于调用者所在空间（否则 403 `No permission to duplicate this knowledge base`，不存在 404）。无请求体。
+用途：同步创建 KB 副本，只复制设置（分块、模型、索引策略、FAQ/Wiki 配置等），不复制知识条目、分块、FAQ 条目、Wiki 页面、索引、数据源绑定与置顶状态。权限：Contributor+，源 KB read；API key `manage_kbs`/full。源 KB 必须属于调用者所在空间；属于其他空间与不存在一样返回 404 `Source knowledge base not found`。无请求体。
 
 与 `/copy` 的区别：`/duplicate` 同步、只有设置、总是新建；`/copy` 异步、带全部内容、可写入已有目标库。
 

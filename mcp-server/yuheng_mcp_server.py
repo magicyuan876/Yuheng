@@ -175,15 +175,25 @@ class YuhengClient:
 
     # Tenant Management - Methods for managing multi-tenant configurations
     def create_tenant(
-        self, name: str, description: str, business: str, retriever_engines: Dict
+        self,
+        name: str,
+        description: str,
+        business: str,
+        retriever_engines: Dict,
+        owner_email: str = "",
     ) -> Dict:
-        """Create a new tenant with specified configuration"""
+        """Create a new workspace; only system administrators and platform keys may."""
         data = {
             "name": name,
             "description": description,
             "business": business,
             "retriever_engines": retriever_engines,  # Configuration for search engines
         }
+        # A workspace must have an Owner from the start. A platform API key is
+        # nobody, so it has to name one; a system administrator's token makes
+        # the administrator the Owner when this is left empty.
+        if owner_email:
+            data["owner_email"] = owner_email
         return self._request("POST", "/tenants", json=data)
 
     def get_tenant(self, tenant_id: str) -> Dict:
@@ -533,15 +543,20 @@ def create_tenant(
     description: str,
     business: str,
     retriever_engines: dict | None = None,
+    owner_email: str = "",
 ) -> dict:
-    """Create a new tenant in Yuheng."""
+    """Create a new workspace (system administrators and platform API keys only).
+
+    owner_email names an existing user who becomes the workspace Owner; it is
+    required when the server is reached with a platform API key.
+    """
     engines = retriever_engines or {
         "engines": [
             {"retriever_type": "keywords", "retriever_engine_type": "postgres"},
             {"retriever_type": "vector", "retriever_engine_type": "postgres"},
         ]
     }
-    return client.create_tenant(name, description, business, engines)
+    return client.create_tenant(name, description, business, engines, owner_email)
 
 
 @mcp.tool()

@@ -94,7 +94,7 @@ SSE 与 HTTP 传输由 `MCPAuthMiddleware`（ASGI 中间件）统一鉴权：客
 
 | 工具名 | 参数 | 说明 |
 |---|---|---|
-| `create_tenant` | `name`\*, `description`\*, `business`\*, `retriever_engines` | 创建租户（服务端只对系统管理员、跨空间超管与平台 API Key 开放；用平台 Key 时服务端要求 `owner_email`，本工具不传它，所以实际只能以系统管理员的 JWT 调用）；未指定检索引擎时默认 postgres 的 keywords + vector 双引擎 |
+| `create_tenant` | `name`\*, `description`\*, `business`\*, `retriever_engines`, `owner_email` | 创建空间（服务端只对系统管理员、跨空间超管与平台 API Key 开放）。`owner_email` 指定一个已注册用户为 Owner；用平台 Key 调用时必填，用系统管理员的 JWT 调用时留空则管理员自己成为 Owner；未指定检索引擎时默认 postgres 的 keywords + vector 双引擎 |
 | `list_tenants` | 无 | 列出所有租户 |
 
 **知识库管理**

@@ -19,7 +19,7 @@ import (
 // files.go hosts every file-proxy surface the router exposes:
 //
 //   - /files                              tenant-scoped resource proxy
-//   - /api/v1/knowledge-bases/:id/files   KB-scoped proxy (shared-KB images)
+//   - /api/v1/knowledge-bases/:id/files   KB-scoped proxy (images in a KB's content)
 //   - /api/v1/sessions/:id/messages/:message_id/files
 //                                          message-scoped proxy (assistant-message resources)
 //   - /api/v1/files/presigned-preview     Admin-only URL diagnostics

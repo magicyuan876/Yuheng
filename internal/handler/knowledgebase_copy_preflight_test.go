@@ -106,8 +106,8 @@ func TestDuplicateHandler_RejectsCrossTenantSource(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/knowledge-bases/src/duplicate", nil)
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected 403 for cross-tenant source, got %d body=%s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for cross-tenant source, got %d body=%s", w.Code, w.Body.String())
 	}
 	if calledDuplicate {
 		t.Fatal("duplicate service must not be called when source KB is outside the caller tenant")
