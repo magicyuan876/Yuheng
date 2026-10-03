@@ -4,7 +4,12 @@
 FROM python:3.10.18-bookworm AS builder
 
 ARG APT_MIRROR=""
-RUN if [ -n "$APT_MIRROR" ]; then \
+# The package installs below pull several hundred .debs (LibreOffice alone is
+# most of them); one dropped connection used to fail the whole build. apt
+# retries each fetch and gives a stalled one a bounded wait instead.
+RUN printf 'Acquire::Retries "5";\nAcquire::http::Timeout "60";\nAcquire::https::Timeout "60";\n' \
+        > /etc/apt/apt.conf.d/80-retries && \
+    if [ -n "$APT_MIRROR" ]; then \
         sed -i "s@http://deb.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources && \
         sed -i "s@http://security.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources; \
     fi
@@ -127,7 +132,12 @@ RUN chmod +x docreader/scripts/generate_proto.sh && \
 FROM python:3.10.18-bookworm AS runner
 
 ARG APT_MIRROR=""
-RUN if [ -n "$APT_MIRROR" ]; then \
+# The package installs below pull several hundred .debs (LibreOffice alone is
+# most of them); one dropped connection used to fail the whole build. apt
+# retries each fetch and gives a stalled one a bounded wait instead.
+RUN printf 'Acquire::Retries "5";\nAcquire::http::Timeout "60";\nAcquire::https::Timeout "60";\n' \
+        > /etc/apt/apt.conf.d/80-retries && \
+    if [ -n "$APT_MIRROR" ]; then \
         sed -i "s@http://deb.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources && \
         sed -i "s@http://security.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources; \
     fi
