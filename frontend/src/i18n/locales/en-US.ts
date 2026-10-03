@@ -1140,20 +1140,17 @@ export default {
     loginErrorRetry: "Login error, please try again later",
     registerError: "Registration error, please try again later",
     workspaceOnboarding: {
-      title: "Choose your workspace",
-      description: "Create a workspace to get started, or accept an invitation to join one that already exists.",
+      title: "Your account has no workspace yet",
+      description: "Ask a workspace administrator to invite you, or a system administrator to add you.",
+      adminDescription: "As a system administrator you can create a workspace now, or accept a pending invitation.",
       create: "Create workspace",
       invitations: "View invitations",
       loadingPolicy: "Checking the available workspace options…",
       policyLoadFailed: "Workspace permissions could not be loaded. Check your connection and try again.",
       retry: "Reload",
-      inviteOnlyTitle: "Waiting for a workspace invitation",
-      inviteOnlyDescription:
-        "Personal workspace creation is disabled. View and accept an invitation from a workspace administrator.",
-      inviteOnlyNotice: "This account can only join an existing workspace by invitation",
-      help: "You can create a workspace now or return later to accept an invitation.",
-      inviteOnlyHelp:
-        "No invitation yet? Send your registered email address to a workspace administrator and ask them to invite you.",
+      help: "No invitation yet? Send your registered email address to a workspace administrator so they can invite you, or to a system administrator so they can add you.",
+      adminHelp:
+        "A workspace created here gets you as its owner; add members afterwards under Settings → Users & workspaces.",
     },
   },
   authStore: {
@@ -2213,17 +2210,20 @@ export default {
       action: "Create new workspace",
       dialogTitle: "Create new workspace",
       dialogSubtitle:
-        "A workspace has its own knowledge bases and members. You will become the owner of the new workspace.",
+        "A workspace has its own knowledge bases and members. You become its owner unless you name another user below.",
       nameLabel: "Workspace name",
       namePlaceholder: "e.g. My new project",
       nameRequired: "Please enter a workspace name",
+      ownerEmailLabel: "Owner (optional)",
+      ownerEmailPlaceholder: "Email of an existing account; empty makes you the owner",
+      ownerEmailInvalid: "Enter a valid email address",
       descriptionLabel: "Description (optional)",
       descriptionPlaceholder: "Briefly describe what this workspace is for",
       submit: "Create",
       cancel: "Cancel",
       success: "Workspace created successfully",
       failed: "Failed to create workspace",
-      disabled: "This system only allows joining workspaces by invitation. You cannot create one yourself.",
+      disabled: "Only system administrators can create workspaces.",
     },
     details: {
       idLabel: "Workspace ID",
@@ -2258,6 +2258,7 @@ export default {
       usedDescription: "Storage space that has been used",
       usageLabel: "Storage Usage",
       usageDescription: "Percentage of storage capacity used",
+      unlimited: "Unlimited",
     },
     leaveDangerZone: {
       title: "Leave this workspace",
@@ -2334,6 +2335,135 @@ export default {
       fetchFailed: "Failed to fetch system information",
       networkError: "Network error, please try again later",
     },
+    usersWorkspaces: {
+      navLabel: "Users & workspaces",
+      title: "Users & workspaces",
+      description:
+        "Create workspaces and accounts and decide who belongs where. Only system administrators see this page; workspace owners manage their own members under Workspace → Members.",
+      workspaces: {
+        title: "Workspaces",
+        create: "Create workspace",
+        loading: "Loading workspaces…",
+        loadFailed: "Failed to load workspaces",
+        empty: "No workspaces yet",
+        columns: {
+          name: "Workspace",
+          members: "Members",
+          created: "Created",
+          actions: "Actions",
+        },
+        manageMembers: "Members",
+      },
+      members: {
+        title: "Members of {name}",
+        description:
+          "Add existing accounts to this workspace, change their role or remove them. The last owner can be neither demoted nor removed.",
+        add: "Add member",
+        emailLabel: "Email",
+        emailPlaceholder: "Email of an existing account",
+        emailRequired: "Enter the account's email",
+        emailInvalid: "Enter a valid email address",
+        roleLabel: "Role",
+        addSubmit: "Add",
+        addSuccess: "Member added",
+        addFailed: "Failed to add member",
+        notRegistered:
+          "No account has this email. Create the account first; it can be placed into the workspace at the same time.",
+        loading: "Loading members…",
+        loadFailed: "Failed to load members",
+        empty: "This workspace has no members yet",
+        columns: {
+          member: "Member",
+          role: "Role",
+          joined: "Joined",
+          actions: "Actions",
+        },
+        roleUpdated: "Role updated",
+        roleUpdateFailed: "Failed to update role",
+        remove: "Remove",
+        removeConfirm: "Remove {email} from this workspace? They lose access to its knowledge bases immediately.",
+        removeSuccess: "Member removed",
+        removeFailed: "Failed to remove member",
+      },
+      users: {
+        title: "Users",
+        description:
+          "Accounts are global: one account can belong to several workspaces. Create an account here and, if you like, place it into a workspace straight away.",
+        create: "Create user",
+        dialogTitle: "Create user",
+        usernameLabel: "Username",
+        usernamePlaceholder: "2-50 characters",
+        emailLabel: "Email",
+        emailPlaceholder: "name{'@'}company.com",
+        passwordLabel: "Password (optional)",
+        passwordPlaceholder: "Leave empty to generate one",
+        workspaceLabel: "Workspace (optional)",
+        workspaceNone: "No workspace for now",
+        roleLabel: "Role in the workspace",
+        submit: "Create",
+        success: "User created",
+        failed: "Failed to create user",
+        usernameRequired: "Enter a username",
+        usernameLength: "Username must be 2-50 characters",
+        emailRequired: "Enter an email address",
+        emailInvalid: "Enter a valid email address",
+        passwordPolicy: "Password must be 8-32 characters and contain a letter and a number",
+        placedInto: "Added to {name} as {role}",
+        generatedTitle: "Generated password",
+        generatedHint: "Shown once. Copy it and hand it to the user; it cannot be retrieved later.",
+        copyPassword: "Copy password",
+        copied: "Password copied",
+      },
+      admins: {
+        label: "System administrators",
+        description:
+          "Users with platform-level privileges. Type an email and press Enter to promote a user; click × on a tag to revoke. You (yourself) are an administrator and are not shown in the list — you cannot revoke your own access.",
+        placeholder: "Type a user email and press Enter",
+        loadFailed: "Failed to load system administrators",
+        saveSuccess: "System administrators updated",
+        saveFailed: "Failed to update system administrators",
+        confirm: {
+          promote: {
+            header: "Promote to system administrator",
+            body: "Promote {email} to system administrator? This user will gain platform-level privileges: access to every workspace, system settings, and the admin roster itself.",
+            confirmBtn: "Promote",
+          },
+          revoke: {
+            header: "Revoke system administrator",
+            body: "Revoke system-administrator privileges from {email}? They will lose access to all system-level features.",
+            confirmBtn: "Revoke",
+          },
+        },
+      },
+      passwordReset: {
+        label: "Reset user password",
+        description:
+          "Set a new password for another user who cannot sign in. A successful reset invalidates all of that user's current sessions, so they must sign in again with the new password.",
+        action: "Reset password",
+        dialogTitle: "Reset another user's password",
+        warning:
+          "This is a high-risk action. Verify the user email carefully. You cannot reset your own password here.",
+        emailLabel: "User email",
+        emailPlaceholder: "Enter the email of the user to reset",
+        newPasswordLabel: "New password",
+        newPasswordPlaceholder: "8-32 characters, including letters and numbers",
+        confirmPasswordLabel: "Confirm new password",
+        confirmPasswordPlaceholder: "Enter the new password again",
+        confirmBtn: "Confirm reset",
+        success: "Password reset; the user's existing sessions were revoked",
+        failed: "Failed to reset password",
+        validation: {
+          emailRequired: "Enter the user email",
+          emailInvalid: "Enter a valid email address",
+          passwordRequired: "Enter a new password",
+          passwordLength: "Password must be 8-32 characters",
+          passwordLetter: "Password must contain a letter",
+          passwordNumber: "Password must contain a number",
+          confirmRequired: "Enter the new password again",
+          passwordMismatch: "The passwords do not match",
+        },
+      },
+    },
     globalSettings: {
       title: "System Settings",
       description:
@@ -2363,7 +2493,8 @@ export default {
         access: {
           tab: "Accounts & access {count}",
           title: "Accounts & access",
-          description: "Manage system administrators, public registration, and workspace-creation rules.",
+          description:
+            "Manage public registration and who configures shared infrastructure. System administrators and user accounts moved to Users & workspaces.",
         },
         file: {
           tab: "Upload limits {count}",
@@ -2633,9 +2764,7 @@ export default {
           video_max_size_mb: "Video upload size limit (MB)",
         },
         tenant: {
-          max_owned_per_user: "Max workspaces owned per user",
-          self_service_creation_enabled: "Allow self-service workspace creation",
-          default_storage_quota_gb: "Default storage quota for new workspaces (GB)",
+          default_storage_quota_gb: "Default storage quota for new workspaces (GB, 0 = unlimited)",
         },
         asynq: {
           core_concurrency: "Guaranteed core parse concurrency",
@@ -2665,12 +2794,8 @@ export default {
             "Maximum size (MB) of a single video upload, shared by all workspaces. Applies immediately. Videos bypass the gRPC cap via the shared storage volume, but the frontend nginx body limit is fixed at container start (default 2048 MB) — going beyond it requires raising MAX_VIDEO_FILE_SIZE_MB and restarting the frontend container.",
         },
         tenant: {
-          max_owned_per_user:
-            "Maximum number of workspaces a non-superuser may own via self-service creation. Read on every workspace creation and takes effect immediately after saving. 0 uses the built-in default of 10; a negative value disables the cap entirely (not recommended on public deployments).",
-          self_service_creation_enabled:
-            "Whether non-superusers may create workspaces themselves. When disabled, regular users can only join existing workspaces by invitation; cross-workspace superusers remain exempt. Takes effect immediately.",
           default_storage_quota_gb:
-            "Default storage quota (GB) assigned when a new workspace is created, covering vectors, originals, text, indexes, and related data. Read only at creation time — changes apply to newly created workspaces only and do not retroactively update existing workspaces. 0 or a negative value uses the built-in default of 10 GB.",
+            "Default storage quota (GB) assigned when a new workspace is created, covering vectors, originals, text, indexes, and related data. Read only at creation time — changes apply to newly created workspaces only and do not retroactively update existing workspaces. 0 means unlimited (the default).",
         },
         asynq: {
           core_concurrency:
@@ -2737,55 +2862,6 @@ export default {
         success: "Reset to default",
         failed: "Reset failed",
       },
-      admins: {
-        label: "System administrators",
-        description:
-          "Users with platform-level privileges. Type an email and press Enter to promote a user; click × on a tag to revoke. You (yourself) are an administrator and are not shown in the list — you cannot revoke your own access.",
-        placeholder: "Type a user email and press Enter",
-        loadFailed: "Failed to load system administrators",
-        saveSuccess: "System administrators updated",
-        saveFailed: "Failed to update system administrators",
-        confirm: {
-          promote: {
-            header: "Promote to system administrator",
-            body: "Promote {email} to system administrator? This user will gain platform-level privileges: access to every workspace, system settings, and the admin roster itself.",
-            confirmBtn: "Promote",
-          },
-          revoke: {
-            header: "Revoke system administrator",
-            body: "Revoke system-administrator privileges from {email}? They will lose access to all system-level features.",
-            confirmBtn: "Revoke",
-          },
-        },
-      },
-      passwordReset: {
-        label: "Reset user password",
-        description:
-          "Set a new password for another user who cannot sign in. A successful reset invalidates all of that user's current sessions, so they must sign in again with the new password.",
-        action: "Reset password",
-        dialogTitle: "Reset another user's password",
-        warning:
-          "This is a high-risk action. Verify the user email carefully. You cannot reset your own password here.",
-        emailLabel: "User email",
-        emailPlaceholder: "Enter the email of the user to reset",
-        newPasswordLabel: "New password",
-        newPasswordPlaceholder: "8-32 characters, including letters and numbers",
-        confirmPasswordLabel: "Confirm new password",
-        confirmPasswordPlaceholder: "Enter the new password again",
-        confirmBtn: "Confirm reset",
-        success: "Password reset; the user's existing sessions were revoked",
-        failed: "Failed to reset password",
-        validation: {
-          emailRequired: "Enter the user email",
-          emailInvalid: "Enter a valid email address",
-          passwordRequired: "Enter a new password",
-          passwordLength: "Password must be 8-32 characters",
-          passwordLetter: "Password must contain a letter",
-          passwordNumber: "Password must contain a number",
-          confirmRequired: "Enter the new password again",
-          passwordMismatch: "The passwords do not match",
-        },
-      },
       bulkApply: {
         label: "Apply to all existing workspaces",
         tooltip:
@@ -2828,6 +2904,9 @@ export default {
           "system.api_key_revoked": "Platform API key revoked",
           "system.admin_revoked": "System admin revoked",
           "system.user_password_reset": "User password reset",
+          "system.user_created": "User created",
+          "system.tenant_created": "Workspace created",
+          "system.tenant_deleted": "Workspace deleted",
           "system.queue_task_retried": "Failed task run again",
           "system.queue_task_deleted": "Failed task record cleared",
           "system.queue_task_run_now": "Queue task run now",
@@ -4102,6 +4181,7 @@ export default {
       admin: "Admin",
       contributor: "Contributor",
       viewer: "Viewer",
+      system_admin: "System administrator",
     },
     add: {
       button: "Add Member",

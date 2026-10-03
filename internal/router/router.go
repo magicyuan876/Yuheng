@@ -228,7 +228,8 @@ func NewRouter(params RouterParams) *gin.Engine {
 		))
 		params.SystemHandler.BindExtensionFeatures(params.Features)
 		RegisterSystemRoutes(v1, params.SystemHandler, rbacGuards)
-		RegisterSystemAdminRoutes(v1, params.SystemHandler, params.AuditLogHandler, rbacGuards)
+		RegisterSystemAdminRoutes(
+			v1, params.SystemHandler, params.TenantMemberHandler, params.AuditLogHandler, rbacGuards)
 		RegisterWebSearchRoutes(v1, params.WebSearchHandler, rbacGuards)
 		RegisterWebSearchProviderRoutes(v1, params.WebSearchProviderHandler, params.WebSearchCredentialsHandler, rbacGuards)
 		RegisterVectorStoreRoutes(v1, params.VectorStoreHandler, rbacGuards)

@@ -489,12 +489,23 @@ func (g *rbacGuards) OwnedWikiKBOrAdmin() gin.HandlerFunc {
 // the cross-tenant rules so the router stays declarative.
 
 // CrossTenant gates a route on the caller being an org-level
-// superuser (CanAccessAllTenants AND EnableCrossTenantAccess). Used by
-// /tenants/all, /tenants/search, POST /tenants, GET /tenants — the
-// endpoints that operate across tenants. Replaces the if-blocks that
-// used to live inside ListAllTenants/SearchTenants/CreateTenant.
+// superuser (CanAccessAllTenants AND EnableCrossTenantAccess). Kept for
+// routes that genuinely need the superuser attribute; the workspace
+// catalog itself is gated by TenantCatalog below.
 func (g *rbacGuards) CrossTenant() gin.HandlerFunc {
 	return middleware.RequireCrossTenantAccess(g.cfg)
+}
+
+// TenantCatalog gates the workspace-catalog routes (/tenants/all,
+// /tenants/search, POST /tenants) on the caller being a system
+// administrator, a cross-tenant superuser or a platform API key. It
+// replaced CrossTenant on those routes when self-service workspace
+// creation was removed: the system administrator runs the deployment and
+// must be able to see and create workspaces without the separate
+// CanAccessAllTenants attribute, which remains an opt-in for operators
+// who want a superuser that can also enter every workspace.
+func (g *rbacGuards) TenantCatalog() gin.HandlerFunc {
+	return middleware.RequireTenantCatalogAccess(g.cfg)
 }
 
 // PathTenantMatch enforces that the URL :id matches the caller's

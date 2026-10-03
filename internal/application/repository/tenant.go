@@ -73,6 +73,14 @@ func (r *tenantRepository) ListTenants(ctx context.Context) ([]*types.Tenant, er
 	return tenants, nil
 }
 
+// CountTenants counts the live tenants (GORM's soft-delete scope excludes
+// deleted rows).
+func (r *tenantRepository) CountTenants(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&types.Tenant{}).Count(&count).Error
+	return count, err
+}
+
 // SearchTenants searches tenants with pagination and filters
 func (r *tenantRepository) SearchTenants(ctx context.Context, keyword string, tenantID uint64, page, pageSize int) ([]*types.Tenant, int64, error) {
 	var tenants []*types.Tenant

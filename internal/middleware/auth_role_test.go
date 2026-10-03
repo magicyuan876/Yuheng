@@ -121,6 +121,10 @@ func (f *fakeMemberService) ListMembersPage(
 	return nil, 0, nil
 }
 
+func (f *fakeMemberService) CountMembersByTenants(context.Context, []uint64) (map[uint64]int64, error) {
+	return map[uint64]int64{}, nil
+}
+
 func (f *fakeMemberService) HasAnyMembers(ctx context.Context, tenantID uint64) (bool, error) {
 	if f.failHasAny != nil {
 		return false, f.failHasAny

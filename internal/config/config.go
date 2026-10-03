@@ -176,24 +176,6 @@ type TenantConfig struct {
 	//   pointer true  — enforcement on (the new default).
 	// Read through IsRBACEnforced so callers stay nil-safe.
 	EnableRBAC *bool `yaml:"enable_rbac" json:"enable_rbac"`
-	// MaxOwnedPerUser caps how many tenants a single non-superuser can
-	// create (and Own) via self-service POST /tenants. Counts only Owner
-	// memberships so being invited as Admin/Editor/Viewer in another
-	// tenant doesn't burn quota. Cross-tenant superusers
-	// (CanAccessAllTenants) are exempt.
-	//   > 0 — enforce the cap (handler returns 429 when reached).
-	//   = 0 — fall back to defaultMaxOwnedTenantsPerUser in the handler.
-	//   < 0 — disable the cap entirely (not recommended in shared deployments).
-	//
-	// Env override: YUHENG_TENANT_MAX_OWNED_PER_USER (integer). When set
-	// and parseable it always wins over config.yaml so operators can
-	// loosen / tighten the quota without a redeploy. See
-	// applyAuthAndTenantDefaults for the semantics of <0 / 0 / >0.
-	MaxOwnedPerUser int `yaml:"max_owned_per_user" json:"max_owned_per_user" mapstructure:"max_owned_per_user"`
-	// SelfServiceCreationEnabled controls whether ordinary authenticated
-	// users may create a workspace for themselves. Nil preserves the
-	// historical default (enabled); cross-tenant superusers are exempt.
-	SelfServiceCreationEnabled *bool `yaml:"self_service_creation_enabled" json:"self_service_creation_enabled" mapstructure:"self_service_creation_enabled"`
 }
 
 // IsRBACEnforced reports whether tenant-level role enforcement is
@@ -207,12 +189,6 @@ func (t *TenantConfig) IsRBACEnforced() bool {
 		return true
 	}
 	return *t.EnableRBAC
-}
-
-// IsSelfServiceCreationEnabled reports whether ordinary users may create
-// tenants. Nil keeps the historical behaviour enabled.
-func (t *TenantConfig) IsSelfServiceCreationEnabled() bool {
-	return t == nil || t.SelfServiceCreationEnabled == nil || *t.SelfServiceCreationEnabled
 }
 
 // AuditConfig governs durable audit log behaviour. Writes happen on
@@ -718,19 +694,16 @@ func applyKnowledgeBaseEnvOverrides(cfg *Config) {
 //   - tenant.enable_rbac      -> true (enforce role checks unless an
 //     operator explicitly opts into the logging-only rollout window via
 //     config.yaml `enable_rbac: false` or `YUHENG_TENANT_ENABLE_RBAC=false`).
-//   - tenant.self_service_creation_enabled -> true (preserves ordinary
-//     authenticated users' ability to create workspaces).
 //
 // Env overrides (when set and non-empty):
-//   - YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED (boolean)
 //   - YUHENG_TENANT_ENABLE_RBAC      ("true"/"false", case-insensitive)
 //   - YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS ("true"/"false", case-insensitive).
 //     Read explicitly because viper.AutomaticEnv has no SetEnvPrefix, so the
 //     YUHENG_-prefixed var is not bound to the nested struct automatically.
-//   - YUHENG_TENANT_MAX_OWNED_PER_USER (integer; <0 disables the cap,
-//     0 falls back to the handler default, >0 enforces that exact cap).
-//     Unparseable / empty values are ignored so a stale shell variable
-//     can't silently disable the quota for a future deployment.
+//
+// Workspace creation has no policy knob any more: only system
+// administrators create workspaces, so the former self-service switch and
+// per-user cap are gone along with their environment variables.
 //
 // Note: auth.registration_mode has no dedicated env override. The
 // long-standing DISABLE_REGISTRATION env var is the single env-layer knob:
@@ -788,32 +761,6 @@ func applyAuthAndTenantDefaults(cfg *Config) {
 	// stays whatever config.yaml provides (false unless set there).
 	if value := strings.TrimSpace(os.Getenv("YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS")); value != "" {
 		cfg.Tenant.EnableCrossTenantAccess = strings.EqualFold(value, "true")
-	}
-
-	if value := strings.TrimSpace(os.Getenv("YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED")); value != "" {
-		if enabled, err := strconv.ParseBool(value); err == nil {
-			cfg.Tenant.SelfServiceCreationEnabled = &enabled
-		} else {
-			fmt.Printf(
-				"[config] YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED=%q is not a boolean, ignoring\n",
-				value,
-			)
-		}
-	}
-	if cfg.Tenant.SelfServiceCreationEnabled == nil {
-		on := true
-		cfg.Tenant.SelfServiceCreationEnabled = &on
-	}
-
-	if value := strings.TrimSpace(os.Getenv("YUHENG_TENANT_MAX_OWNED_PER_USER")); value != "" {
-		if n, err := strconv.Atoi(value); err == nil {
-			cfg.Tenant.MaxOwnedPerUser = n
-		} else {
-			fmt.Printf(
-				"[config] YUHENG_TENANT_MAX_OWNED_PER_USER=%q is not an integer, ignoring\n",
-				value,
-			)
-		}
 	}
 }
 

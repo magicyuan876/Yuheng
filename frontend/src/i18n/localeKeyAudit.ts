@@ -60,7 +60,7 @@ const TM_KEY_PATTERNS = [/(?<![.\w])tm\(\s*['"]([^'"]+)['"]/g] as const;
 
 const EXTRA_PREFIXES = [
   "system.globalSettings.listConfirm.",
-  "system.globalSettings.admins.confirm.",
+  "system.usersWorkspaces.admins.confirm.",
   "system.globalSettings.keyLabels.",
   "system.globalSettings.keyDescriptions.",
   "system.globalSettings.enumLabels.",

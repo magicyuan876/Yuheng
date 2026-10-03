@@ -13,12 +13,14 @@
       - Input (int / string)                  → commit on blur.
       - SSRF whitelist (string_list)          → controlled tags input +
                                                  per-tag inline confirm.
-      - System admins                         → tags input with
-                                                 inline popconfirm per delta.
 
     auth.registration_mode triggers an
     inline confirm (same as Reset / bulk-apply) before persisting;
     cancelling rolls the in-progress edit back to the canonical value.
+
+    User accounts (the system-administrator roster, password resets,
+    creating users) are not settings and live on the Users & workspaces
+    page (SystemUsersWorkspaces.vue).
   -->
   <div class="w-full">
     <div class="mb-6">
@@ -109,105 +111,6 @@
               : ''
           "
         >
-          <!--
-        System-admins management. Visually identical to SSRF whitelist
-        (a tags input with one entry per email). NOT a system_setting
-        row — it's backed by the user table via promote/revoke APIs.
-        We sit it at the top because changing who can edit this page
-        is structurally more important than tweaking any value below.
-        Self-edit safety: the current user is excluded from the visible
-        tags (they can't revoke themselves anyway, and showing a tag
-        that can't be removed is worse than not showing it).
-      -->
-          <div
-            v-if="activeSettingsSection === 'access'"
-            class="border-border flex items-start justify-between border-b py-5 last:border-b-0 max-[860px]:flex-col max-[860px]:gap-3"
-          >
-            <div class="max-w-[65%] flex-1 pr-6 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:pr-0">
-              <div
-                class="text-foreground mb-1 flex flex-wrap items-center gap-1.5 text-[15px] leading-[1.4] font-medium"
-              >
-                <span>{{ t("system.globalSettings.admins.label") }}</span>
-                <Badge :class="settingTagClass('danger')">{{ t("system.globalSettings.badgeHighRisk") }}</Badge>
-              </div>
-              <p class="text-muted-foreground m-0 max-w-[480px] text-[13px] leading-[1.5]">
-                {{ t("system.globalSettings.admins.description") }}
-              </p>
-            </div>
-            <div
-              class="flex min-w-[280px] shrink-0 flex-col items-end gap-1.5 max-[860px]:w-full max-[860px]:items-start"
-            >
-              <div class="flex items-center justify-end gap-2 max-[860px]:w-full max-[860px]:justify-start">
-                <Popover :open="adminPopconfirm.visible" @update:open="onAdminPopoverOpen">
-                  <PopoverAnchor as-child>
-                    <div class="min-w-0 flex-1">
-                      <TagsFieldInput
-                        v-model="adminEmails"
-                        class="w-[320px] max-[860px]:w-full"
-                        :placeholder="t('system.globalSettings.admins.placeholder')"
-                        :aria-label="t('system.globalSettings.admins.label')"
-                        :disabled="adminBusy"
-                        @change="onAdminsChange"
-                      />
-                    </div>
-                  </PopoverAnchor>
-                  <PopoverContent side="left" class="w-72">
-                    <p class="mb-3 text-[13px] leading-[1.5]">{{ adminPopconfirm.content }}</p>
-                    <div class="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" @click="adminPopconfirm.finish(false)">
-                        {{ t("system.globalSettings.confirm.cancelBtn") }}
-                      </Button>
-                      <Button
-                        size="sm"
-                        :class="confirmBtnClass(adminPopconfirm.confirmBtn.theme)"
-                        @click="adminPopconfirm.finish(true)"
-                      >
-                        {{ adminPopconfirm.confirmBtn.content }}
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <div
-                  v-if="adminBusy"
-                  class="text-muted-foreground inline-flex min-w-[52px] shrink-0 items-center gap-[5px] text-xs"
-                  role="status"
-                >
-                  <Loader2Icon class="size-3.5 animate-spin" />
-                  <span>{{ t("system.globalSettings.saving") }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-if="activeSettingsSection === 'access'"
-            class="border-border flex items-start justify-between border-b py-5 last:border-b-0 max-[860px]:flex-col max-[860px]:gap-3"
-          >
-            <div class="max-w-[65%] flex-1 pr-6 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:pr-0">
-              <div
-                class="text-foreground mb-1 flex flex-wrap items-center gap-1.5 text-[15px] leading-[1.4] font-medium"
-              >
-                <span>{{ t("system.globalSettings.passwordReset.label") }}</span>
-                <Badge :class="settingTagClass('danger')">{{ t("system.globalSettings.badgeHighRisk") }}</Badge>
-              </div>
-              <p class="text-muted-foreground m-0 max-w-[480px] text-[13px] leading-[1.5]">
-                {{ t("system.globalSettings.passwordReset.description") }}
-              </p>
-            </div>
-            <div
-              class="flex min-w-[280px] shrink-0 flex-col items-end gap-1.5 max-[860px]:w-full max-[860px]:items-start"
-            >
-              <Button
-                variant="destructive"
-                class="hover:border-destructive/40 min-w-28 rounded-md px-3"
-                @click="openPasswordResetDialog"
-              >
-                <LockIcon />
-                {{ t("system.globalSettings.passwordReset.action") }}
-              </Button>
-            </div>
-          </div>
-
           <div
             v-for="item in activeSectionSettings"
             :key="item.key"
@@ -528,138 +431,6 @@
       </section>
       <div class="sr-only" role="status" aria-live="polite">{{ saveAnnouncement }}</div>
     </template>
-
-    <!--
-      The shell reproduces the old password-reset-dialog overrides: a 64px
-      header and a footer, both ruled off, 24px side padding, 12px radius,
-      and a tighter layout under 480px.
-    -->
-    <Dialog :open="passwordResetVisible" @update:open="onPasswordResetOpenChange">
-      <DialogContent
-        :show-close-button="false"
-        class="border-border gap-0 overflow-hidden rounded-xl border p-0 shadow-[0_12px_32px_rgba(15,23,42,0.12),0_2px_8px_rgba(15,23,42,0.08)] ring-0 max-[480px]:max-w-[calc(100vw-24px)] sm:max-w-[440px]"
-        @interact-outside="onPasswordResetInteractOutside"
-      >
-        <DialogHeader
-          class="border-border min-h-16 flex-row items-center justify-between gap-3 border-b px-6 max-[480px]:min-h-14 max-[480px]:px-5"
-        >
-          <DialogTitle class="text-lg leading-[26px] font-semibold max-[480px]:text-[17px]">
-            {{ t("system.globalSettings.passwordReset.dialogTitle") }}
-          </DialogTitle>
-          <DialogClose v-if="!passwordResetSubmitting" as-child>
-            <Button variant="ghost" size="icon-sm" class="rounded-md" :aria-label="t('common.close')">
-              <XIcon />
-            </Button>
-          </DialogClose>
-        </DialogHeader>
-        <div class="px-6 pt-5 pb-1 max-[480px]:px-5 max-[480px]:pt-4">
-          <Alert class="mb-5 rounded-lg border-0 bg-[var(--td-warning-color-focus)] px-3.5 py-3">
-            <CircleAlertIcon class="text-warning" />
-            <AlertTitle class="text-foreground text-[13px] leading-5 font-normal">
-              {{ t("system.globalSettings.passwordReset.warning") }}
-            </AlertTitle>
-          </Alert>
-          <div class="mb-4 grid">
-            <Label class="min-h-7 text-sm leading-[22px]" for="password-reset-email">
-              {{ t("system.globalSettings.passwordReset.emailLabel") }}
-            </Label>
-            <div class="relative">
-              <Input
-                id="password-reset-email"
-                v-model="passwordResetForm.email"
-                type="text"
-                autocomplete="off"
-                class="rounded-md pr-8"
-                :aria-invalid="passwordErrors.email ? true : undefined"
-                :disabled="passwordResetSubmitting"
-                :placeholder="t('system.globalSettings.passwordReset.emailPlaceholder')"
-                @input="passwordErrors.email = ''"
-                @blur="validateEmailField"
-              />
-              <button
-                v-if="passwordResetForm.email && !passwordResetSubmitting"
-                type="button"
-                data-slot="input-clear"
-                class="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 cursor-pointer"
-                :aria-label="t('common.clear')"
-                @mousedown.prevent
-                @click="passwordResetForm.email = ''"
-              >
-                <XIcon class="size-3.5" />
-              </button>
-            </div>
-            <p v-if="passwordErrors.email" class="text-destructive m-0 mt-1 text-xs">{{ passwordErrors.email }}</p>
-          </div>
-          <div class="mb-4 grid">
-            <Label class="min-h-7 text-sm leading-[22px]" for="password-reset-new">
-              {{ t("system.globalSettings.passwordReset.newPasswordLabel") }}
-            </Label>
-            <div class="relative">
-              <LockIcon class="text-placeholder absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-              <Input
-                id="password-reset-new"
-                v-model="passwordResetForm.newPassword"
-                type="password"
-                autocomplete="new-password"
-                :aria-invalid="passwordErrors.newPassword ? true : undefined"
-                :disabled="passwordResetSubmitting"
-                :placeholder="t('system.globalSettings.passwordReset.newPasswordPlaceholder')"
-                class="rounded-md pl-8"
-                @input="passwordErrors.newPassword = ''"
-                @blur="validateNewPasswordField"
-              />
-            </div>
-            <p v-if="passwordErrors.newPassword" class="text-destructive m-0 mt-1 text-xs">
-              {{ passwordErrors.newPassword }}
-            </p>
-          </div>
-          <div class="mb-4 grid">
-            <Label class="min-h-7 text-sm leading-[22px]" for="password-reset-confirm">
-              {{ t("system.globalSettings.passwordReset.confirmPasswordLabel") }}
-            </Label>
-            <div class="relative">
-              <LockIcon class="text-placeholder absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-              <Input
-                id="password-reset-confirm"
-                v-model="passwordResetForm.confirmPassword"
-                type="password"
-                autocomplete="new-password"
-                :aria-invalid="passwordErrors.confirmPassword ? true : undefined"
-                :disabled="passwordResetSubmitting"
-                :placeholder="t('system.globalSettings.passwordReset.confirmPasswordPlaceholder')"
-                class="rounded-md pl-8"
-                @keydown.enter="submitPasswordReset"
-                @input="passwordErrors.confirmPassword = ''"
-                @blur="validateConfirmPasswordField"
-              />
-            </div>
-            <p v-if="passwordErrors.confirmPassword" class="text-destructive m-0 mt-1 text-xs">
-              {{ passwordErrors.confirmPassword }}
-            </p>
-          </div>
-        </div>
-        <DialogFooter
-          class="border-border m-0 rounded-none bg-transparent px-6 pt-4 pb-5 max-[480px]:px-5 max-[480px]:pt-3.5 max-[480px]:pb-[18px]"
-        >
-          <Button
-            variant="outline"
-            class="min-w-[88px] rounded-md"
-            :disabled="passwordResetSubmitting"
-            @click="onPasswordResetOpenChange(false)"
-          >
-            {{ t("system.globalSettings.confirm.cancelBtn") }}
-          </Button>
-          <Button
-            class="bg-destructive text-primary-foreground hover:bg-destructive/80 min-w-[88px] rounded-md"
-            :disabled="passwordResetSubmitting"
-            @click="submitPasswordReset"
-          >
-            <Loader2Icon v-if="passwordResetSubmitting" class="animate-spin" />
-            {{ t("system.globalSettings.passwordReset.confirmBtn") }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </div>
 </template>
 
@@ -672,38 +443,19 @@ import {
   updateSystemSetting,
   resetSystemSetting,
   applyDefaultStorageQuotaToAllTenants,
-  listSystemAdmins,
-  promoteUserToSystemAdmin,
-  revokeSystemAdmin,
-  resetUserPassword,
   type SystemSettingItem,
 } from "@/api/system";
-import { useAuthStore } from "@/stores/auth";
 import TagsFieldInput from "@/components/settings/TagsFieldInput.vue";
+import { confirmBtnClass, createInlinePopconfirm, settingTagClass } from "./inlineConfirm";
 
-import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Popover, PopoverAnchor, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  CircleAlertIcon,
-  CircleCheckIcon,
-  InfoIcon,
-  Loader2Icon,
-  LockIcon,
-  RotateCwIcon,
-  UsersIcon,
-  XIcon,
-} from "@lucide/vue";
-
-const authStore = useAuthStore();
-const currentUserId = computed(() => authStore.currentUserId);
+import { CircleCheckIcon, InfoIcon, Loader2Icon, RotateCwIcon, UsersIcon, XIcon } from "@lucide/vue";
 
 const { t, te } = useI18n();
 
@@ -745,61 +497,11 @@ function isHighImpactKey(key: string): boolean {
   return HIGH_IMPACT_KEYS.has(key);
 }
 
-type PopconfirmBtn = { content: string; theme?: "primary" | "danger" | "warning" };
-
-// Shared inline confirm controller (anchored to the control row,
-// same interaction model as Reset / bulk-apply). Replaces modal dialogs.
-// State must be reactive (not nested refs) so template bindings unwrap.
-function createInlinePopconfirm() {
-  const state = reactive({
-    visible: false,
-    content: "",
-    theme: "warning" as "default" | "warning" | "danger",
-    confirmBtn: { content: "", theme: "primary" } as PopconfirmBtn,
-  });
-  let resolver: ((ok: boolean) => void) | null = null;
-  let settled = false;
-
-  function ask(opts: {
-    content: string;
-    theme?: "default" | "warning" | "danger";
-    confirmBtn: PopconfirmBtn;
-  }): Promise<boolean> {
-    state.content = opts.content;
-    state.theme = opts.theme ?? "warning";
-    state.confirmBtn = opts.confirmBtn;
-    settled = false;
-    return new Promise((resolve) => {
-      resolver = resolve;
-      state.visible = true;
-    });
-  }
-
-  function finish(ok: boolean) {
-    if (settled) return;
-    settled = true;
-    state.visible = false;
-    const r = resolver;
-    resolver = null;
-    r?.(ok);
-  }
-
-  function onVisibleChange(v: boolean) {
-    if (!v && resolver) finish(false);
-  }
-
-  return Object.assign(state, { ask, finish, onVisibleChange });
-}
-
 const ssrfPopconfirm = createInlinePopconfirm();
-const adminPopconfirm = createInlinePopconfirm();
 const highRiskPopconfirm = createInlinePopconfirm();
 
 function onSsrfPopoverOpen(v: boolean) {
   ssrfPopconfirm.onVisibleChange(v);
-}
-function onAdminPopoverOpen(v: boolean) {
-  adminPopconfirm.onVisibleChange(v);
 }
 function onHighRiskPopoverOpen(v: boolean) {
   highRiskPopconfirm.onVisibleChange(v);
@@ -829,12 +531,7 @@ type SettingsSection = "access" | "tenant" | "file" | "runtime" | "security" | "
 // backend's diagnostic contract is preserved when a deployment contains an
 // unexpected key.
 const SETTINGS_SECTION_KEYS: Record<Exclude<SettingsSection, "other">, readonly string[]> = {
-  access: [
-    "governance.centralized_infra",
-    "auth.registration_mode",
-    "tenant.self_service_creation_enabled",
-    "tenant.max_owned_per_user",
-  ],
+  access: ["governance.centralized_infra", "auth.registration_mode"],
   tenant: ["tenant.default_storage_quota_gb"],
   file: ["file.max_size_mb", "file.video_max_size_mb"],
   runtime: [
@@ -882,8 +579,7 @@ function sectionTabLabel(section: SettingsSection): string {
   const count =
     section === "other"
       ? unknownSettings.value.length
-      : SETTINGS_SECTION_KEYS[section].filter((key) => settingsByKey.value.has(key)).length +
-        (section === "access" ? 2 : 0);
+      : SETTINGS_SECTION_KEYS[section].filter((key) => settingsByKey.value.has(key)).length;
   return t(`system.globalSettings.sections.${section}.tab`, { count });
 }
 
@@ -897,154 +593,6 @@ function markSettingSaved(item: SystemSettingItem) {
     if (savedKey.value === item.key) savedKey.value = null;
     savedKeyTimer = null;
   }, 2000);
-}
-
-// Admin management state. We keep two parallel structures:
-//   - adminEmails: the v-model bound to the tags input (excludes
-//     current user; that's the visible source of truth).
-//   - adminEmailToId: email → user UUID, populated from the list
-//     endpoint. Needed because revoke takes a UUID, not an email.
-// Both reset on every reload to avoid stale entries persisting after
-// a peer SystemAdmin makes a change. adminBusy disables the input and
-// shows the row spinner only while promote/revoke API calls are in
-// flight — not while the inline confirm is waiting for a click.
-const adminEmails = ref<string[]>([]);
-const adminEmailToId = ref<Record<string, string>>({});
-const adminBusy = ref(false);
-
-const passwordResetVisible = ref(false);
-const passwordResetSubmitting = ref(false);
-const passwordResetForm = reactive({
-  email: "",
-  newPassword: "",
-  confirmPassword: "",
-});
-const passwordErrors = reactive({ email: "", newPassword: "", confirmPassword: "" });
-
-function clearPasswordErrors() {
-  passwordErrors.email = "";
-  passwordErrors.newPassword = "";
-  passwordErrors.confirmPassword = "";
-}
-
-// One validator per field, ported from the old t-form rules. The rules
-// fired on blur as well as on submit, so each field's @blur runs its own
-// validator and submit runs all three; the first failing rule's message
-// wins, as it did in TDesign.
-function validateEmailField(): boolean {
-  const email = passwordResetForm.email.trim();
-  if (!email) {
-    passwordErrors.email = t("system.globalSettings.passwordReset.validation.emailRequired");
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    passwordErrors.email = t("system.globalSettings.passwordReset.validation.emailInvalid");
-  } else {
-    passwordErrors.email = "";
-  }
-  return !passwordErrors.email;
-}
-
-function validateNewPasswordField(): boolean {
-  const pwd = passwordResetForm.newPassword;
-  if (!pwd) {
-    passwordErrors.newPassword = t("system.globalSettings.passwordReset.validation.passwordRequired");
-  } else if (pwd.length < 8 || pwd.length > 32) {
-    passwordErrors.newPassword = t("system.globalSettings.passwordReset.validation.passwordLength");
-  } else if (!/[a-zA-Z]/.test(pwd)) {
-    passwordErrors.newPassword = t("system.globalSettings.passwordReset.validation.passwordLetter");
-  } else if (!/\d/.test(pwd)) {
-    passwordErrors.newPassword = t("system.globalSettings.passwordReset.validation.passwordNumber");
-  } else {
-    passwordErrors.newPassword = "";
-  }
-  return !passwordErrors.newPassword;
-}
-
-function validateConfirmPasswordField(): boolean {
-  if (!passwordResetForm.confirmPassword) {
-    passwordErrors.confirmPassword = t("system.globalSettings.passwordReset.validation.confirmRequired");
-  } else if (passwordResetForm.confirmPassword !== passwordResetForm.newPassword) {
-    passwordErrors.confirmPassword = t("system.globalSettings.passwordReset.validation.passwordMismatch");
-  } else {
-    passwordErrors.confirmPassword = "";
-  }
-  return !passwordErrors.confirmPassword;
-}
-
-function validatePasswordResetForm(): boolean {
-  // Run every validator (no short-circuit) so all failing fields show
-  // their message at once, as t-form's validate() did.
-  const results = [validateEmailField(), validateNewPasswordField(), validateConfirmPasswordField()];
-  return results.every(Boolean);
-}
-
-// The dialog could not be dismissed by the overlay or the close button
-// while the reset request was in flight (close-on-overlay-click /
-// close-btn were bound to !passwordResetSubmitting); Esc still closed it.
-function onPasswordResetOpenChange(open: boolean) {
-  passwordResetVisible.value = open;
-  if (!open) resetPasswordResetForm();
-}
-
-function onPasswordResetInteractOutside(event: Event) {
-  if (passwordResetSubmitting.value) event.preventDefault();
-}
-
-// Tag classes matching the old small light t-tag: 20px high, 4px side
-// padding, 3px radius, regular weight, the theme's "-light" tint.
-function settingTagClass(theme: "warning" | "primary" | "danger" | "success"): string {
-  const base = "h-5 rounded-[3px] px-1 font-normal";
-  switch (theme) {
-    case "warning":
-      return `${base} bg-[var(--td-warning-color-light)] text-warning`;
-    case "primary":
-      return `${base} bg-[var(--td-brand-color-light)] text-primary`;
-    case "danger":
-      return `${base} bg-[var(--td-error-color-light)] text-destructive`;
-    default:
-      return `${base} bg-[var(--td-success-color-light)] text-success`;
-  }
-}
-
-// Solid confirm button colours for the inline confirms: TDesign's
-// confirm-btn theme painted a filled danger / warning / primary button.
-function confirmBtnClass(theme: PopconfirmBtn["theme"]): string {
-  if (theme === "danger") return "bg-destructive text-primary-foreground hover:bg-destructive/80";
-  if (theme === "warning") return "bg-warning text-primary-foreground hover:bg-warning/80";
-  return "";
-}
-
-function resetPasswordResetForm() {
-  passwordResetForm.email = "";
-  passwordResetForm.newPassword = "";
-  passwordResetForm.confirmPassword = "";
-  clearPasswordErrors();
-}
-
-async function openPasswordResetDialog() {
-  resetPasswordResetForm();
-  passwordResetVisible.value = true;
-}
-
-async function submitPasswordReset() {
-  if (passwordResetSubmitting.value) return;
-  if (!validatePasswordResetForm()) return;
-
-  passwordResetSubmitting.value = true;
-  try {
-    await resetUserPassword({
-      email: passwordResetForm.email.trim(),
-      new_password: passwordResetForm.newPassword,
-    });
-    saveAnnouncement.value = t("system.globalSettings.passwordReset.success");
-    MessagePlugin.success(t("system.globalSettings.passwordReset.success"));
-    passwordResetVisible.value = false;
-  } catch (err: any) {
-    const msg = err?.message || t("system.globalSettings.passwordReset.failed");
-    saveAnnouncement.value = msg;
-    MessagePlugin.error(msg);
-  } finally {
-    passwordResetSubmitting.value = false;
-  }
 }
 
 // Guards ssrf.whitelist while an async confirm roundtrip is in flight.
@@ -1457,129 +1005,8 @@ async function persistSetting(item: SystemSettingItem) {
   }
 }
 
-// loadAdmins refreshes the admin tags list + the email→id lookup
-// table. We exclude the current user from the visible list so the
-// "you can't revoke yourself" rule has nothing to enforce in the UI
-// (the backend rejects it too, but hiding the tag is friendlier).
-async function loadAdmins() {
-  try {
-    const resp = await listSystemAdmins({ limit: 200 });
-    const map: Record<string, string> = {};
-    const emails: string[] = [];
-    for (const u of resp.admins ?? []) {
-      // Empty emails would collapse to a single tag "" that can't be
-      // round-tripped to a user_id; skip them. Same defensive stance
-      // as resolveMaxOwnedTenantsPerUser on the backend.
-      if (!u.email) continue;
-      map[u.email] = u.id;
-      if (u.id !== currentUserId.value) {
-        emails.push(u.email);
-      }
-    }
-    adminEmailToId.value = map;
-    adminEmails.value = emails;
-  } catch (err: any) {
-    const msg = err?.message || t("system.globalSettings.admins.loadFailed");
-    MessagePlugin.error(msg);
-  }
-}
-
-function confirmAdminChange(action: "promote" | "revoke", email: string): Promise<boolean> {
-  const base = `system.globalSettings.admins.confirm.${action}`;
-  return adminPopconfirm.ask({
-    content: globalSettingsText(`${base}.body`, { email }),
-    theme: action === "revoke" ? "danger" : "warning",
-    confirmBtn: {
-      content: globalSettingsText(`${base}.confirmBtn`),
-      theme: action === "revoke" ? "danger" : "primary",
-    },
-  });
-}
-
-// onAdminsChange diffs the new tag list against the canonical state
-// and dispatches one promote / revoke per delta. Failures roll back
-// the whole tag list to the server-side truth — this is simpler than
-// trying to undo individual ops, and the network/error case for batch
-// edits is rare enough that a full reload doesn't surprise anyone.
-async function onAdminsChange(next: string[]) {
-  if (adminBusy.value) return;
-
-  // Snapshot of what's currently authoritative — the email→id map's
-  // keys, minus the current user. Anything in `next` that's not here
-  // is an addition; anything here that's not in `next` is a removal.
-  const authoritative = new Set<string>();
-  for (const email of Object.keys(adminEmailToId.value)) {
-    if (adminEmailToId.value[email] !== currentUserId.value) {
-      authoritative.add(email);
-    }
-  }
-  const nextSet = new Set(next.map((e) => e.trim()).filter(Boolean));
-
-  // Drop the user-typed entry to canonical lowercase/trim before we
-  // diff. We don't lowercase server-returned emails because the
-  // backend stores the original case; matching against the map's keys
-  // happens with the as-typed value, which is what the user sees.
-  const added: string[] = [];
-  for (const email of nextSet) {
-    if (!authoritative.has(email)) added.push(email);
-  }
-  const removed: string[] = [];
-  for (const email of authoritative) {
-    if (!nextSet.has(email)) removed.push(email);
-  }
-
-  if (added.length === 0 && removed.length === 0) return;
-
-  // Confirm before any privilege change (no loading spinner yet — the
-  // inline confirm is the only UI; adminBusy is reserved for API roundtrips).
-  for (const email of added) {
-    const ok = await confirmAdminChange("promote", email);
-    if (!ok) {
-      await loadAdmins();
-      return;
-    }
-  }
-  for (const email of removed) {
-    const userId = adminEmailToId.value[email];
-    if (!userId) continue;
-    const ok = await confirmAdminChange("revoke", email);
-    if (!ok) {
-      await loadAdmins();
-      return;
-    }
-  }
-
-  adminBusy.value = true;
-  let applied = 0;
-  try {
-    for (const email of added) {
-      await promoteUserToSystemAdmin({ email });
-      applied++;
-    }
-    for (const email of removed) {
-      const userId = adminEmailToId.value[email];
-      if (!userId) continue;
-      await revokeSystemAdmin(userId);
-      applied++;
-    }
-    await loadAdmins();
-    if (applied > 0) {
-      saveAnnouncement.value = t("system.globalSettings.admins.saveSuccess");
-      MessagePlugin.success(t("system.globalSettings.admins.saveSuccess"));
-    }
-  } catch (err: any) {
-    const msg = err?.message || t("system.globalSettings.admins.saveFailed");
-    saveAnnouncement.value = msg;
-    MessagePlugin.error(msg);
-    await loadAdmins();
-  } finally {
-    adminBusy.value = false;
-  }
-}
-
 onMounted(() => {
   loadSettings();
-  loadAdmins();
 });
 
 onUnmounted(() => {

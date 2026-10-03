@@ -176,6 +176,20 @@ func (r *fakeTenantMemberRepo) CountActiveOwners(ctx context.Context, tenantID u
 	return n, nil
 }
 
+func (r *fakeTenantMemberRepo) CountActiveByTenantIDs(
+	_ context.Context, tenantIDs []uint64,
+) (map[uint64]int64, error) {
+	out := map[uint64]int64{}
+	for _, id := range tenantIDs {
+		for _, e := range r.rows {
+			if e.TenantID == id && !e.DeletedAt.Valid && e.Status == types.TenantMemberStatusActive {
+				out[id]++
+			}
+		}
+	}
+	return out, nil
+}
+
 func (r *fakeTenantMemberRepo) HasAnyMembers(ctx context.Context, tenantID uint64) (bool, error) {
 	if r.failHasAny != nil {
 		return false, r.failHasAny

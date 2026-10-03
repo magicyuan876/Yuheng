@@ -159,7 +159,7 @@ func recordKBActivity(
 	actorID := auditActor(ctx)
 	actorRole := ""
 	if actorID != "" {
-		actorRole = auditActorRole(ctx)
+		actorRole = auditActorRole(ctx, tenantID)
 	}
 	_ = audit.Log(ctx, &types.AuditLog{
 		TenantID:    tenantID,

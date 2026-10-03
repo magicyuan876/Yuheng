@@ -24,12 +24,24 @@ const (
 	ErrValidation         ErrorCode = 1010
 
 	// Tenant related error codes (2000-2099)
-	ErrTenantNotFound         ErrorCode = 2000
-	ErrTenantAlreadyExists    ErrorCode = 2001
-	ErrTenantInactive         ErrorCode = 2002
-	ErrTenantNameRequired     ErrorCode = 2003
-	ErrTenantInvalidStatus    ErrorCode = 2004
-	ErrTenantCreationDisabled ErrorCode = 2005
+	ErrTenantNotFound      ErrorCode = 2000
+	ErrTenantAlreadyExists ErrorCode = 2001
+	ErrTenantInactive      ErrorCode = 2002
+	ErrTenantNameRequired  ErrorCode = 2003
+	ErrTenantInvalidStatus ErrorCode = 2004
+	// 2005 was ErrTenantCreationDisabled, the self-service creation policy
+	// denial. Self-service creation no longer exists; the number stays
+	// retired so an old client's "disabled" branch can never be hit by a
+	// different condition.
+	// ErrTenantOwnerRequired: a workspace cannot be created without an
+	// Owner, because a workspace with no members is unreachable.
+	ErrTenantOwnerRequired ErrorCode = 2006
+	// ErrTenantHasMembers: a workspace is deleted only once everyone but the
+	// caller has left it.
+	ErrTenantHasMembers ErrorCode = 2007
+	// ErrTenantLastWorkspace: the deployment's last workspace cannot be
+	// deleted; a deployment without a workspace has nowhere to put anyone.
+	ErrTenantLastWorkspace ErrorCode = 2008
 
 	// VectorStore binding related error codes (2200-2299).
 	// Both map to HTTP 400 with a generic message; the typed code lets
@@ -179,13 +191,36 @@ func NewTenantInactiveError() *AppError {
 	}
 }
 
-// NewTenantCreationDisabledError reports a deployment-policy denial for
-// ordinary self-service tenant creation.
-func NewTenantCreationDisabledError() *AppError {
+// NewTenantOwnerRequiredError rejects a workspace creation that names no
+// Owner. Only a non-human caller (a platform API key) can get here: a human
+// caller is the default Owner of the workspace they create.
+func NewTenantOwnerRequiredError() *AppError {
 	return &AppError{
-		Code:     ErrTenantCreationDisabled,
-		Message:  "self-service workspace creation is disabled; join a workspace by invitation",
-		HTTPCode: http.StatusForbidden,
+		Code:     ErrTenantOwnerRequired,
+		Message:  "a workspace needs an owner; pass owner_email naming an existing user",
+		HTTPCode: http.StatusBadRequest,
+	}
+}
+
+// NewTenantHasMembersError refuses to delete a workspace that still has
+// members other than the caller. The count lets the UI say how many people
+// would lose access.
+func NewTenantHasMembersError(otherMembers int) *AppError {
+	return &AppError{
+		Code: ErrTenantHasMembers,
+		Message: fmt.Sprintf(
+			"the workspace still has %d other member(s); remove them before deleting it", otherMembers),
+		HTTPCode: http.StatusConflict,
+	}
+}
+
+// NewTenantLastWorkspaceError refuses to delete the deployment's only
+// remaining workspace.
+func NewTenantLastWorkspaceError() *AppError {
+	return &AppError{
+		Code:     ErrTenantLastWorkspace,
+		Message:  "this is the last workspace of the deployment and cannot be deleted",
+		HTTPCode: http.StatusConflict,
 	}
 }
 

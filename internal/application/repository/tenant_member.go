@@ -179,6 +179,37 @@ func (r *tenantMemberRepository) CountActiveOwners(ctx context.Context, tenantID
 	return count, err
 }
 
+// CountActiveByTenantIDs returns the number of active members per
+// workspace in one GROUP BY query. Workspaces with no members are absent
+// from the map; callers read a missing key as zero. Used to put a member
+// count next to each row of the system administrator's workspace list
+// without a query per workspace.
+func (r *tenantMemberRepository) CountActiveByTenantIDs(
+	ctx context.Context, tenantIDs []uint64,
+) (map[uint64]int64, error) {
+	counts := make(map[uint64]int64, len(tenantIDs))
+	if len(tenantIDs) == 0 {
+		return counts, nil
+	}
+	var rows []struct {
+		TenantID uint64
+		Count    int64
+	}
+	err := r.db.WithContext(ctx).
+		Model(&types.TenantMember{}).
+		Select("tenant_id, COUNT(*) AS count").
+		Where("tenant_id IN ? AND status = ?", tenantIDs, types.TenantMemberStatusActive).
+		Group("tenant_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		counts[row.TenantID] = row.Count
+	}
+	return counts, nil
+}
+
 // DemoteOwnerAtomically transitions an Owner row to a non-Owner role
 // while holding an UPDATE lock on the tenant's other Owner rows. This
 // closes the TOCTOU window in the old "Get → CountActiveOwners → Update"

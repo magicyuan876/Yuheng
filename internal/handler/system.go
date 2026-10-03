@@ -43,6 +43,10 @@ type SystemHandler struct {
 	userSvc          interfaces.UserService
 	systemSettingSvc interfaces.SystemSettingService
 	apiKeySvc        interfaces.TenantAPIKeyService
+	// memberSvc places a newly created account into the workspace named
+	// in the create request. Optional in partially wired tests; a request
+	// that names a workspace fails cleanly when it is absent.
+	memberSvc interfaces.TenantMemberService
 	// auditSvc is optional — when nil, emitAdminAudit no-ops so unit
 	// tests that wire a partial container still compile. In production
 	// the dig graph always provides one.
@@ -77,6 +81,7 @@ func NewSystemHandler(cfg *config.Config,
 	userSvc interfaces.UserService,
 	systemSettingSvc interfaces.SystemSettingService,
 	apiKeySvc interfaces.TenantAPIKeyService,
+	memberSvc interfaces.TenantMemberService,
 	auditSvc interfaces.AuditLogService,
 	taskInspector interfaces.TaskInspector,
 	knowledgeSvc interfaces.KnowledgeService,
@@ -91,6 +96,7 @@ func NewSystemHandler(cfg *config.Config,
 		userSvc:          userSvc,
 		systemSettingSvc: systemSettingSvc,
 		apiKeySvc:        apiKeySvc,
+		memberSvc:        memberSvc,
 		auditSvc:         auditSvc,
 		taskInspector:    taskInspector,
 		knowledgeSvc:     knowledgeSvc,
@@ -964,6 +970,9 @@ type CreateSystemUserResponse struct {
 	// GeneratedPassword is the plaintext password when the server
 	// auto-generated one. Absent when the caller supplied the password.
 	GeneratedPassword string `json:"generated_password,omitempty"`
+	// Membership is the workspace membership written when the request
+	// named a tenant_id. Absent otherwise.
+	Membership *types.TenantMemberResponse `json:"membership,omitempty"`
 }
 
 // CreateSystemUser godoc
@@ -972,16 +981,19 @@ type CreateSystemUserResponse struct {
 // @Description  When `password` is omitted or null, a cryptographically random
 // @Description  password is generated (OIDC-style crypto/rand + base64url)
 // @Description  and returned once in the response body. Any provided value,
-// @Description  including empty string, is policy-checked. The account belongs
-// @Description  to no workspace until it is added to one.
+// @Description  including empty string, is policy-checked. With `tenant_id`
+// @Description  (and optional `role`, default viewer) the account is also made
+// @Description  a member of that workspace in the same request; without it the
+// @Description  account belongs to no workspace until it is added to one.
 // @Tags         System Admin
 // @Accept       json
 // @Produce      json
 // @Param        request body types.AdminCreateUserRequest true "User creation request"
 // @Success      201  {object}  CreateSystemUserResponse  "User created successfully"
 // @Success      200  {object}  CreateSystemUserResponse  "Identity already exists, returns the existing user"
-// @Failure      400  {object}  map[string]interface{}  "Invalid request or weak password"
+// @Failure      400  {object}  map[string]interface{}  "Invalid request, weak password, or invalid role"
 // @Failure      403  {object}  map[string]interface{}  "Forbidden: not a system admin"
+// @Failure      404  {object}  map[string]interface{}  "tenant_id names no workspace"
 // @Failure      409  {object}  map[string]interface{}  "Email and username refer to conflicting identities"
 // @Failure      500  {object}  map[string]interface{}  "Internal error"
 // @Router       /system/admin/users/create [post]
@@ -1005,8 +1017,33 @@ func (h *SystemHandler) CreateSystemUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Username must be 2-50 characters"})
 		return
 	}
+	// Validate the workspace part before the account exists, so a typo in
+	// tenant_id does not leave behind an account that belongs nowhere.
+	if req.TenantID != 0 {
+		if req.Role == "" {
+			req.Role = types.TenantRoleViewer
+		}
+		if !req.Role.IsValid() {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "role must be one of owner/admin/contributor/viewer"})
+			return
+		}
+		if h.memberSvc == nil || h.tenantSvc == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Workspace membership is not available"})
+			return
+		}
+		if _, err := h.tenantSvc.GetTenantByID(ctx, req.TenantID); err != nil {
+			if errors.Is(err, repository.ErrTenantNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Workspace not found"})
+				return
+			}
+			logger.Errorf(ctx, "GetTenantByID failed before creating user in tenant %d: %v", req.TenantID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to look up workspace"})
+			return
+		}
+	}
 
 	user, generatedPassword, err := h.userSvc.AdminCreateUser(ctx, &req)
+	idempotent := false
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrUserEmailExists) || errors.Is(err, service.ErrUserUsernameExists):
@@ -1015,36 +1052,102 @@ func (h *SystemHandler) CreateSystemUser(c *gin.Context) {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 				return
 			}
+			// The identity already exists: an idempotent retry. The
+			// workspace step below still runs, so a retry after "account
+			// created, membership failed" completes the request.
 			logger.Infof(ctx, "Create user noop (identity already exists, ID: %s)", user.ID)
-			h.emitAdminAudit(ctx, types.AuditActionSystemUserCreated, user, map[string]any{
-				"target_email":       user.Email,
-				"target_username":    user.Username,
-				"password_generated": false,
-				"idempotent":         true,
-			})
-			c.JSON(http.StatusOK, CreateSystemUserResponse{User: user.ToUserInfo()})
+			idempotent = true
 		case errors.Is(err, service.ErrPasswordPolicy):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		case errors.Is(err, service.ErrUserIdentityConflict):
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
 		default:
 			logger.Errorf(ctx, "Failed to create user: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+			return
 		}
-		return
 	}
 
-	logger.Infof(ctx, "System admin created user %s (ID: %s)", user.Username, user.ID)
-	h.emitAdminAudit(ctx, types.AuditActionSystemUserCreated, user, map[string]any{
+	details := map[string]any{
 		"target_email":       user.Email,
 		"target_username":    user.Username,
 		"password_generated": generatedPassword != "",
-		"idempotent":         false,
-	})
-	c.JSON(http.StatusCreated, CreateSystemUserResponse{
+		"idempotent":         idempotent,
+	}
+	var membership *types.TenantMemberResponse
+	if req.TenantID != 0 {
+		membership, err = h.placeUserInWorkspace(ctx, user, req.TenantID, req.Role)
+		if err != nil {
+			// The account exists by now; say so, and let the administrator
+			// retry — the idempotent path above then only adds the member.
+			logger.Errorf(ctx, "Failed to add user %s to tenant %d: %v", user.ID, req.TenantID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "The account was created but could not be added to the workspace; retry the request",
+			})
+			return
+		}
+		details["tenant_id"] = req.TenantID
+		details["role"] = req.Role
+	}
+
+	if !idempotent {
+		logger.Infof(ctx, "System admin created user %s (ID: %s)", user.Username, user.ID)
+	}
+	h.emitAdminAudit(ctx, types.AuditActionSystemUserCreated, user, details)
+	status := http.StatusCreated
+	if idempotent {
+		status = http.StatusOK
+	}
+	c.JSON(status, CreateSystemUserResponse{
 		User:              user.ToUserInfo(),
 		GeneratedPassword: generatedPassword,
+		Membership:        membership,
 	})
+}
+
+// placeUserInWorkspace adds the account to the workspace with the given
+// role and makes that workspace the account's active one if it had none.
+// An existing membership is kept as it is (role untouched) so an
+// idempotent retry does not demote anyone; the current row is returned
+// in that case. The member service writes the rbac.member_added audit
+// row with the system administrator as actor.
+func (h *SystemHandler) placeUserInWorkspace(
+	ctx context.Context,
+	user *types.User,
+	tenantID uint64,
+	role types.TenantRole,
+) (*types.TenantMemberResponse, error) {
+	callerID, _ := types.UserIDFromContext(ctx)
+	var invitedBy *string
+	if callerID != "" && !types.IsSyntheticUserID(callerID) {
+		invitedBy = &callerID
+	}
+	member, err := h.memberSvc.AddMember(ctx, user.ID, tenantID, role, invitedBy)
+	if errors.Is(err, service.ErrMembershipAlreadyExists) {
+		member, err = h.memberSvc.GetMembership(ctx, user.ID, tenantID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if member == nil {
+		return nil, errors.New("membership missing after add")
+	}
+	if err := h.userSvc.RememberFirstWorkspace(ctx, user.ID, tenantID); err != nil {
+		logger.Warnf(ctx, "failed to remember workspace %d as the active workspace of user %s: %v",
+			tenantID, user.ID, err)
+	}
+	return &types.TenantMemberResponse{
+		UserID:    member.UserID,
+		Email:     user.Email,
+		Username:  user.Username,
+		Avatar:    user.Avatar,
+		Role:      member.Role,
+		Status:    member.Status,
+		InvitedBy: member.InvitedBy,
+		JoinedAt:  member.JoinedAt,
+	}, nil
 }
 
 // ============================================================================
@@ -1672,10 +1775,11 @@ func (h *SystemHandler) UpdateSystemSetting(c *gin.Context) {
 // @Summary      Apply the default storage quota to every existing workspace
 // @Description  Reads the current value of `tenant.default_storage_quota_gb`
 // @Description  (3-tier resolver: DB > ENV > default) and writes that many
-// @Description  GiB into storage_quota for every row in tenants. Bypasses
-// @Description  the per-workspace PUT whitelist, which forbids storage_quota
-// @Description  edits by Owners. SystemAdmin only.
-// @Description  Idempotent — running twice with the same setting is a no-op.
+// @Description  GiB into storage_quota for every row in tenants; 0 removes
+// @Description  the limit everywhere. Bypasses the per-workspace PUT
+// @Description  whitelist, which forbids storage_quota edits by Owners.
+// @Description  SystemAdmin only. Idempotent — running twice with the same
+// @Description  setting is a no-op.
 // @Tags         System Admin
 // @Produce      json
 // @Success      200 {object} map[string]interface{} "{ affected: int64, quota_bytes: int64 }"
@@ -1684,16 +1788,17 @@ func (h *SystemHandler) UpdateSystemSetting(c *gin.Context) {
 func (h *SystemHandler) ApplyDefaultStorageQuotaToAllTenants(c *gin.Context) {
 	ctx := logger.CloneContext(c.Request.Context())
 
-	// Resolve via the same 3-tier path the CreateTenant handler uses
-	// so the action's effect mirrors what new tenants would receive.
+	// Resolve via the same 3-tier path the CreateTenant handler uses so
+	// the action's effect mirrors what new tenants would receive: 0 (the
+	// default) and negative values mean unlimited.
 	gb := h.systemSettingSvc.GetInt(
 		ctx,
 		"tenant.default_storage_quota_gb",
 		"YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB",
-		10,
+		0,
 	)
-	if gb <= 0 {
-		gb = 10
+	if gb < 0 {
+		gb = 0
 	}
 	quotaBytes := gb * 1024 * 1024 * 1024
 

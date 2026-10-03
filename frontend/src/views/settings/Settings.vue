@@ -192,6 +192,11 @@
                     <SystemInfo />
                   </div>
 
+                  <!-- 系统管理员：用户与空间（建空间、建账号、把人放进任意空间） -->
+                  <div v-if="currentSection === 'users-workspaces'" class="section">
+                    <SystemUsersWorkspaces />
+                  </div>
+
                   <!-- 系统管理员可见的全局运行时设置 -->
                   <div v-if="currentSection === 'system-global'" class="section">
                     <SystemSettings />
@@ -275,6 +280,7 @@ import TenantGroups from "./TenantGroups.vue";
 import WorkspaceAPIKeys from "./WorkspaceAPIKeys.vue";
 import EnterpriseSettings from "./EnterpriseSettings.vue";
 import SystemSettings from "@/views/system/SystemSettings.vue";
+import SystemUsersWorkspaces from "@/views/system/SystemUsersWorkspaces.vue";
 import RuntimeQueues from "@/views/system/RuntimeQueues.vue";
 import PlatformAPIKeys from "@/views/system/PlatformAPIKeys.vue";
 import SystemAuditLog from "@/views/system/SystemAuditLog.vue";
@@ -308,6 +314,7 @@ import {
   SettingsIcon,
   ShieldCheckIcon,
   SparklesIcon,
+  UserCogIcon,
   UserIcon,
   UsersIcon,
   XIcon,
@@ -412,6 +419,7 @@ const navItems = computed(() => {
     { key: "parser", icon: FileSearchIcon, label: t("settings.parserEngine") },
     { key: "storage", icon: CloudIcon, label: t("settings.storageEngine") },
     { key: "system", icon: InfoIcon, label: t("settings.versionInfo") },
+    { key: "users-workspaces", icon: UserCogIcon, label: t("system.usersWorkspaces.navLabel") },
     { key: "system-global", icon: ServerIcon, label: t("settings.system") },
     { key: "runtime-queues", icon: ListTodoIcon, label: t("settings.taskQueue") },
     { key: "platform-api-keys", icon: ShieldCheckIcon, label: t("platformApiKeys.title") },
@@ -463,7 +471,13 @@ const navGroups = computed<NavGroup[]>(() => {
     {
       key: "system_administration",
       label: t("settings.navGroups.systemAdministration"),
-      items: pickItems(["system-global", "runtime-queues", "platform-api-keys", "system-audit-log"]),
+      items: pickItems([
+        "users-workspaces",
+        "system-global",
+        "runtime-queues",
+        "platform-api-keys",
+        "system-audit-log",
+      ]),
     },
     {
       key: "platform",

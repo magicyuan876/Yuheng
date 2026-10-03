@@ -84,9 +84,10 @@ func (s *stubMemberService) RemoveMember(ctx context.Context, userID string, ten
 	return s.remove(ctx, userID, tenantID)
 }
 
-// stubMemberUserService satisfies just the two UserService methods the
-// handler reaches: GetUserByEmail (AddMember translation) and
-// GetUserByID (ListMembers hydration).
+// stubMemberUserService satisfies just the UserService methods the
+// handler reaches: GetUserByEmail (AddMember translation), GetUserByID
+// (ListMembers hydration) and RememberFirstWorkspace (a no-op here; the
+// preference write is best-effort in the handler).
 type stubMemberUserService struct {
 	interfaces.UserService
 	getByEmail func(ctx context.Context, email string) (*types.User, error)
@@ -103,6 +104,10 @@ func (s *stubMemberUserService) GetUserByEmail(ctx context.Context, email string
 
 func (s *stubMemberUserService) GetUserByID(ctx context.Context, id string) (*types.User, error) {
 	return s.getByID(ctx, id)
+}
+
+func (s *stubMemberUserService) RememberFirstWorkspace(context.Context, string, uint64) error {
+	return nil
 }
 
 func (s *stubMemberUserService) GetUsersByIDs(ctx context.Context, ids []string) (map[string]*types.User, error) {
@@ -126,7 +131,9 @@ func (s *stubMemberUserService) GetUsersByIDs(ctx context.Context, ids []string)
 // middleware via memberTestRouter rather than threading a cfg through
 // the handler.
 func newTestMemberHandler(ms interfaces.TenantMemberService, us interfaces.UserService) *TenantMemberHandler {
-	return NewTenantMemberHandler(ms, us)
+	// No tenant service: the existence check is for the admin mount, whose
+	// URL id comes from the client; these tests exercise the handler logic.
+	return NewTenantMemberHandler(ms, us, nil)
 }
 
 // memberTestRouter wires the handler with the same errorCapture middleware
@@ -685,7 +692,7 @@ func TestTenantMember_SuperuserBypassRequiresFeatureFlag(t *testing.T) {
 	// Build the router with the flag explicitly off — the carve-out
 	// now lives in middleware.RequirePathTenantMatch, which the router
 	// helper mounts.
-	h := NewTenantMemberHandler(ms, &stubMemberUserService{})
+	h := NewTenantMemberHandler(ms, &stubMemberUserService{}, nil)
 	router := memberTestRouterWithCfg(h, &config.Config{
 		Tenant: &config.TenantConfig{EnableCrossTenantAccess: false},
 	})

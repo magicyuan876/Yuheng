@@ -10,8 +10,11 @@ export interface TenantInfo {
   description?: string;
   status?: string;
   business?: string;
+  /** Bytes; 0 means unlimited. */
   storage_quota?: number;
   storage_used?: number;
+  /** Active members. Only the catalog endpoints (listAllTenants) fill it in. */
+  member_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -289,24 +292,53 @@ export async function deleteTenant(tenantId: number): Promise<{ success: boolean
   }
 }
 
-/**
- * 创建新工作区（任意已登录用户均可调用）。
- * 后端会自动把调用者写成新空间的 Owner，并填充默认 storage_quota
- * 等服务端字段；API Key 由用户在集成页手动创建。
- * 路由：POST /api/v1/tenants（router 上不挂 g.CrossTenant()，自助场景使用）。
- */
-export async function createTenant(payload: {
+export interface CreateTenantPayload {
   name: string;
   description?: string;
-}): Promise<{ success: boolean; data?: TenantInfo; message?: string }> {
+  /**
+   * Email of an existing user who becomes the workspace's Owner. Omitted,
+   * the caller becomes the Owner. Every workspace is created with one: a
+   * workspace nobody is a member of cannot be entered.
+   */
+  owner_email?: string;
+}
+
+/**
+ * 创建新空间（仅系统管理员 / 跨空间超管）。后端在同一请求里写入 Owner
+ * 成员关系，并填充默认 storage_quota 等服务端字段；API Key 由用户在集成页
+ * 手动创建。路由：POST /api/v1/tenants（g.TenantCatalog() 守卫）。
+ */
+export async function createTenant(
+  payload: CreateTenantPayload,
+): Promise<{ success: boolean; data?: TenantInfo; message?: string }> {
   try {
     const response = await post("/api/v1/tenants", payload);
     return response as unknown as { success: boolean; data?: TenantInfo; message?: string };
   } catch (error: any) {
-    const code = error?.error?.code ?? error?.code;
     return {
       success: false,
-      message: code === 2005 ? t("tenant.create.disabled") : error.message || t("tenant.create.failed"),
+      message: error.message || t("tenant.create.failed"),
+    };
+  }
+}
+
+/**
+ * 列出部署中的全部空间，附带每个空间的成员数。系统管理员的
+ * 「用户与空间」页用它渲染空间列表。
+ * 路由：GET /api/v1/tenants/all（g.TenantCatalog() 守卫）。
+ */
+export async function listAllTenants(): Promise<{
+  success: boolean;
+  data?: { items: TenantInfo[] };
+  message?: string;
+}> {
+  try {
+    const response = await get("/api/v1/tenants/all");
+    return response as unknown as { success: boolean; data?: { items: TenantInfo[] }; message?: string };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || t("error.tenant.searchFailed"),
     };
   }
 }

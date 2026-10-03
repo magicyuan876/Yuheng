@@ -185,7 +185,7 @@ func (s *tenantInvitationService) Create(
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:     tenantID,
 		ActorUserID:  auditActor(ctx),
-		ActorRole:    auditActorRole(ctx),
+		ActorRole:    auditActorRole(ctx, tenantID),
 		Action:       types.AuditActionInvitationSent,
 		TargetType:   "tenant_invitation",
 		TargetID:     strconv.FormatUint(inv.ID, 10),
@@ -294,7 +294,7 @@ func (s *tenantInvitationService) emitInvitationAccepted(ctx context.Context, in
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:     inv.TenantID,
 		ActorUserID:  auditActor(ctx),
-		ActorRole:    auditActorRole(ctx),
+		ActorRole:    auditActorRole(ctx, inv.TenantID),
 		Action:       types.AuditActionInvitationAccepted,
 		TargetType:   "tenant_invitation",
 		TargetID:     strconv.FormatUint(inv.ID, 10),
@@ -337,7 +337,7 @@ func (s *tenantInvitationService) Decline(
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:     inv.TenantID,
 		ActorUserID:  auditActor(ctx),
-		ActorRole:    auditActorRole(ctx),
+		ActorRole:    auditActorRole(ctx, inv.TenantID),
 		Action:       types.AuditActionInvitationDeclined,
 		TargetType:   "tenant_invitation",
 		TargetID:     strconv.FormatUint(inv.ID, 10),
@@ -372,7 +372,7 @@ func (s *tenantInvitationService) Revoke(ctx context.Context, invID uint64) erro
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:     inv.TenantID,
 		ActorUserID:  auditActor(ctx),
-		ActorRole:    auditActorRole(ctx),
+		ActorRole:    auditActorRole(ctx, inv.TenantID),
 		Action:       types.AuditActionInvitationRevoked,
 		TargetType:   "tenant_invitation",
 		TargetID:     strconv.FormatUint(inv.ID, 10),
@@ -518,7 +518,7 @@ func (s *tenantInvitationService) CreateShareLink(
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:    tenantID,
 		ActorUserID: auditActor(ctx),
-		ActorRole:   auditActorRole(ctx),
+		ActorRole:   auditActorRole(ctx, tenantID),
 		Action:      types.AuditActionInvitationSent,
 		TargetType:  "tenant_invitation",
 		TargetID:    strconv.FormatUint(inv.ID, 10),
@@ -598,7 +598,7 @@ func (s *tenantInvitationService) AcceptByToken(
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:     inv.TenantID,
 		ActorUserID:  auditActor(ctx),
-		ActorRole:    auditActorRole(ctx),
+		ActorRole:    auditActorRole(ctx, inv.TenantID),
 		Action:       types.AuditActionInvitationAccepted,
 		TargetType:   "tenant_invitation",
 		TargetID:     strconv.FormatUint(inv.ID, 10),

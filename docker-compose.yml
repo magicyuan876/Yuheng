@@ -134,12 +134,10 @@ services:
       # 禁止新用户注册（生产建议 true）
       # 留空 = auto：只在还没有任何用户时开放注册（第一个账号成为管理员），之后关闭。
       - DISABLE_REGISTRATION=${DISABLE_REGISTRATION:-}
-      # 是否允许普通用户登录后主动创建空间（默认 true；false 仅能邀请加入，超管不受影响）
-      - YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED=${YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED:-true}
       # 启用跨空间访问（需配合用户的 CanAccessAllTenants 权限；默认 false
       - YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS=${YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS:-false}
-      # 新建空间默认存储配额（GB，默认 10）
-      - YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB=${YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB:-10}
+      # 新建空间默认存储配额（GB）。0 = 不限制（默认）
+      - YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB=${YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB:-0}
       # 空间邀请链接 TTL（Go duration，默认 168h=7 天）
       - YUHENG_INVITATION_TTL=${YUHENG_INVITATION_TTL:-168h}
       # 审计日志保留天数（0 禁用清理，默认 90）
@@ -285,10 +283,7 @@ services:
       - YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES=${YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES:-8}
       # Tenant / RBAC（详见 website-docs/03-features/01-tenant-auth.md §6 与 .env.example 注释）
       # - YUHENG_TENANT_ENABLE_RBAC: 是否启用空间角色强制鉴权（true / false），默认 true
-      # - YUHENG_TENANT_MAX_OWNED_PER_USER: 单个非超管自助创建空间的上限
-      #   >0 强制限额；=0 走 handler 默认；<0 关闭限额（不建议共享部署使用）
       - YUHENG_TENANT_ENABLE_RBAC=${YUHENG_TENANT_ENABLE_RBAC:-}
-      - YUHENG_TENANT_MAX_OWNED_PER_USER=${YUHENG_TENANT_MAX_OWNED_PER_USER:-}
       - YUHENG_ASYNQ_CORE_CONCURRENCY=${YUHENG_ASYNQ_CORE_CONCURRENCY:-8}
       - YUHENG_ASYNQ_POSTPROCESS_CONCURRENCY=${YUHENG_ASYNQ_POSTPROCESS_CONCURRENCY:-2}
       - YUHENG_ASYNQ_ENRICHMENT_CONCURRENCY=${YUHENG_ASYNQ_ENRICHMENT_CONCURRENCY:-12}

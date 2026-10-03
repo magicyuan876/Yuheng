@@ -31,15 +31,13 @@ import (
 // tenant_member.go; collapsing it into one route guard means the
 // declaration itself documents the rule.
 //
-// Cross-tenant superuser endpoints (/tenants/all, /tenants/search) use
-// g.CrossTenant(): RequireCrossTenantAccess in access.go combines the
-// CanAccessAllTenants user attribute with the cluster-wide
-// EnableCrossTenantAccess flag, replacing the 12-line if-block that
-// previously opened ListAllTenants and SearchTenants.
-//
-// JWT behavior for POST /tenants and GET /tenants remains unchanged. Platform
-// API keys may create tenants through system_tenants_manage; workspace keys
-// remain default-denied on tenant-catalog operations.
+// Catalog endpoints (/tenants/all, /tenants/search, POST /tenants) use
+// g.TenantCatalog(): RequireTenantCatalogAccess in access.go admits system
+// administrators, cross-tenant superusers (CanAccessAllTenants together
+// with the cluster-wide EnableCrossTenantAccess flag) and platform API
+// keys. Platform API keys reach them through system_tenants_read /
+// system_tenants_manage; workspace keys remain default-denied on
+// tenant-catalog operations.
 func RegisterTenantRoutes(
 	r *gin.RouterGroup,
 	handler *handler.TenantHandler,
@@ -48,28 +46,25 @@ func RegisterTenantRoutes(
 	auditLogHandler *handler.AuditLogHandler,
 	g *rbacGuards,
 ) {
-	// Cross-tenant superuser endpoints — promoted from handler if-blocks
-	// to middleware.RequireCrossTenantAccess at the route layer.
+	// Workspace catalog — the system administrator's list of every
+	// workspace, with member counts, for the "Users & workspaces" page.
 	g.apiKeyRoute(r, http.MethodGet, "/tenants/all",
 		apiKeyPlatform(types.APIKeyCapabilitySystemTenantsRead, types.APIKeyCapabilitySystemTenantsManage),
-		g.CrossTenant(), handler.ListAllTenants)
+		g.TenantCatalog(), handler.ListAllTenants)
 	g.apiKeyRoute(r, http.MethodGet, "/tenants/search",
 		apiKeyPlatform(types.APIKeyCapabilitySystemTenantsRead, types.APIKeyCapabilitySystemTenantsManage),
-		g.CrossTenant(), handler.SearchTenants)
+		g.TenantCatalog(), handler.SearchTenants)
 
 	// 空间路由组
 	tenantRoutes := r.Group("/tenants")
 	{
-		// 创建空间对所有已登录用户开放：用户可以为自己再开一个工作区，
-		// handler 内部会调 EnsureOwner 把调用者写成新空间的 Owner。
-		// 跨空间超管走同一个端点，但能携带 storage_quota / status 等
-		// 全字段（见 handler.CreateTenant 内部分支）。
-		// 安全说明：这里不挂 g.CrossTenant()，因为 self-service 创建
-		// 不需要跨空间特权；handler 也不读写 X-Tenant-ID 指向的现有
-		// 空间，所以越过 PathTenantMatch 守卫不会扩大攻击面。
-		// 创建空间不对 API key 开放（注册在原始 group，默认拒绝）。
+		// 创建空间只对系统管理员、跨空间超管与平台 API Key 开放（g.TenantCatalog()）。
+		// 空间在创建请求里就带上 Owner：owner_email 指定，缺省为调用者本人；
+		// 平台 Key 必须指定。没有成员的空间无法被任何人进入，所以 handler 拒绝
+		// 创建没有 Owner 的空间。这条路由在 middleware/auth.go 的
+		// isTenantOptionalAPI 名单里：还没有任何空间的系统管理员也要能建空间。
 		g.apiKeyRoute(tenantRoutes, http.MethodPost, "",
-			apiKeyPlatform(types.APIKeyCapabilitySystemTenantsManage), handler.CreateTenant)
+			apiKeyPlatform(types.APIKeyCapabilitySystemTenantsManage), g.TenantCatalog(), handler.CreateTenant)
 		g.apiKeyRoute(tenantRoutes, http.MethodGet, "", apiKeyManageTenantSettings(apiKeyFullAccess()), handler.ListTenants)
 
 		// Generic KV configuration management (tenant-level). Tenant ID
@@ -264,21 +259,21 @@ func RegisterSystemRoutes(
 //
 // All endpoints under this group are gated to SystemAdmin users (i.e.
 // User.IsSystemAdmin == true). These are platform-wide operations
-// independent of per-tenant Owner/Admin/Contributor/Viewer roles —
-// they let org-level superusers grant/revoke system-admin status and,
-// in later milestones, will host global settings, built-in models, and
-// cross-tenant observability.
+// independent of per-tenant Owner/Admin/Contributor/Viewer roles: who is
+// a system administrator, user accounts, platform API keys, global
+// settings, runtime observability, and the membership of any workspace.
 //
 // Mounted under /api/v1/system/admin/* so the URL scheme stays aligned
 // with the existing /api/v1/system/info family. Front-end clients live
 // in frontend/src/api/system/index.ts.
 //
-// auditLogHandler may be nil in environments wired without the audit
-// dependency; the /audit-log subroute is then omitted. This mirrors
-// the optional wiring in RegisterTenantRoutes.
+// memberHandler and auditLogHandler may be nil in environments wired
+// without those dependencies; the corresponding subroutes are then
+// omitted. This mirrors the optional wiring in RegisterTenantRoutes.
 func RegisterSystemAdminRoutes(
 	r *gin.RouterGroup,
 	handler *handler.SystemHandler,
+	memberHandler *handler.TenantMemberHandler,
 	auditLogHandler *handler.AuditLogHandler,
 	g *rbacGuards,
 ) {
@@ -338,6 +333,28 @@ func RegisterSystemAdminRoutes(
 		g.apiKeyRoute(adminRoutes, http.MethodPost, "/tenants/apply-default-storage-quota",
 			apiKeyPlatform(types.APIKeyCapabilitySystemTenantsManage),
 			handler.ApplyDefaultStorageQuotaToAllTenants)
+
+		// Membership of any workspace. The same handlers serve
+		// /tenants/:id/members for the workspace's own Owner; here the
+		// group's SystemAdmin() guard replaces Owner() + PathTenantMatch(),
+		// so a system administrator manages a workspace they are not a
+		// member of — adding the first users to a workspace they created
+		// for someone else, or a user who has no workspace at all. The
+		// member service still protects the last Owner, and records the
+		// actor as system_admin when they act outside their own workspace.
+		// Role changes are PATCH: the body carries one field.
+		if memberHandler != nil {
+			adminTenant := adminRoutes.Group("/tenants/:id")
+			g.apiKeyRoute(adminTenant, http.MethodGet, "/members",
+				apiKeyPlatform(types.APIKeyCapabilitySystemTenantsRead, types.APIKeyCapabilitySystemTenantsManage),
+				memberHandler.ListMembers)
+			g.apiKeyRoute(adminTenant, http.MethodPost, "/members",
+				apiKeyPlatform(types.APIKeyCapabilitySystemTenantsManage), memberHandler.AddMember)
+			g.apiKeyRoute(adminTenant, http.MethodPatch, "/members/:user_id",
+				apiKeyPlatform(types.APIKeyCapabilitySystemTenantsManage), memberHandler.UpdateMemberRole)
+			g.apiKeyRoute(adminTenant, http.MethodDelete, "/members/:user_id",
+				apiKeyPlatform(types.APIKeyCapabilitySystemTenantsManage), memberHandler.RemoveMember)
+		}
 
 		// Platform-wide audit feed (tenant_id=0 rows). Covers
 		// system.setting_changed / system.admin_promoted /

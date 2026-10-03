@@ -1,6 +1,15 @@
-import { get, post, put, del } from "@/utils/request";
+import { get, post, put, del, patch } from "@/utils/request";
 import { setUploadLimits } from "@/utils";
 import type { CreatedTenantAPIKey, TenantAPIKey, TenantAPIKeyCapability } from "@/api/tenant";
+import type {
+  AddMemberRequest,
+  AddMemberResponse,
+  ListMembersParams,
+  ListMembersResponse,
+  SimpleResponse,
+  TenantMember,
+  TenantRole,
+} from "@/api/tenant/members";
 
 export interface CreatePlatformAPIKeyPayload {
   name: string;
@@ -339,10 +348,19 @@ export interface CreateSystemUserRequest {
    * password policy and can be rejected.
    */
   password?: string;
+  /**
+   * Optional. The workspace the new account is placed into in the same
+   * request, with `role` (viewer when omitted). Without it the account
+   * belongs to no workspace until an administrator adds it to one.
+   */
+  tenant_id?: number;
+  role?: TenantRole;
 }
 
 export interface CreateSystemUserResponse {
   user: SystemAdminUser;
+  /** The membership written when the request named a `tenant_id`. */
+  membership?: TenantMember;
   /**
    * Present only when the request omitted `password` (or sent null): the
    * server-minted plaintext password, returned exactly once and could not
@@ -359,6 +377,53 @@ export interface CreateSystemUserResponse {
 export async function createSystemUser(req: CreateSystemUserRequest): Promise<CreateSystemUserResponse> {
   const response = await post("/api/v1/system/admin/users/create", req);
   return response as unknown as CreateSystemUserResponse;
+}
+
+// ---- Workspace membership, as a system administrator ----
+//
+// The same backend handlers as /api/v1/tenants/:id/members, mounted under
+// /system/admin so the guard is "system administrator" rather than "Owner
+// of the active workspace": the administrator manages workspaces they are
+// not a member of. Response shapes are those of @/api/tenant/members.
+
+/** GET /api/v1/system/admin/tenants/:id/members — any workspace's roster. */
+export async function listWorkspaceMembers(
+  tenantId: number,
+  params: ListMembersParams = {},
+): Promise<ListMembersResponse> {
+  const qs = new URLSearchParams();
+  if (params.page != null && params.page > 0) qs.set("page", String(params.page));
+  if (params.page_size != null && params.page_size > 0) qs.set("page_size", String(params.page_size));
+  const q = params.q?.trim();
+  if (q) qs.set("q", q);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return (await get(`/api/v1/system/admin/tenants/${tenantId}/members${suffix}`)) as unknown as ListMembersResponse;
+}
+
+/**
+ * POST /api/v1/system/admin/tenants/:id/members — add an existing account
+ * (by email) to a workspace. 404 when the email is not registered; the
+ * administrator creates the account first (createSystemUser can place it
+ * into the workspace at the same time).
+ */
+export async function addWorkspaceMember(tenantId: number, body: AddMemberRequest): Promise<AddMemberResponse> {
+  return (await post(`/api/v1/system/admin/tenants/${tenantId}/members`, body)) as unknown as AddMemberResponse;
+}
+
+/** PATCH /api/v1/system/admin/tenants/:id/members/:user_id — 409 when it would demote the last Owner. */
+export async function updateWorkspaceMemberRole(
+  tenantId: number,
+  userId: string,
+  role: TenantRole,
+): Promise<SimpleResponse> {
+  return (await patch(`/api/v1/system/admin/tenants/${tenantId}/members/${userId}`, {
+    role,
+  })) as unknown as SimpleResponse;
+}
+
+/** DELETE /api/v1/system/admin/tenants/:id/members/:user_id — 409 when it would remove the last Owner. */
+export async function removeWorkspaceMember(tenantId: number, userId: string): Promise<SimpleResponse> {
+  return (await del(`/api/v1/system/admin/tenants/${tenantId}/members/${userId}`)) as unknown as SimpleResponse;
 }
 
 // ---- System Settings (P1) ----

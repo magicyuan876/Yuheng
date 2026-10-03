@@ -54,9 +54,12 @@ type TenantMemberRepository interface {
 	CountActiveOwners(ctx context.Context, tenantID uint64) (int64, error)
 
 	// HasAnyMembers reports whether the tenant has at least one active
-	// membership. Used by the auth middleware to decide whether to
-	// auto-promote the first authenticating human in an API-key-only tenant.
+	// membership.
 	HasAnyMembers(ctx context.Context, tenantID uint64) (bool, error)
+
+	// CountActiveByTenantIDs counts active memberships per tenant in one
+	// query. Tenants without members are absent from the result.
+	CountActiveByTenantIDs(ctx context.Context, tenantIDs []uint64) (map[uint64]int64, error)
 
 	// DemoteOwnerAtomically demotes an Owner to a non-Owner role inside
 	// a transaction that holds an UPDATE lock on the tenant's other

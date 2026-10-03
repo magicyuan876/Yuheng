@@ -158,6 +158,10 @@ func (f *fakeTenantService) ListAllTenants(ctx context.Context) ([]*types.Tenant
 	return nil, nil
 }
 
+func (f *fakeTenantService) CountTenants(context.Context) (int64, error) {
+	return 1, nil
+}
+
 func (f *fakeTenantService) BulkSetStorageQuota(ctx context.Context, quotaBytes int64) (int64, error) {
 	return 0, nil
 }

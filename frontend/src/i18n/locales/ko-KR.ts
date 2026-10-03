@@ -359,6 +359,7 @@ export default {
       admin: "관리자",
       contributor: "기여자",
       viewer: "뷰어",
+      system_admin: "시스템 관리자",
     },
     columns: {
       member: "이름 · 이메일",
@@ -1608,6 +1609,136 @@ export default {
     graphDatabaseEngineLabel: "그래프 데이터베이스 엔진",
     graphDatabaseEngineDescription: "현재 사용 중인 그래프 데이터베이스 엔진",
     unknown: "알 수 없음",
+    usersWorkspaces: {
+      navLabel: "사용자 및 워크스페이스",
+      title: "사용자 및 워크스페이스",
+      description:
+        "워크스페이스와 계정을 만들고 누가 어디에 속할지 정합니다. 시스템 관리자만 이 페이지를 볼 수 있으며, 워크스페이스 소유자는 「워크스페이스 → 멤버」에서 자신의 멤버를 관리합니다.",
+      workspaces: {
+        title: "워크스페이스",
+        create: "워크스페이스 만들기",
+        loading: "워크스페이스를 불러오는 중…",
+        loadFailed: "워크스페이스를 불러오지 못했습니다",
+        empty: "아직 워크스페이스가 없습니다",
+        columns: {
+          name: "워크스페이스",
+          members: "멤버 수",
+          created: "생성일",
+          actions: "작업",
+        },
+        manageMembers: "멤버",
+      },
+      members: {
+        title: "「{name}」의 멤버",
+        description:
+          "기존 계정을 이 워크스페이스에 추가하거나 역할을 바꾸거나 제거합니다. 마지막 소유자는 강등하거나 제거할 수 없습니다.",
+        add: "멤버 추가",
+        emailLabel: "이메일",
+        emailPlaceholder: "기존 계정의 이메일",
+        emailRequired: "계정 이메일을 입력하세요",
+        emailInvalid: "올바른 이메일 주소를 입력하세요",
+        roleLabel: "역할",
+        addSubmit: "추가",
+        addSuccess: "멤버가 추가되었습니다",
+        addFailed: "멤버 추가 실패",
+        notRegistered:
+          "이 이메일을 사용하는 계정이 없습니다. 먼저 계정을 만드세요. 만들 때 바로 워크스페이스에 넣을 수 있습니다.",
+        loading: "멤버를 불러오는 중…",
+        loadFailed: "멤버를 불러오지 못했습니다",
+        empty: "이 워크스페이스에는 아직 멤버가 없습니다",
+        columns: {
+          member: "멤버",
+          role: "역할",
+          joined: "가입일",
+          actions: "작업",
+        },
+        roleUpdated: "역할이 변경되었습니다",
+        roleUpdateFailed: "역할 변경 실패",
+        remove: "제거",
+        removeConfirm:
+          "{email}을(를) 이 워크스페이스에서 제거할까요? 해당 지식 베이스에 대한 접근 권한을 즉시 잃습니다.",
+        removeSuccess: "멤버가 제거되었습니다",
+        removeFailed: "멤버 제거 실패",
+      },
+      users: {
+        title: "사용자",
+        description:
+          "계정은 전역 신원입니다. 하나의 계정이 여러 워크스페이스에 속할 수 있습니다. 여기서 계정을 만들고 원하면 바로 워크스페이스에 넣으세요.",
+        create: "사용자 만들기",
+        dialogTitle: "사용자 만들기",
+        usernameLabel: "사용자 이름",
+        usernamePlaceholder: "2-50자",
+        emailLabel: "이메일",
+        emailPlaceholder: "name{'@'}company.com",
+        passwordLabel: "비밀번호(선택)",
+        passwordPlaceholder: "비워 두면 자동 생성됩니다",
+        workspaceLabel: "워크스페이스(선택)",
+        workspaceNone: "지금은 넣지 않음",
+        roleLabel: "워크스페이스에서의 역할",
+        submit: "만들기",
+        success: "사용자가 생성되었습니다",
+        failed: "사용자 생성 실패",
+        usernameRequired: "사용자 이름을 입력하세요",
+        usernameLength: "사용자 이름은 2-50자여야 합니다",
+        emailRequired: "이메일 주소를 입력하세요",
+        emailInvalid: "올바른 이메일 주소를 입력하세요",
+        passwordPolicy: "비밀번호는 8-32자이며 문자와 숫자를 포함해야 합니다",
+        placedInto: "「{name}」에 {role} 역할로 추가되었습니다",
+        generatedTitle: "생성된 비밀번호",
+        generatedHint: "한 번만 표시됩니다. 복사해서 사용자에게 전달하세요. 나중에는 다시 볼 수 없습니다.",
+        copyPassword: "비밀번호 복사",
+        copied: "비밀번호가 복사되었습니다",
+      },
+      admins: {
+        label: "시스템 관리자",
+        description:
+          "플랫폼 수준 권한을 가진 사용자입니다. 오른쪽에 이메일을 입력하고 엔터를 누르면 해당 사용자를 관리자로 승격하고, 태그의 ×를 누르면 권한을 회수합니다. 본인은 관리자이지만 목록에 표시되지 않으며 자신의 권한을 회수할 수 없습니다.",
+        placeholder: "사용자 이메일을 입력하고 엔터를 누르세요",
+        loadFailed: "시스템 관리자 정보를 불러오지 못했습니다",
+        saveSuccess: "시스템 관리자가 업데이트되었습니다",
+        saveFailed: "시스템 관리자 업데이트 실패",
+        confirm: {
+          revoke: {
+            header: "시스템 관리자 권한 회수",
+            body: "{email} 사용자의 시스템 관리자 권한을 회수하시겠습니까? 회수 후에는 시스템 수준 기능에 더 이상 접근할 수 없습니다.",
+            confirmBtn: "회수 확인",
+          },
+          promote: {
+            header: "시스템 관리자로 승격",
+            body: "{email} 사용자를 시스템 관리자로 승격하시겠습니까? 이 사용자는 모든 워크스페이스 접근, 시스템 설정 변경, 관리자 명단 관리 등 플랫폼 수준의 권한을 갖게 됩니다.",
+            confirmBtn: "승격 확인",
+          },
+        },
+      },
+      passwordReset: {
+        label: "사용자 비밀번호 재설정",
+        description:
+          "로그인할 수 없는 다른 사용자의 새 비밀번호를 설정합니다. 재설정하면 해당 사용자의 현재 로그인 세션이 모두 만료되며 새 비밀번호로 다시 로그인해야 합니다.",
+        action: "비밀번호 재설정",
+        dialogTitle: "다른 사용자의 비밀번호 재설정",
+        warning:
+          "보안에 민감한 작업입니다. 사용자 이메일을 반드시 확인하세요. 여기서는 자신의 비밀번호를 재설정할 수 없습니다.",
+        emailLabel: "사용자 이메일",
+        emailPlaceholder: "비밀번호를 재설정할 사용자의 이메일 입력",
+        newPasswordLabel: "새 비밀번호",
+        newPasswordPlaceholder: "8~32자, 문자와 숫자 포함",
+        confirmPasswordLabel: "새 비밀번호 확인",
+        confirmPasswordPlaceholder: "새 비밀번호를 다시 입력",
+        confirmBtn: "재설정 확인",
+        success: "비밀번호가 재설정되고 기존 세션이 만료되었습니다",
+        failed: "비밀번호 재설정 실패",
+        validation: {
+          emailRequired: "사용자 이메일을 입력하세요",
+          emailInvalid: "올바른 이메일 주소를 입력하세요",
+          passwordRequired: "새 비밀번호를 입력하세요",
+          passwordLength: "비밀번호는 8~32자여야 합니다",
+          passwordLetter: "비밀번호에 문자가 포함되어야 합니다",
+          passwordNumber: "비밀번호에 숫자가 포함되어야 합니다",
+          confirmRequired: "새 비밀번호를 다시 입력하세요",
+          passwordMismatch: "비밀번호가 일치하지 않습니다",
+        },
+      },
+    },
     globalSettings: {
       title: "시스템 설정",
       description:
@@ -1668,6 +1799,9 @@ export default {
           "system.api_key_revoked": "플랫폼 API 키 폐기",
           "system.admin_revoked": "시스템 관리자 회수",
           "system.user_password_reset": "사용자 비밀번호 재설정",
+          "system.user_created": "사용자 생성",
+          "system.tenant_created": "워크스페이스 생성",
+          "system.tenant_deleted": "워크스페이스 삭제",
           "system.queue_task_retried": "실패 작업 다시 실행",
           "system.queue_task_deleted": "실패 작업 기록 삭제",
           "system.queue_task_run_now": "큐 작업 즉시 실행",
@@ -1698,55 +1832,6 @@ export default {
           "모든 기존 워크스페이스의 저장 용량을 {value} GB로 덮어씁니다. 운영팀이 개별로 조정한 워크스페이스의 용량도 함께 덮어쓰여집니다. 계속하시겠습니까?",
         success: "{count}개 워크스페이스의 저장 용량을 {gb} GB로 갱신했습니다",
         failed: "모든 워크스페이스에 적용 실패",
-      },
-      passwordReset: {
-        label: "사용자 비밀번호 재설정",
-        description:
-          "로그인할 수 없는 다른 사용자의 새 비밀번호를 설정합니다. 재설정하면 해당 사용자의 현재 로그인 세션이 모두 만료되며 새 비밀번호로 다시 로그인해야 합니다.",
-        action: "비밀번호 재설정",
-        dialogTitle: "다른 사용자의 비밀번호 재설정",
-        warning:
-          "보안에 민감한 작업입니다. 사용자 이메일을 반드시 확인하세요. 여기서는 자신의 비밀번호를 재설정할 수 없습니다.",
-        emailLabel: "사용자 이메일",
-        emailPlaceholder: "비밀번호를 재설정할 사용자의 이메일 입력",
-        newPasswordLabel: "새 비밀번호",
-        newPasswordPlaceholder: "8~32자, 문자와 숫자 포함",
-        confirmPasswordLabel: "새 비밀번호 확인",
-        confirmPasswordPlaceholder: "새 비밀번호를 다시 입력",
-        confirmBtn: "재설정 확인",
-        success: "비밀번호가 재설정되고 기존 세션이 만료되었습니다",
-        failed: "비밀번호 재설정 실패",
-        validation: {
-          emailRequired: "사용자 이메일을 입력하세요",
-          emailInvalid: "올바른 이메일 주소를 입력하세요",
-          passwordRequired: "새 비밀번호를 입력하세요",
-          passwordLength: "비밀번호는 8~32자여야 합니다",
-          passwordLetter: "비밀번호에 문자가 포함되어야 합니다",
-          passwordNumber: "비밀번호에 숫자가 포함되어야 합니다",
-          confirmRequired: "새 비밀번호를 다시 입력하세요",
-          passwordMismatch: "비밀번호가 일치하지 않습니다",
-        },
-      },
-      admins: {
-        label: "시스템 관리자",
-        description:
-          "플랫폼 수준 권한을 가진 사용자입니다. 오른쪽에 이메일을 입력하고 엔터를 누르면 해당 사용자를 관리자로 승격하고, 태그의 ×를 누르면 권한을 회수합니다. 본인은 관리자이지만 목록에 표시되지 않으며 자신의 권한을 회수할 수 없습니다.",
-        placeholder: "사용자 이메일을 입력하고 엔터를 누르세요",
-        loadFailed: "시스템 관리자 정보를 불러오지 못했습니다",
-        saveSuccess: "시스템 관리자가 업데이트되었습니다",
-        saveFailed: "시스템 관리자 업데이트 실패",
-        confirm: {
-          revoke: {
-            header: "시스템 관리자 권한 회수",
-            body: "{email} 사용자의 시스템 관리자 권한을 회수하시겠습니까? 회수 후에는 시스템 수준 기능에 더 이상 접근할 수 없습니다.",
-            confirmBtn: "회수 확인",
-          },
-          promote: {
-            header: "시스템 관리자로 승격",
-            body: "{email} 사용자를 시스템 관리자로 승격하시겠습니까? 이 사용자는 모든 워크스페이스 접근, 시스템 설정 변경, 관리자 명단 관리 등 플랫폼 수준의 권한을 갖게 됩니다.",
-            confirmBtn: "승격 확인",
-          },
-        },
       },
       reset: {
         label: "초기화",
@@ -1814,12 +1899,8 @@ export default {
             "상위 작업과 분리된 전용 Wiki 워커 풀의 프로세스별 동시성입니다. 최소값은 1이며 적용하려면 서비스를 재시작해야 합니다.",
         },
         tenant: {
-          max_owned_per_user:
-            "슈퍼유저가 아닌 사용자가 셀프 서비스로 소유할 수 있는 최대 워크스페이스 수입니다. 워크스페이스 생성 시마다 읽으며 저장 즉시 적용됩니다. 0은 내장 기본값 10을 사용하고, 음수는 제한을 완전히 해제합니다(공개 배포에는 권장하지 않음).",
-          self_service_creation_enabled:
-            "비슈퍼유저가 공간을 직접 만들 수 있는지 설정합니다. 비활성화하면 일반 사용자는 초대로만 기존 공간에 참여할 수 있으며, 크로스 워크스페이스 슈퍼유저는 계속 만들 수 있습니다.",
           default_storage_quota_gb:
-            "신규 워크스페이스 생성 시 기본으로 할당되는 저장 용량(GB)으로, 벡터·원본·텍스트·인덱스 등을 포함합니다. 생성 시에만 읽으며, 변경은 이후 생성되는 워크스페이스에만 적용되고 기존 워크스페이스에는 소급되지 않습니다. 0 또는 음수는 내장 기본값 10GB를 사용합니다.",
+            "신규 워크스페이스 생성 시 기본으로 할당되는 저장 용량(GB)으로, 벡터·원본·텍스트·인덱스 등을 포함합니다. 생성 시에만 읽으며, 변경은 이후 생성되는 워크스페이스에만 적용되고 기존 워크스페이스에는 소급되지 않습니다. 0은 제한 없음(기본값)입니다.",
         },
         file: {
           max_size_mb:
@@ -1849,9 +1930,7 @@ export default {
           wiki_concurrency: "Wiki 워커 동시성",
         },
         tenant: {
-          max_owned_per_user: "사용자당 최대 워크스페이스 수",
-          self_service_creation_enabled: "사용자 공간 직접 생성 허용",
-          default_storage_quota_gb: "신규 워크스페이스 기본 저장 용량 (GB)",
+          default_storage_quota_gb: "신규 워크스페이스 기본 저장 용량 (GB, 0 = 제한 없음)",
         },
         file: {
           max_size_mb: "문서 업로드 크기 상한 (MB)",
@@ -2115,7 +2194,8 @@ export default {
         access: {
           tab: "계정 및 액세스 {count}",
           title: "계정 및 액세스",
-          description: "시스템 관리자, 공개 가입, 공간 생성 규칙을 관리합니다.",
+          description:
+            "공개 가입과 공유 인프라 설정 권한을 관리합니다. 시스템 관리자와 사용자 계정은 「사용자 및 워크스페이스」로 옮겨졌습니다.",
         },
       },
       priorityHint: {
@@ -2190,6 +2270,7 @@ export default {
       usedDescription: "이미 사용된 저장 스페이스",
       usageLabel: "저장소 사용률",
       usageDescription: "저장 스페이스의 사용 백분율",
+      unlimited: "제한 없음",
     },
     details: {
       idLabel: "워크스페이스 ID",
@@ -2220,17 +2301,21 @@ export default {
     create: {
       action: "새 워크스페이스 만들기",
       dialogTitle: "새 워크스페이스 만들기",
-      dialogSubtitle: "워크스페이스는 자체 지식 베이스와 멤버를 가지며, 사용자가 자동으로 소유자가 됩니다.",
+      dialogSubtitle:
+        "워크스페이스는 자체 지식 베이스와 멤버를 가집니다. 아래에서 다른 사용자를 지정하지 않으면 사용자가 소유자가 됩니다.",
       nameLabel: "워크스페이스 이름",
       namePlaceholder: "예: 새 프로젝트",
       nameRequired: "워크스페이스 이름을 입력하세요",
+      ownerEmailLabel: "소유자(선택)",
+      ownerEmailPlaceholder: "기존 계정의 이메일. 비워 두면 본인이 소유자가 됩니다",
+      ownerEmailInvalid: "올바른 이메일 주소를 입력하세요",
       descriptionLabel: "설명(선택)",
       descriptionPlaceholder: "이 워크스페이스의 용도를 간단히 설명하세요",
       submit: "만들기",
       cancel: "취소",
       success: "워크스페이스가 생성되었습니다",
       failed: "워크스페이스 생성 실패",
-      disabled: "현재 시스템에서는 초대를 통해서만 공간에 참여할 수 있으며 직접 만들 수 없습니다.",
+      disabled: "시스템 관리자만 워크스페이스를 만들 수 있습니다.",
     },
     switcher: {
       menuLabel: "워크스페이스 전환",
@@ -3307,18 +3392,17 @@ export default {
     loginErrorRetry: "로그인 오류, 나중에 다시 시도해주세요",
     registerError: "가입 오류, 나중에 다시 시도해주세요",
     workspaceOnboarding: {
-      title: "작업 공간 선택",
-      description: "작업 공간을 만들어 시작하거나 기존 작업 공간의 초대를 수락하세요.",
-      create: "공간 만들기",
+      title: "아직 어떤 워크스페이스에도 속해 있지 않습니다",
+      description: "워크스페이스 관리자에게 초대를 요청하거나 시스템 관리자에게 추가를 요청하세요.",
+      adminDescription: "시스템 관리자로서 지금 워크스페이스를 만들거나 대기 중인 초대를 수락할 수 있습니다.",
+      create: "워크스페이스 만들기",
       invitations: "초대 보기",
-      loadingPolicy: "사용 가능한 공간 참여 방식을 확인하고 있습니다…",
-      policyLoadFailed: "공간 권한을 불러올 수 없습니다. 네트워크를 확인한 후 다시 시도하세요.",
+      loadingPolicy: "사용 가능한 워크스페이스 참여 방식을 확인하고 있습니다…",
+      policyLoadFailed: "워크스페이스 권한을 불러올 수 없습니다. 네트워크를 확인한 후 다시 시도하세요.",
       retry: "다시 불러오기",
-      inviteOnlyTitle: "작업 공간 초대 대기",
-      inviteOnlyDescription: "개인 공간 만들기가 비활성화되어 있습니다. 관리자가 보낸 초대를 확인하고 수락하세요.",
-      inviteOnlyNotice: "이 계정은 초대를 통해서만 기존 공간에 참여할 수 있습니다",
-      help: "지금 작업 공간을 만들거나 나중에 돌아와 초대를 수락할 수 있습니다.",
-      inviteOnlyHelp: "초대가 없다면 등록 이메일을 공간 관리자에게 전달하고 초대를 요청하세요.",
+      help: "초대가 없다면 등록 이메일을 워크스페이스 관리자에게 전달해 초대를 요청하거나, 시스템 관리자에게 전달해 추가를 요청하세요.",
+      adminHelp:
+        "여기서 만든 워크스페이스의 소유자는 본인이 됩니다. 멤버는 이후 「설정 → 사용자 및 워크스페이스」에서 추가하세요.",
     },
   },
   inviteRegister: {

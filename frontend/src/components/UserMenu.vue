@@ -306,7 +306,8 @@
             {{ $t("tenant.switcher.empty") }}
           </div>
         </div>
-        <!-- 自助创建入口与 /auth/me 返回的后端能力保持一致。 -->
+        <!-- 建空间入口只对系统管理员（/auth/me 的 can_create_tenant）显示：
+             普通用户进入空间的途径是被邀请或被系统管理员加入。 -->
         <div
           v-if="authStore.canCreateTenant"
           class="text-primary border-border mx-1 mt-[3px] mb-[5px] flex cursor-pointer items-center gap-1.5 rounded-md border-t-[0.5px] px-2.5 py-2 text-sm font-medium transition-[background] duration-150 hover:bg-[rgba(7,192,95,0.08)]"
@@ -465,10 +466,11 @@ const closeAll = () => {
 };
 
 // ---------- Create new tenant ----------
-// 普通用户在空间子菜单底部点 "+ 创建新工作区" → 弹 CreateTenantDialog →
-// 后端写一行 owner 的 tenant_members → 直接切到新空间。复用 switchToTenant
-// 同款的 setSelectedTenant + navigateAfterTenantSwitch 链路，避免 token
-// 依然指向旧空间带来的 SSE / store 不一致。
+// 系统管理员在空间子菜单底部点 "+ 创建新空间" → 弹 CreateTenantDialog →
+// 后端在同一请求里写入 Owner 的 tenant_members 行 → 切到新空间（管理员自己
+// 是 Owner 时）。复用 switchToTenant 同款的 setSelectedTenant +
+// navigateAfterTenantSwitch 链路，避免 token 依然指向旧空间带来的 SSE /
+// store 不一致。
 const createTenantDialogVisible = ref(false);
 
 const openCreateTenantDialog = () => {
@@ -509,10 +511,10 @@ const switchableMemberships = computed<Membership[]>(() => {
   return authStore.memberships ?? [];
 });
 
-// Rendered whenever the user has at least one membership — even single-
-// tenant users need this submenu to discover the "create new workspace"
-// entry at the bottom. Multi-tenant users additionally use it to switch
-// between memberships. Cross-tenant superusers keep using the sidebar
+// Rendered whenever the user has at least one membership — single-
+// workspace users see where they are, multi-workspace users switch between
+// memberships, and system administrators find the "create new workspace"
+// entry at the bottom. Cross-tenant superusers keep using the sidebar
 // TenantSelector for the "any tenant in the system" case, so we don't
 // double-show that here.
 const showTenantSwitcher = computed(() => {

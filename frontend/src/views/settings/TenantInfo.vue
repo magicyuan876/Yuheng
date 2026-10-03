@@ -222,8 +222,12 @@
             </p>
           </div>
           <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <!-- A zero quota is "no limit", not "no space": the quota checks
+                 skip it, and the default for new workspaces is 0. -->
             <span class="text-foreground min-w-0 text-right text-sm wrap-anywhere">
-              {{ formatBytes(tenantInfo.storage_quota) }}
+              {{
+                tenantInfo.storage_quota > 0 ? formatBytes(tenantInfo.storage_quota) : $t("tenant.storage.unlimited")
+              }}
             </span>
           </div>
         </div>
@@ -248,9 +252,9 @@
           </div>
         </div>
 
-        <!-- Storage usage -->
+        <!-- Storage usage (a percentage of a finite quota only) -->
         <div
-          v-if="tenantInfo?.storage_quota !== undefined"
+          v-if="tenantInfo?.storage_quota"
           class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
         >
           <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">

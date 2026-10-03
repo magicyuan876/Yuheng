@@ -361,6 +361,8 @@ function formatAuditTimePart(s: string | undefined): string {
 function auditActionTheme(action: AuditAction): "success" | "warning" | "danger" | "primary" | "default" {
   switch (action) {
     case "system.admin_promoted":
+    case "system.user_created":
+    case "system.tenant_created":
       return "success";
     case "system.admin_revoked":
     case "system.setting_changed":
@@ -368,6 +370,7 @@ function auditActionTheme(action: AuditAction): "success" | "warning" | "danger"
     case "system.queue_task_run_now":
       return "warning";
     case "system.user_password_reset":
+    case "system.tenant_deleted":
     case "system.queue_task_deleted":
     case "system.queue_task_cancelled":
     case "system.queue_archived_purged":

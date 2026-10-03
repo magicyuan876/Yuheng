@@ -18,37 +18,48 @@ import (
 	secutils "github.com/magicyuan876/yuheng/internal/utils"
 )
 
-// TenantMemberHandler exposes /tenants/:id/members CRUD. The route layer
-// enforces RBAC (Viewer for list, Owner for any mutation) — see
-// router.RegisterTenantRoutes — so we don't re-check role here.
+// TenantMemberHandler exposes membership CRUD on two mounts:
 //
-// Tenant scoping: the auth middleware resolves the caller's role against
-// the *active* tenant (JWT / X-Tenant-ID switch / API-key). The URL :id
-// is independent and MUST be cross-checked: a user who is Owner of
-// tenant A could otherwise POST /tenants/B/members and have the role
-// gate happily accept their tenant-A role for an operation that targets
-// tenant B. That cross-check now lives in
+//   - /tenants/:id/members, for the workspace's own members. The route
+//     layer enforces RBAC (Viewer for list, Owner for any mutation) — see
+//     router.RegisterTenantRoutes — so we don't re-check role here.
+//   - /system/admin/tenants/:id/members, for system administrators
+//     managing any workspace, including one they are not a member of.
+//     That group is gated by RequireSystemAdmin instead.
+//
+// Tenant scoping on the first mount: the auth middleware resolves the
+// caller's role against the *active* tenant (JWT / X-Tenant-ID switch /
+// API-key). The URL :id is independent and MUST be cross-checked: a user
+// who is Owner of tenant A could otherwise POST /tenants/B/members and
+// have the role gate happily accept their tenant-A role for an operation
+// that targets tenant B. That cross-check lives in
 // middleware.RequirePathTenantMatch (mounted at the /tenants/:id route
-// group); by the time a request reaches one of the methods below, :id
-// is guaranteed to either match the active tenant or carry a
-// cross-tenant superuser bypass.
+// group); by the time a request reaches one of the methods below, :id is
+// guaranteed to either match the active tenant, carry a cross-tenant
+// superuser bypass, or come from a system administrator on the admin
+// mount.
 type TenantMemberHandler struct {
 	memberService interfaces.TenantMemberService
 	userService   interfaces.UserService
+	// tenantService answers "does this workspace exist" before a member
+	// is added. On the workspace's own mount the URL :id is the active
+	// workspace and always exists; on the admin mount the id comes from
+	// the client, and tenant_members has no foreign key to catch a row
+	// pointing at nothing. Optional: nil skips the check.
+	tenantService interfaces.TenantService
 }
 
-// NewTenantMemberHandler wires the dependencies. PR 1 already provides
-// both services through the dig container; we just consume them. The
-// previous *config.Config argument was removed once
-// middleware.RequirePathTenantMatch took over the cross-tenant
-// superuser carve-out.
+// NewTenantMemberHandler wires the dependencies; all three services come
+// from the dig container.
 func NewTenantMemberHandler(
 	memberService interfaces.TenantMemberService,
 	userService interfaces.UserService,
+	tenantService interfaces.TenantService,
 ) *TenantMemberHandler {
 	return &TenantMemberHandler{
 		memberService: memberService,
 		userService:   userService,
+		tenantService: tenantService,
 	}
 }
 
@@ -87,7 +98,8 @@ func parseTenantIDFromPath(c *gin.Context) (uint64, bool) {
 
 // ListMembers godoc
 // @Summary      列出空间成员
-// @Description  分页返回当前空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选
+// @Description  分页返回空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。
+// @Description  /tenants/{id}/members 供空间成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意空间。
 // @Tags         空间成员
 // @Produce      json
 // @Param        id         path   string  true   "空间 ID"
@@ -97,6 +109,7 @@ func parseTenantIDFromPath(c *gin.Context) (uint64, bool) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     Bearer
 // @Router       /tenants/{id}/members [get]
+// @Router       /system/admin/tenants/{id}/members [get]
 func (h *TenantMemberHandler) ListMembers(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID, ok := parseTenantIDFromPath(c)
@@ -166,17 +179,19 @@ func (h *TenantMemberHandler) ListMembers(c *gin.Context) {
 // @Summary      直接添加空间成员（直加路径）
 // @Description
 //
-//	Owner 通过 email 直接把用户作为 active 成员添加进当前空间。
+//	通过 email 直接把已注册用户作为 active 成员添加进空间。
 //
 //	这是【直加路径】，被加入的用户没有任何确认机会就出现在空间里——
-//	保留它是为了三类不需要走邀请确认的场景：
-//	  1. 自动化脚本 / 平台运维 / 数据迁移；
-//	  2. 跨空间超管 (CanAccessAllTenants) 的批量编排；
-//	  3. 对接外部 IdP 时由身份源单向同步成员。
+//	保留它是为了几类不需要走邀请确认的场景：
+//	  1. 系统管理员把用户加进任意空间（/system/admin/tenants/{id}/members），
+//	     包括把还没有任何空间的账号安置进第一个空间；
+//	  2. 自动化脚本 / 平台运维 / 数据迁移；
+//	  3. 跨空间超管 (CanAccessAllTenants) 的批量编排；
+//	  4. 对接外部 IdP 时由身份源单向同步成员。
 //
-//	所有由 UI 触发的「邀请伙伴加入」交互应改走
+//	所有由空间内 UI 触发的「邀请伙伴加入」交互应改走
 //	POST /tenants/:id/invitations，那条路径会先创建 pending 行，让被邀请
-//	人在 /me/invitations 主动接受后再写 tenant_members 行（PR #1303 后续）。
+//	人在 /me/invitations 主动接受后再写 tenant_members 行。
 //	这条路径与 invitations 路径共存而不互相替代。
 //
 // @Tags         空间成员
@@ -185,8 +200,11 @@ func (h *TenantMemberHandler) ListMembers(c *gin.Context) {
 // @Param        id        path  string                 true  "空间 ID"
 // @Param        request   body  addMemberRequest       true  "邀请请求"
 // @Success      201  {object}  map[string]interface{}
+// @Failure      404  {object}  apperrors.AppError  "用户未注册 / 空间不存在"
+// @Failure      409  {object}  apperrors.AppError  "已经是成员"
 // @Security     Bearer
 // @Router       /tenants/{id}/members [post]
+// @Router       /system/admin/tenants/{id}/members [post]
 func (h *TenantMemberHandler) AddMember(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID, ok := parseTenantIDFromPath(c)
@@ -205,6 +223,18 @@ func (h *TenantMemberHandler) AddMember(c *gin.Context) {
 	if !req.Role.IsValid() {
 		c.Error(apperrors.NewValidationError("role must be one of owner/admin/contributor/viewer"))
 		return
+	}
+
+	if h.tenantService != nil {
+		if _, err := h.tenantService.GetTenantByID(ctx, tenantID); err != nil {
+			if errors.Is(err, apprepo.ErrTenantNotFound) {
+				_ = c.Error(apperrors.NewTenantNotFoundError())
+				return
+			}
+			logger.Errorf(ctx, "GetTenantByID failed before adding a member: tenant=%d err=%v", tenantID, err)
+			_ = c.Error(apperrors.NewInternalServerError("failed to look up workspace").WithDetails(err.Error()))
+			return
+		}
 	}
 
 	user, err := h.userService.GetUserByEmail(ctx, strings.TrimSpace(req.Email))
@@ -235,9 +265,21 @@ func (h *TenantMemberHandler) AddMember(c *gin.Context) {
 		invitedBy = &caller
 	}
 
-	// Add the member and write the 201 / mapped-error response through the
-	// shared helper (also used by the invitation auto-accept path).
-	addMemberAndRespond(c, ctx, h.memberService, user, tenantID, req.Role, invitedBy)
+	member, err := h.memberService.AddMember(ctx, user.ID, tenantID, req.Role, invitedBy)
+	if err != nil {
+		writeAddMemberError(c, ctx, user, tenantID, err)
+		return
+	}
+	// A user who had no workspace until now should land in this one at
+	// their next login: the system administrator's "add this account to a
+	// workspace" is, for a fresh account, the moment it gets a home.
+	// Membership is what authorises them; the preference only saves a
+	// lookup, so a failure is logged and not surfaced.
+	if err := h.userService.RememberFirstWorkspace(ctx, user.ID, tenantID); err != nil {
+		logger.Warnf(ctx, "failed to remember workspace %d as the active workspace of user %s: %v",
+			tenantID, user.ID, err)
+	}
+	writeAddMemberSuccess(c, user, member)
 }
 
 func writeAddMemberError(
@@ -282,32 +324,10 @@ func writeAddMemberSuccess(c *gin.Context, user *types.User, member *types.Tenan
 	})
 }
 
-// addMemberAndRespond calls TenantMemberService.AddMember and writes the
-// HTTP response: 201 with a TenantMemberResponse on success, or the service
-// sentinel mapped to its HTTP status (400 / 403 / 409 / 500) on error. It
-// always writes exactly one response, so the caller MUST return right after.
-// Shared by TenantMemberHandler.AddMember and the auto-accept branch of
-// TenantInvitationHandler.CreateInvitation so the mapping never drifts.
-func addMemberAndRespond(
-	c *gin.Context,
-	ctx context.Context,
-	memberService interfaces.TenantMemberService,
-	user *types.User,
-	tenantID uint64,
-	role types.TenantRole,
-	invitedBy *string,
-) {
-	member, err := memberService.AddMember(ctx, user.ID, tenantID, role, invitedBy)
-	if err != nil {
-		writeAddMemberError(c, ctx, user, tenantID, err)
-		return
-	}
-	writeAddMemberSuccess(c, user, member)
-}
-
 // UpdateMemberRole godoc
 // @Summary      修改空间成员角色
-// @Description  Owner 修改某位成员在当前空间内的角色；不能将最后一位 Owner 降级
+// @Description  修改某位成员在空间内的角色；不能将最后一位 Owner 降级。
+// @Description  Owner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。
 // @Tags         空间成员
 // @Accept       json
 // @Produce      json
@@ -315,8 +335,10 @@ func addMemberAndRespond(
 // @Param        user_id  path  string                  true  "用户 ID"
 // @Param        request  body  updateMemberRoleRequest true  "目标角色"
 // @Success      200  {object}  map[string]interface{}
+// @Failure      409  {object}  apperrors.AppError  "最后一位 Owner 不能降级"
 // @Security     Bearer
 // @Router       /tenants/{id}/members/{user_id} [put]
+// @Router       /system/admin/tenants/{id}/members/{user_id} [patch]
 func (h *TenantMemberHandler) UpdateMemberRole(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID, ok := parseTenantIDFromPath(c)
@@ -362,14 +384,17 @@ func (h *TenantMemberHandler) UpdateMemberRole(c *gin.Context) {
 
 // RemoveMember godoc
 // @Summary      移除空间成员
-// @Description  Owner 将某位成员从当前空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner
+// @Description  将某位成员从空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。
+// @Description  Owner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。
 // @Tags         空间成员
 // @Produce      json
 // @Param        id       path  string  true  "空间 ID"
 // @Param        user_id  path  string  true  "用户 ID"
 // @Success      200  {object}  map[string]interface{}
+// @Failure      409  {object}  apperrors.AppError  "最后一位 Owner 不能移除"
 // @Security     Bearer
 // @Router       /tenants/{id}/members/{user_id} [delete]
+// @Router       /system/admin/tenants/{id}/members/{user_id} [delete]
 func (h *TenantMemberHandler) RemoveMember(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID, ok := parseTenantIDFromPath(c)

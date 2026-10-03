@@ -1,7 +1,7 @@
 <template>
-  <!-- 自助创建新工作区弹窗。任意已登录用户均可调用 POST /api/v1/tenants
-       （后端 router 已去掉 g.CrossTenant() 守卫），handler 会自动把当前
-       用户 EnsureOwner 成新空间的 Owner。 -->
+  <!-- 创建新空间。只有系统管理员（和跨空间超管）能调用 POST /api/v1/tenants；
+       空间在创建请求里就带上 Owner：填了 owner_email 就是那位用户，留空则是
+       调用者本人。没有成员的空间无法被进入，所以后端拒绝没有 Owner 的创建。 -->
   <Dialog :open="visible" @update:open="onVisibleUpdate">
     <!-- While a submit is in flight the dialog must not be dismissed by the
          overlay or Esc, as the old t-dialog's close-on-* flags ensured. -->
@@ -35,6 +35,20 @@
           <p v-if="nameError" class="text-destructive m-0 text-xs">{{ nameError }}</p>
         </div>
         <div class="flex flex-col gap-1.5">
+          <Label for="create-tenant-owner-email">{{ $t("tenant.create.ownerEmailLabel") }}</Label>
+          <Input
+            id="create-tenant-owner-email"
+            v-model="form.ownerEmail"
+            type="email"
+            autocomplete="off"
+            :placeholder="$t('tenant.create.ownerEmailPlaceholder')"
+            :aria-invalid="!!ownerEmailError || undefined"
+            @input="ownerEmailError = ''"
+            @blur="validateOwnerEmail"
+          />
+          <p v-if="ownerEmailError" class="text-destructive m-0 text-xs">{{ ownerEmailError }}</p>
+        </div>
+        <div class="flex flex-col gap-1.5">
           <Label for="create-tenant-description">{{ $t("tenant.create.descriptionLabel") }}</Label>
           <!-- The old autosize grew between three and five rows. -->
           <Textarea
@@ -66,7 +80,7 @@ import { reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { LayoutGridIcon, Loader2Icon } from "@lucide/vue";
 import { MessagePlugin } from "tdesign-vue-next";
-import { createTenant, type TenantInfo } from "@/api/tenant";
+import { createTenant, type CreateTenantPayload, type TenantInfo } from "@/api/tenant";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -97,11 +111,13 @@ const submitting = ref(false);
 const form = reactive({
   name: "",
   description: "",
+  ownerEmail: "",
 });
 
 // The field error under the name input. It replaces the TDesign form rule,
 // and like that rule it is shown on blur and on submit.
 const nameError = ref("");
+const ownerEmailError = ref("");
 
 // Trim-aware required check：全空格不算通过；这里手动校验 trim 后非空。
 // max 长度由 :maxlength 在键入时硬限制，所以这里不再重复挂规则（避免与
@@ -112,13 +128,25 @@ const validateName = (): boolean => {
   return ok;
 };
 
+// The owner is optional (empty = the caller); when given it must at least
+// look like an email, so an obvious typo is caught before the round-trip.
+// Whether the account exists is the server's call (404).
+const validateOwnerEmail = (): boolean => {
+  const email = form.ownerEmail.trim();
+  const ok = email === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  ownerEmailError.value = ok ? "" : t("tenant.create.ownerEmailInvalid");
+  return ok;
+};
+
 watch(
   () => props.visible,
   (open) => {
     if (open) {
       form.name = "";
       form.description = "";
+      form.ownerEmail = "";
       nameError.value = "";
+      ownerEmailError.value = "";
     }
   },
 );
@@ -135,14 +163,16 @@ const handleClose = () => {
 
 const handleSubmit = async () => {
   if (submitting.value) return;
-  if (!validateName()) return;
+  // Run both validators so every failing field shows its message at once.
+  const valid = [validateName(), validateOwnerEmail()];
+  if (!valid.every(Boolean)) return;
 
   submitting.value = true;
   try {
-    const response = await createTenant({
-      name: form.name.trim(),
-      description: form.description.trim() || undefined,
-    });
+    const payload: CreateTenantPayload = { name: form.name.trim() };
+    if (form.description.trim()) payload.description = form.description.trim();
+    if (form.ownerEmail.trim()) payload.owner_email = form.ownerEmail.trim();
+    const response = await createTenant(payload);
     if (!response.success || !response.data) {
       MessagePlugin.error(response.message || t("tenant.create.failed"));
       return;

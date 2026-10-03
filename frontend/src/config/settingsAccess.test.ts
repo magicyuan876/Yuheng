@@ -23,9 +23,11 @@ test("management shortcuts are stricter than read-only settings pages", () => {
 });
 
 test("system administration settings stay explicitly system-admin-only", () => {
+  // Users & workspaces is first: every route behind it is under
+  // /system/admin (RequireSystemAdmin), like the rest of the group.
   assert.deepEqual(
     [...SYSTEM_ADMIN_SETTINGS_SECTIONS],
-    ["system-global", "runtime-queues", "platform-api-keys", "system-audit-log"],
+    ["users-workspaces", "system-global", "runtime-queues", "platform-api-keys", "system-audit-log"],
   );
 });
 

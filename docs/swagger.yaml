@@ -109,7 +109,9 @@ definitions:
     - 2002
     - 2003
     - 2004
-    - 2005
+    - 2006
+    - 2007
+    - 2008
     - 2200
     - 2201
     type: integer
@@ -130,7 +132,9 @@ definitions:
     - ErrTenantInactive
     - ErrTenantNameRequired
     - ErrTenantInvalidStatus
-    - ErrTenantCreationDisabled
+    - ErrTenantOwnerRequired
+    - ErrTenantHasMembers
+    - ErrTenantLastWorkspace
     - ErrVectorStoreBindingInvalid
     - ErrVectorStoreUnavailable
   github_com_magicyuan876_yuheng_internal_infrastructure_chunker.DocProfile:
@@ -238,6 +242,10 @@ definitions:
         type: string
       password:
         type: string
+      role:
+        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantRole'
+      tenant_id:
+        type: integer
       username:
         maxLength: 50
         minLength: 2
@@ -300,6 +308,8 @@ definitions:
     - system.user_created
     - system.api_key_created
     - system.api_key_revoked
+    - system.tenant_created
+    - system.tenant_deleted
     - system.queue_task_retried
     - system.queue_task_deleted
     - system.queue_task_run_now
@@ -364,6 +374,8 @@ definitions:
     - AuditActionSystemUserCreated
     - AuditActionSystemAPIKeyCreated
     - AuditActionSystemAPIKeyRevoked
+    - AuditActionSystemTenantCreated
+    - AuditActionSystemTenantDeleted
     - AuditActionSystemQueueTaskRetried
     - AuditActionSystemQueueTaskDeleted
     - AuditActionSystemQueueTaskRunNow
@@ -2483,8 +2495,11 @@ definitions:
         description: Status
         type: string
       storage_quota:
-        description: Storage quota (Bytes), default is 10GB, including vector, original
-          file, text, index, etc.
+        description: |-
+          Storage quota in bytes, covering vectors, original files, text and
+          indexes. 0 means unlimited. No GORM default: GORM omits a zero-valued
+          field with a default tag from the INSERT, which would let the
+          column's historical 10 GiB default silently replace "unlimited".
         type: integer
       storage_used:
         description: Storage used (Bytes)
@@ -2497,6 +2512,35 @@ definitions:
         - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.WebSearchConfig'
         description: Global WebSearch configuration for this workspace
     type: object
+  github_com_magicyuan876_yuheng_internal_types.TenantMemberResponse:
+    properties:
+      avatar:
+        type: string
+      email:
+        type: string
+      invited_by:
+        type: string
+      joined_at:
+        type: string
+      role:
+        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantRole'
+      status:
+        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantMemberStatus'
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  github_com_magicyuan876_yuheng_internal_types.TenantMemberStatus:
+    enum:
+    - active
+    - invited
+    - suspended
+    type: string
+    x-enum-varnames:
+    - TenantMemberStatusActive
+    - TenantMemberStatusInvited
+    - TenantMemberStatusSuspended
   github_com_magicyuan876_yuheng_internal_types.TenantRole:
     enum:
     - owner
@@ -3872,6 +3916,12 @@ definitions:
           GeneratedPassword is the plaintext password when the server
           auto-generated one. Absent when the caller supplied the password.
         type: string
+      membership:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantMemberResponse'
+        description: |-
+          Membership is the workspace membership written when the request
+          named a tenant_id. Absent otherwise.
       user:
         $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.UserInfo'
     type: object
@@ -4603,15 +4653,84 @@ definitions:
     type: object
   internal_handler.createTenantRequest:
     properties:
+      business:
+        description: Business
+        type: string
+      chat_history_config:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.ChatHistoryConfig'
+        description: 'Chat history config: knowledge base configuration for indexing
+          and searching chat messages via vector search'
+      context_config:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.ContextConfig'
+        description: Global Context configuration for this workspace (default for
+          all sessions)
+      created_at:
+        description: Creation time
+        type: string
+      credentials:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.CredentialsConfig'
+        description: |-
+          Credentials config: tenant-level third-party provider credentials.
+          See CredentialsConfig — currently an empty extension point.
+      default_storage_backend_id:
+        description: |-
+          DefaultStorageBackendID is the backend the workspace's own writes go
+          to (chat images, session attachments, temporary documents) and the one
+          new knowledge bases and docs spaces bind to. Always set: a new workspace
+          starts on the deployment backend, id "env".
+        type: string
+      deleted_at:
+        allOf:
+        - $ref: '#/definitions/gorm.DeletedAt'
+        description: Deletion time
       description:
-        maxLength: 512
+        description: Description
         type: string
+      id:
+        description: ID
+        type: integer
       name:
-        maxLength: 128
-        minLength: 1
+        description: Name
         type: string
-    required:
-    - name
+      owner_email:
+        type: string
+      parser_engine_config:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.ParserEngineConfig'
+        description: Parser engine config overrides (MinerU endpoint, API key, etc.).
+          Used when parsing documents; overrides env.
+      retrieval_config:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.RetrievalConfig'
+        description: 'Retrieval config: global search/retrieval parameters shared
+          by knowledge search and message search'
+      retriever_engines:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.RetrieverEngines'
+        description: Retriever engines
+      status:
+        description: Status
+        type: string
+      storage_quota:
+        description: |-
+          Storage quota in bytes, covering vectors, original files, text and
+          indexes. 0 means unlimited. No GORM default: GORM omits a zero-valued
+          field with a default tag from the INSERT, which would let the
+          column's historical 10 GiB default silently replace "unlimited".
+        type: integer
+      storage_used:
+        description: Storage used (Bytes)
+        type: integer
+      updated_at:
+        description: Last updated time
+        type: string
+      web_search_config:
+        allOf:
+        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.WebSearchConfig'
+        description: Global WebSearch configuration for this workspace
     type: object
   internal_handler.invitationLookupRequest:
     properties:
@@ -14558,15 +14677,163 @@ paths:
       summary: Update a system setting value
       tags:
       - System Admin
+  /system/admin/tenants/{id}/members:
+    get:
+      description: |-
+        分页返回空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。
+        /tenants/{id}/members 供空间成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意空间。
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 按邮箱/用户名模糊筛选
+        in: query
+        name: q
+        type: string
+      - default: 1
+        description: 页码（从 1 起）
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量（最大 100）
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出空间成员
+      tags:
+      - 空间成员
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 邀请请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.addMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 用户未注册 / 空间不存在
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "409":
+          description: 已经是成员
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 直接添加空间成员（直加路径）
+      tags:
+      - 空间成员
+  /system/admin/tenants/{id}/members/{user_id}:
+    delete:
+      description: |-
+        将某位成员从空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。
+        Owner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 用户 ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: 最后一位 Owner 不能移除
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 移除空间成员
+      tags:
+      - 空间成员
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        修改某位成员在空间内的角色；不能将最后一位 Owner 降级。
+        Owner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 用户 ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: 目标角色
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.updateMemberRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: 最后一位 Owner 不能降级
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 修改空间成员角色
+      tags:
+      - 空间成员
   /system/admin/tenants/apply-default-storage-quota:
     post:
       description: |-
         Reads the current value of `tenant.default_storage_quota_gb`
         (3-tier resolver: DB > ENV > default) and writes that many
-        GiB into storage_quota for every row in tenants. Bypasses
-        the per-workspace PUT whitelist, which forbids storage_quota
-        edits by Owners. SystemAdmin only.
-        Idempotent — running twice with the same setting is a no-op.
+        GiB into storage_quota for every row in tenants; 0 removes
+        the limit everywhere. Bypasses the per-workspace PUT
+        whitelist, which forbids storage_quota edits by Owners.
+        SystemAdmin only. Idempotent — running twice with the same
+        setting is a no-op.
       produces:
       - application/json
       responses:
@@ -14592,8 +14859,10 @@ paths:
         When `password` is omitted or null, a cryptographically random
         password is generated (OIDC-style crypto/rand + base64url)
         and returned once in the response body. Any provided value,
-        including empty string, is policy-checked. The account belongs
-        to no workspace until it is added to one.
+        including empty string, is policy-checked. With `tenant_id`
+        (and optional `role`, default viewer) the account is also made
+        a member of that workspace in the same request; without it the
+        account belongs to no workspace until it is added to one.
       parameters:
       - description: User creation request
         in: body
@@ -14613,12 +14882,17 @@ paths:
           schema:
             $ref: '#/definitions/internal_handler.CreateSystemUserResponse'
         "400":
-          description: Invalid request or weak password
+          description: Invalid request, weak password, or invalid role
           schema:
             additionalProperties: true
             type: object
         "403":
           description: 'Forbidden: not a system admin'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: tenant_id names no workspace
           schema:
             additionalProperties: true
             type: object
@@ -14811,11 +15085,12 @@ paths:
       consumes:
       - application/json
       description: |-
-        创建新的空间。任意已登录用户均可调用以建立自己的新工作区，
-        调用方会被自动设为该空间的 Owner。跨空间超管仍可像以前一样
-        通过本接口创建任意空间。不会随空间发放 API Key，需要时通过 API Key 管理接口显式创建。
+        创建新的空间。仅系统管理员、跨空间超管与平台 API Key 可调用。
+        每个空间在创建时就必须有 Owner：owner_email 指定一位已注册用户，
+        省略时调用者本人成为 Owner；平台 API Key 没有"本人"，必须指定 owner_email。
+        不会随空间发放 API Key，需要时通过 API Key 管理接口显式创建。
       parameters:
-      - description: 空间信息
+      - description: 空间信息（可含 owner_email）
         in: body
         name: request
         required: true
@@ -14830,11 +15105,20 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: 请求参数错误
+          description: 请求参数错误 / 平台 Key 未指定 owner_email（code 2006）
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "403":
+          description: 不是系统管理员
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "404":
+          description: owner_email 对应的用户不存在
           schema:
             $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
       security:
       - Bearer: []
+      - ApiKeyAuth: []
       summary: 创建空间
       tags:
       - 空间管理
@@ -14842,7 +15126,9 @@ paths:
     delete:
       consumes:
       - application/json
-      description: 删除指定的空间
+      description: |-
+        删除空间。两种情况下拒绝：空间里还有调用者以外的成员（code 2007），
+        或这是部署中最后一个空间（code 2008）。先把其他成员移出，再删除。
       parameters:
       - description: 空间ID
         in: path
@@ -14859,6 +15145,10 @@ paths:
             type: object
         "400":
           description: 请求参数错误
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "409":
+          description: 空间仍有其他成员 / 最后一个空间
           schema:
             $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
       security:
@@ -15233,7 +15523,9 @@ paths:
       - 空间成员
   /tenants/{id}/members:
     get:
-      description: 分页返回当前空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选
+      description: |-
+        分页返回空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。
+        /tenants/{id}/members 供空间成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意空间。
       parameters:
       - description: 空间 ID
         in: path
@@ -15290,6 +15582,14 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "404":
+          description: 用户未注册 / 空间不存在
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "409":
+          description: 已经是成员
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
       security:
       - Bearer: []
       summary: 直接添加空间成员（直加路径）
@@ -15297,7 +15597,9 @@ paths:
       - 空间成员
   /tenants/{id}/members/{user_id}:
     delete:
-      description: Owner 将某位成员从当前空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner
+      description: |-
+        将某位成员从空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。
+        Owner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。
       parameters:
       - description: 空间 ID
         in: path
@@ -15317,6 +15619,10 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "409":
+          description: 最后一位 Owner 不能移除
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
       security:
       - Bearer: []
       summary: 移除空间成员
@@ -15325,7 +15631,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Owner 修改某位成员在当前空间内的角色；不能将最后一位 Owner 降级
+      description: |-
+        修改某位成员在空间内的角色；不能将最后一位 Owner 降级。
+        Owner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。
       parameters:
       - description: 空间 ID
         in: path
@@ -15351,6 +15659,10 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "409":
+          description: 最后一位 Owner 不能降级
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
       security:
       - Bearer: []
       summary: 修改空间成员角色
@@ -15360,7 +15672,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取系统中所有空间（需要跨空间访问权限）
+      description: 获取部署中的所有空间，附带每个空间的成员数（系统管理员 / 跨空间超管 / 平台 API Key）
       produces:
       - application/json
       responses:
@@ -15375,6 +15687,7 @@ paths:
             $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
       security:
       - Bearer: []
+      - ApiKeyAuth: []
       summary: 获取所有空间列表
       tags:
       - 空间管理
@@ -15493,7 +15806,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 分页搜索空间（需要跨空间访问权限）
+      description: 分页搜索空间，附带成员数（系统管理员 / 跨空间超管 / 平台 API Key）
       parameters:
       - description: 搜索关键词
         in: query

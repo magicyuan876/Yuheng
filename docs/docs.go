@@ -14956,7 +14956,7 @@ const docTemplate = `{
         },
         "/system/admin/tenants/apply-default-storage-quota": {
             "post": {
-                "description": "Reads the current value of ` + "`" + `tenant.default_storage_quota_gb` + "`" + `\n(3-tier resolver: DB \u003e ENV \u003e default) and writes that many\nGiB into storage_quota for every row in tenants. Bypasses\nthe per-workspace PUT whitelist, which forbids storage_quota\nedits by Owners. SystemAdmin only.\nIdempotent — running twice with the same setting is a no-op.",
+                "description": "Reads the current value of ` + "`" + `tenant.default_storage_quota_gb` + "`" + `\n(3-tier resolver: DB \u003e ENV \u003e default) and writes that many\nGiB into storage_quota for every row in tenants; 0 removes\nthe limit everywhere. Bypasses the per-workspace PUT\nwhitelist, which forbids storage_quota edits by Owners.\nSystemAdmin only. Idempotent — running twice with the same\nsetting is a no-op.",
                 "produces": [
                     "application/json"
                 ],
@@ -14982,9 +14982,226 @@ const docTemplate = `{
                 }
             }
         },
+        "/system/admin/tenants/{id}/members": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "分页返回空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。\n/tenants/{id}/members 供空间成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意空间。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间成员"
+                ],
+                "summary": "列出空间成员",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "按邮箱/用户名模糊筛选",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码（从 1 起）",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量（最大 100）",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间成员"
+                ],
+                "summary": "直接添加空间成员（直加路径）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "邀请请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.addMemberRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "用户未注册 / 空间不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "已经是成员",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/admin/tenants/{id}/members/{user_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "将某位成员从空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。\nOwner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间成员"
+                ],
+                "summary": "移除空间成员",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "用户 ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "最后一位 Owner 不能移除",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "修改某位成员在空间内的角色；不能将最后一位 Owner 降级。\nOwner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "空间成员"
+                ],
+                "summary": "修改空间成员角色",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "用户 ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "目标角色",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.updateMemberRoleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "最后一位 Owner 不能降级",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
         "/system/admin/users/create": {
             "post": {
-                "description": "Provision a new local user account (SystemAdmin only).\nWhen ` + "`" + `password` + "`" + ` is omitted or null, a cryptographically random\npassword is generated (OIDC-style crypto/rand + base64url)\nand returned once in the response body. Any provided value,\nincluding empty string, is policy-checked. The account belongs\nto no workspace until it is added to one.",
+                "description": "Provision a new local user account (SystemAdmin only).\nWhen ` + "`" + `password` + "`" + ` is omitted or null, a cryptographically random\npassword is generated (OIDC-style crypto/rand + base64url)\nand returned once in the response body. Any provided value,\nincluding empty string, is policy-checked. With ` + "`" + `tenant_id` + "`" + `\n(and optional ` + "`" + `role` + "`" + `, default viewer) the account is also made\na member of that workspace in the same request; without it the\naccount belongs to no workspace until it is added to one.",
                 "consumes": [
                     "application/json"
                 ],
@@ -15020,7 +15237,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request or weak password",
+                        "description": "Invalid request, weak password, or invalid role",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -15028,6 +15245,13 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden: not a system admin",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "tenant_id names no workspace",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -15315,9 +15539,12 @@ const docTemplate = `{
                 "security": [
                     {
                         "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
-                "description": "创建新的空间。任意已登录用户均可调用以建立自己的新工作区，\n调用方会被自动设为该空间的 Owner。跨空间超管仍可像以前一样\n通过本接口创建任意空间。不会随空间发放 API Key，需要时通过 API Key 管理接口显式创建。",
+                "description": "创建新的空间。仅系统管理员、跨空间超管与平台 API Key 可调用。\n每个空间在创建时就必须有 Owner：owner_email 指定一位已注册用户，\n省略时调用者本人成为 Owner；平台 API Key 没有\"本人\"，必须指定 owner_email。\n不会随空间发放 API Key，需要时通过 API Key 管理接口显式创建。",
                 "consumes": [
                     "application/json"
                 ],
@@ -15330,7 +15557,7 @@ const docTemplate = `{
                 "summary": "创建空间",
                 "parameters": [
                     {
-                        "description": "空间信息",
+                        "description": "空间信息（可含 owner_email）",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -15348,7 +15575,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求参数错误",
+                        "description": "请求参数错误 / 平台 Key 未指定 owner_email（code 2006）",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "403": {
+                        "description": "不是系统管理员",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "owner_email 对应的用户不存在",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -15361,9 +15600,12 @@ const docTemplate = `{
                 "security": [
                     {
                         "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
-                "description": "获取系统中所有空间（需要跨空间访问权限）",
+                "description": "获取部署中的所有空间，附带每个空间的成员数（系统管理员 / 跨空间超管 / 平台 API Key）",
                 "consumes": [
                     "application/json"
                 ],
@@ -15578,7 +15820,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "分页搜索空间（需要跨空间访问权限）",
+                "description": "分页搜索空间，附带成员数（系统管理员 / 跨空间超管 / 平台 API Key）",
                 "consumes": [
                     "application/json"
                 ],
@@ -15743,7 +15985,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "删除指定的空间",
+                "description": "删除空间。两种情况下拒绝：空间里还有调用者以外的成员（code 2007），\n或这是部署中最后一个空间（code 2008）。先把其他成员移出，再删除。",
                 "consumes": [
                     "application/json"
                 ],
@@ -15773,6 +16015,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "空间仍有其他成员 / 最后一个空间",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -16250,7 +16498,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "分页返回当前空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选",
+                "description": "分页返回空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。\n/tenants/{id}/members 供空间成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意空间。",
                 "produces": [
                     "application/json"
                 ],
@@ -16338,6 +16586,18 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "404": {
+                        "description": "用户未注册 / 空间不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "已经是成员",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
                     }
                 }
             }
@@ -16349,7 +16609,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Owner 修改某位成员在当前空间内的角色；不能将最后一位 Owner 降级",
+                "description": "修改某位成员在空间内的角色；不能将最后一位 Owner 降级。\nOwner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。",
                 "consumes": [
                     "application/json"
                 ],
@@ -16392,6 +16652,12 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "409": {
+                        "description": "最后一位 Owner 不能降级",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
                     }
                 }
             },
@@ -16401,7 +16667,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Owner 将某位成员从当前空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner",
+                "description": "将某位成员从空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。\nOwner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。",
                 "produces": [
                     "application/json"
                 ],
@@ -16431,6 +16697,12 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "最后一位 Owner 不能移除",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
                     }
                 }
@@ -17483,7 +17755,9 @@ const docTemplate = `{
                 2002,
                 2003,
                 2004,
-                2005,
+                2006,
+                2007,
+                2008,
                 2200,
                 2201
             ],
@@ -17504,7 +17778,9 @@ const docTemplate = `{
                 "ErrTenantInactive",
                 "ErrTenantNameRequired",
                 "ErrTenantInvalidStatus",
-                "ErrTenantCreationDisabled",
+                "ErrTenantOwnerRequired",
+                "ErrTenantHasMembers",
+                "ErrTenantLastWorkspace",
                 "ErrVectorStoreBindingInvalid",
                 "ErrVectorStoreUnavailable"
             ]
@@ -17666,6 +17942,12 @@ const docTemplate = `{
                 "password": {
                     "type": "string"
                 },
+                "role": {
+                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantRole"
+                },
+                "tenant_id": {
+                    "type": "integer"
+                },
                 "username": {
                     "type": "string",
                     "maxLength": 50,
@@ -17735,6 +18017,8 @@ const docTemplate = `{
                 "system.user_created",
                 "system.api_key_created",
                 "system.api_key_revoked",
+                "system.tenant_created",
+                "system.tenant_deleted",
                 "system.queue_task_retried",
                 "system.queue_task_deleted",
                 "system.queue_task_run_now",
@@ -17799,6 +18083,8 @@ const docTemplate = `{
                 "AuditActionSystemUserCreated",
                 "AuditActionSystemAPIKeyCreated",
                 "AuditActionSystemAPIKeyRevoked",
+                "AuditActionSystemTenantCreated",
+                "AuditActionSystemTenantDeleted",
                 "AuditActionSystemQueueTaskRetried",
                 "AuditActionSystemQueueTaskDeleted",
                 "AuditActionSystemQueueTaskRunNow",
@@ -20493,7 +20779,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "storage_quota": {
-                    "description": "Storage quota (Bytes), default is 10GB, including vector, original file, text, index, etc.",
+                    "description": "Storage quota in bytes, covering vectors, original files, text and\nindexes. 0 means unlimited. No GORM default: GORM omits a zero-valued\nfield with a default tag from the INSERT, which would let the\ncolumn's historical 10 GiB default silently replace \"unlimited\".",
                     "type": "integer"
                 },
                 "storage_used": {
@@ -20513,6 +20799,48 @@ const docTemplate = `{
                     ]
                 }
             }
+        },
+        "github_com_magicyuan876_yuheng_internal_types.TenantMemberResponse": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "invited_by": {
+                    "type": "string"
+                },
+                "joined_at": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantRole"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantMemberStatus"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_magicyuan876_yuheng_internal_types.TenantMemberStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "invited",
+                "suspended"
+            ],
+            "x-enum-varnames": [
+                "TenantMemberStatusActive",
+                "TenantMemberStatusInvited",
+                "TenantMemberStatusSuspended"
+            ]
         },
         "github_com_magicyuan876_yuheng_internal_types.TenantRole": {
             "type": "string",
@@ -22332,6 +22660,14 @@ const docTemplate = `{
                     "description": "GeneratedPassword is the plaintext password when the server\nauto-generated one. Absent when the caller supplied the password.",
                     "type": "string"
                 },
+                "membership": {
+                    "description": "Membership is the workspace membership written when the request\nnamed a tenant_id. Absent otherwise.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantMemberResponse"
+                        }
+                    ]
+                },
                 "user": {
                     "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.UserInfo"
                 }
@@ -23375,18 +23711,113 @@ const docTemplate = `{
         },
         "internal_handler.createTenantRequest": {
             "type": "object",
-            "required": [
-                "name"
-            ],
             "properties": {
+                "business": {
+                    "description": "Business",
+                    "type": "string"
+                },
+                "chat_history_config": {
+                    "description": "Chat history config: knowledge base configuration for indexing and searching chat messages via vector search",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.ChatHistoryConfig"
+                        }
+                    ]
+                },
+                "context_config": {
+                    "description": "Global Context configuration for this workspace (default for all sessions)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.ContextConfig"
+                        }
+                    ]
+                },
+                "created_at": {
+                    "description": "Creation time",
+                    "type": "string"
+                },
+                "credentials": {
+                    "description": "Credentials config: tenant-level third-party provider credentials.\nSee CredentialsConfig — currently an empty extension point.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.CredentialsConfig"
+                        }
+                    ]
+                },
+                "default_storage_backend_id": {
+                    "description": "DefaultStorageBackendID is the backend the workspace's own writes go\nto (chat images, session attachments, temporary documents) and the one\nnew knowledge bases and docs spaces bind to. Always set: a new workspace\nstarts on the deployment backend, id \"env\".",
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "description": "Deletion time",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/gorm.DeletedAt"
+                        }
+                    ]
+                },
                 "description": {
-                    "type": "string",
-                    "maxLength": 512
+                    "description": "Description",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID",
+                    "type": "integer"
                 },
                 "name": {
-                    "type": "string",
-                    "maxLength": 128,
-                    "minLength": 1
+                    "description": "Name",
+                    "type": "string"
+                },
+                "owner_email": {
+                    "type": "string"
+                },
+                "parser_engine_config": {
+                    "description": "Parser engine config overrides (MinerU endpoint, API key, etc.). Used when parsing documents; overrides env.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.ParserEngineConfig"
+                        }
+                    ]
+                },
+                "retrieval_config": {
+                    "description": "Retrieval config: global search/retrieval parameters shared by knowledge search and message search",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.RetrievalConfig"
+                        }
+                    ]
+                },
+                "retriever_engines": {
+                    "description": "Retriever engines",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.RetrieverEngines"
+                        }
+                    ]
+                },
+                "status": {
+                    "description": "Status",
+                    "type": "string"
+                },
+                "storage_quota": {
+                    "description": "Storage quota in bytes, covering vectors, original files, text and\nindexes. 0 means unlimited. No GORM default: GORM omits a zero-valued\nfield with a default tag from the INSERT, which would let the\ncolumn's historical 10 GiB default silently replace \"unlimited\".",
+                    "type": "integer"
+                },
+                "storage_used": {
+                    "description": "Storage used (Bytes)",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "description": "Last updated time",
+                    "type": "string"
+                },
+                "web_search_config": {
+                    "description": "Global WebSearch configuration for this workspace",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.WebSearchConfig"
+                        }
+                    ]
                 }
             }
         },

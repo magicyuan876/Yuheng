@@ -44,6 +44,8 @@ func (s *stubTenantService) ListAllTenants(context.Context) ([]*types.Tenant, er
 	return nil, nil
 }
 
+func (s *stubTenantService) CountTenants(context.Context) (int64, error) { return 1, nil }
+
 func (s *stubTenantService) SearchTenants(context.Context, string, uint64, int, int) ([]*types.Tenant, int64, error) {
 	return nil, 0, nil
 }

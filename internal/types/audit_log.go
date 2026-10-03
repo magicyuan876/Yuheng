@@ -113,6 +113,20 @@ const (
 	AuditActionSystemAPIKeyCreated AuditAction = "system.api_key_created"
 	AuditActionSystemAPIKeyRevoked AuditAction = "system.api_key_revoked"
 
+	// AuditActionSystemTenantCreated fires when a workspace is created
+	// through POST /tenants. Only system administrators, cross-tenant
+	// superusers and platform API keys can do that, so the row is
+	// system-scope (TenantID=0) and belongs to the platform audit feed.
+	// Details carry {name, owner_user_id, owner_email} — the Owner is set
+	// in the same request, so the row is the full record of who got the
+	// new workspace. TargetType "tenant", TargetID the new workspace id.
+	AuditActionSystemTenantCreated AuditAction = "system.tenant_created"
+	// AuditActionSystemTenantDeleted fires when DELETE /tenants/:id
+	// succeeds. The handler refuses while other members remain, so the
+	// row records the Owner removing their own, now otherwise empty,
+	// workspace. System-scope like the creation above.
+	AuditActionSystemTenantDeleted AuditAction = "system.tenant_deleted"
+
 	// Runtime queue mutations are privileged SystemAdmin actions. Retrying an
 	// archived task can repeat its original side effects; deleting one removes
 	// the Redis failure record. Both must leave a platform audit trail.

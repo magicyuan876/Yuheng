@@ -38,8 +38,8 @@ type Tenant struct {
 	RetrieverEngines RetrieverEngines `yaml:"retriever_engines" json:"retriever_engines" gorm:"type:json"`
 	// Business/department information
 	Business string `yaml:"business"          json:"business"`
-	// Storage quota (Bytes), default is 10GB
-	StorageQuota int64 `yaml:"storage_quota"     json:"storage_quota"     gorm:"default:10737418240"`
+	// StorageQuota is in bytes; 0 means unlimited.
+	StorageQuota int64 `yaml:"storage_quota"     json:"storage_quota"`
 	// Storage used (Bytes)
 	StorageUsed int64 `yaml:"storage_used"      json:"storage_used"      gorm:"default:0"`
 	// Creation timestamp
@@ -113,9 +113,29 @@ type tenantAPIKeyCreateResponse struct {
 	Data    CreatedTenantAPIKey `json:"data"`
 }
 
-// CreateTenant creates a new tenant
+// CreateTenantRequest is the body of POST /api/v1/tenants. Only system
+// administrators, cross-tenant superusers and platform API keys may call
+// it. Every workspace is created with an Owner: OwnerEmail names an
+// existing user; when it is empty the caller becomes the Owner, which a
+// platform API key cannot, so a key must always set it.
+type CreateTenantRequest struct {
+	Tenant
+	OwnerEmail string `json:"owner_email,omitempty"`
+}
+
+// CreateTenant creates a new tenant owned by the caller. Platform API keys
+// have no identity to own a workspace and must use CreateTenantWithOwner.
 func (c *Client) CreateTenant(ctx context.Context, tenant *Tenant) (*Tenant, error) {
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/tenants", tenant, nil)
+	if tenant == nil {
+		return nil, fmt.Errorf("tenant is required")
+	}
+	return c.CreateTenantWithOwner(ctx, &CreateTenantRequest{Tenant: *tenant})
+}
+
+// CreateTenantWithOwner creates a new tenant and makes req.OwnerEmail its
+// Owner in the same request.
+func (c *Client) CreateTenantWithOwner(ctx context.Context, req *CreateTenantRequest) (*Tenant, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/tenants", req, nil)
 	if err != nil {
 		return nil, err
 	}

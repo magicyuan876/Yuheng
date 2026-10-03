@@ -123,7 +123,18 @@ func (s *tenantMemberService) emitAudit(ctx context.Context, entry *types.AuditL
 // auditActorRole picks up the caller's role at write-time. Empty if
 // auth middleware didn't set it (e.g. service-internal flows like
 // EnsureOwner during register, where there is no "caller").
-func auditActorRole(ctx context.Context) string {
+//
+// A system administrator managing a workspace other than their active one
+// (the /system/admin/tenants/:id/members routes) has no role in it; the
+// role in the context belongs to whatever workspace they were in at the
+// time, which would make the audit row claim an "owner" or "viewer" did
+// this. Record them as system_admin instead, the same actor role the
+// platform audit feed uses.
+func auditActorRole(ctx context.Context, tenantID uint64) string {
+	active, ok := types.TenantIDFromContext(ctx)
+	if (!ok || active != tenantID) && types.IsSystemAdminFromContext(ctx) {
+		return "system_admin"
+	}
 	return string(types.TenantRoleFromContext(ctx))
 }
 
@@ -194,7 +205,7 @@ func (s *tenantMemberService) AddMember(
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:     tenantID,
 		ActorUserID:  auditActor(ctx),
-		ActorRole:    auditActorRole(ctx),
+		ActorRole:    auditActorRole(ctx, tenantID),
 		Action:       types.AuditActionMemberAdded,
 		TargetType:   "tenant_member",
 		TargetUserID: userID,
@@ -302,6 +313,13 @@ func (s *tenantMemberService) HasAnyMembers(ctx context.Context, tenantID uint64
 	return s.repo.HasAnyMembers(ctx, tenantID)
 }
 
+// CountMembersByTenants proxies to the repository.
+func (s *tenantMemberService) CountMembersByTenants(
+	ctx context.Context, tenantIDs []uint64,
+) (map[uint64]int64, error) {
+	return s.repo.CountActiveByTenantIDs(ctx, tenantIDs)
+}
+
 // UpdateRole enforces the "cannot demote the last Owner" invariant before
 // delegating to the repository. Re-promoting an existing Owner is a no-op
 // from the invariant's perspective.
@@ -368,7 +386,7 @@ func (s *tenantMemberService) emitRoleChangeAudit(
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:     tenantID,
 		ActorUserID:  auditActor(ctx),
-		ActorRole:    auditActorRole(ctx),
+		ActorRole:    auditActorRole(ctx, tenantID),
 		Action:       types.AuditActionMemberRoleChanged,
 		TargetType:   "tenant_member",
 		TargetUserID: targetUserID,
@@ -473,7 +491,7 @@ func (s *tenantMemberService) emitRemovalAudit(
 	s.emitAudit(ctx, &types.AuditLog{
 		TenantID:     tenantID,
 		ActorUserID:  auditActor(ctx),
-		ActorRole:    auditActorRole(ctx),
+		ActorRole:    auditActorRole(ctx, tenantID),
 		Action:       action,
 		TargetType:   "tenant_member",
 		TargetUserID: targetUserID,

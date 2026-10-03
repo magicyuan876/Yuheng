@@ -214,10 +214,17 @@ type RegisterRequest struct {
 // Password is optional: when absent (or null), the service generates a
 // random one and returns it exactly once. Any provided value, the
 // empty string included, is subject to the password policy.
+//
+// TenantID and Role are optional and go together: when TenantID is set
+// the new account is added to that workspace in the same request, with
+// Role (default viewer). Without them the account belongs to no
+// workspace until an administrator adds it to one.
 type AdminCreateUserRequest struct {
-	Username string  `json:"username" binding:"required,min=2,max=50"`
-	Email    string  `json:"email"    binding:"required,email"`
-	Password *string `json:"password"`
+	Username string     `json:"username" binding:"required,min=2,max=50"`
+	Email    string     `json:"email"    binding:"required,email"`
+	Password *string    `json:"password"`
+	TenantID uint64     `json:"tenant_id"`
+	Role     TenantRole `json:"role"`
 }
 
 // LoginResponse represents a login response

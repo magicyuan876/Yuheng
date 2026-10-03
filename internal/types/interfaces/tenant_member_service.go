@@ -38,11 +38,13 @@ type TenantMemberService interface {
 	ListMembersPage(ctx context.Context, tenantID uint64, query string, page, pageSize int) ([]*types.TenantMember, int64, error)
 
 	// HasAnyMembers reports whether the tenant has at least one active
-	// member. The auth middleware uses this to recover orphan tenants
-	// (e.g. API-key-only tenants that never had a human member): the
-	// first human authenticating into such a tenant is auto-promoted
-	// to Owner.
+	// member.
 	HasAnyMembers(ctx context.Context, tenantID uint64) (bool, error)
+
+	// CountMembersByTenants counts active members per tenant in one
+	// query, for the system administrator's workspace list. Tenants
+	// without members are absent from the map.
+	CountMembersByTenants(ctx context.Context, tenantIDs []uint64) (map[uint64]int64, error)
 
 	// UpdateRole changes the role of an existing membership while
 	// enforcing the "cannot demote the last active Owner" invariant.

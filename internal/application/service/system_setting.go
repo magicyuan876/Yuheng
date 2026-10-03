@@ -169,44 +169,21 @@ var registry = map[string]settingSpec{
 			"self_serve = 任何人可注册账号；invite_only = 关闭公网注册，仅 Owner/Admin 可邀请。" +
 			"修改后立即生效，但谨慎对待 self_serve（公网会接受 spam）。",
 	},
-	// tenant.max_owned_per_user caps how many tenants a single non-superuser
-	// can create (and Own) via self-service POST /tenants. Read on every
-	// request — UI edits take effect immediately, no restart required. The
-	// EnvName is the same YUHENG_TENANT_MAX_OWNED_PER_USER that
-	// applyAuthAndTenantDefaults parses at boot, so a deployment that
-	// hasn't created a DB row keeps reading from env exactly as before.
-	// 0 = use the in-code default (10); negative = disable the cap entirely.
-	"tenant.max_owned_per_user": {
-		Type:     "int",
-		EnvName:  "YUHENG_TENANT_MAX_OWNED_PER_USER",
-		Default:  int64(10),
-		Category: "tenant",
-		Description: "每个非超管用户通过自助创建可拥有的最大空间数。每次创建空间时实时读取，" +
-			"修改后立即生效。0 表示使用内置默认值 10；负数表示完全关闭限制（不建议在公开部署使用）。",
-	},
-	"tenant.self_service_creation_enabled": {
-		Type:     "bool",
-		EnvName:  "YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED",
-		Default:  true,
-		Category: "tenant",
-		Description: "是否允许非超管用户主动创建空间。关闭后，普通用户只能通过邀请加入已有空间；" +
-			"跨空间超管仍可创建。修改后立即生效。",
-	},
 	// tenant.default_storage_quota_gb is the default storage quota (in GB)
 	// applied to a newly-created tenant when the caller doesn't specify
 	// one explicitly. Read at create time only — changing the value does
 	// NOT retroactively resize already-existing tenants (they keep the
-	// quota stored on their row at creation; superusers can edit
-	// individual tenants via the existing tenant-update path).
-	// 0 or negative = use the in-code default (10 GB).
+	// quota stored on their row at creation; the "apply to all" action
+	// rewrites them on demand). 0 = unlimited, the default: a workspace
+	// is the whole company's, and the quota checks skip a zero quota.
 	"tenant.default_storage_quota_gb": {
 		Type:     "int",
 		EnvName:  "YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB",
-		Default:  int64(10),
+		Default:  int64(0),
 		Category: "tenant",
 		Description: "新建空间时默认分配的存储配额（GB），包含向量、原文、文本、索引等。" +
 			"仅在创建时读取，修改后只对之后新建的空间生效，不会回写已存在的空间。" +
-			"0 或负数表示使用内置默认值 10GB。",
+			"0 表示不限制（默认）。",
 	},
 	// tenant.auto_accept_invitation: invite = auto-join switch (default false).
 	"tenant.auto_accept_invitation": {

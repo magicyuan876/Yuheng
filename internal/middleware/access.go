@@ -21,6 +21,11 @@ import (
 //     handler's authorizeTenantAccess, and the tenant member handler's
 //     resolveTenantIDFromPath.
 //
+//   - "may the caller manage the workspace catalog" — system
+//     administrators, cross-tenant superusers and platform API keys;
+//     used by the catalog routes (list / search / create workspaces)
+//     and projected to the SPA as the can_create_tenant capability.
+//
 //   - "can the caller access target tenant X" — used by the
 //     X-Tenant-ID branch in auth.go to decide whether to honour the
 //     header. Superusers, and anyone with an active row in the target
@@ -136,6 +141,47 @@ func RequireCrossTenantAccess(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// CanManageTenantCatalog reports whether the caller may operate on the
+// workspace catalog itself: list every workspace, create one, and look
+// into any workspace's membership. Three principals qualify:
+//
+//   - a platform API key (its route policy already carries the
+//     system_tenants_* capability check);
+//   - a system administrator, who runs the deployment;
+//   - a cross-tenant superuser, governed by IsCrossTenantSuperuser.
+//
+// A workspace Owner is deliberately not on the list: owning a workspace
+// says nothing about the catalog, and self-service workspace creation is
+// gone. Shared by the route guard below and the /auth/me capability so
+// the UI never advertises a button the API would refuse.
+func CanManageTenantCatalog(ctx context.Context, cfg *config.Config) bool {
+	if scope, ok := types.TenantAPIKeyScopeFromContext(ctx); ok {
+		return scope.IsPlatform()
+	}
+	return types.IsSystemAdminFromContext(ctx) || IsCrossTenantSuperuser(ctx, cfg)
+}
+
+// RequireTenantCatalogAccess gates a route on CanManageTenantCatalog.
+// Used by /tenants/all, /tenants/search and POST /tenants — the
+// endpoints that operate on the catalog rather than inside a workspace.
+// Like RequireCrossTenantAccess it ignores cfg.Tenant.EnableRBAC: the
+// catalog is always sensitive.
+func RequireTenantCatalogAccess(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		if CanManageTenantCatalog(ctx, cfg) {
+			c.Next()
+			return
+		}
+		uid, _ := types.UserIDFromContext(ctx)
+		logger.Warnf(ctx,
+			"[rbac] workspace catalog route blocked (not a system administrator): user=%s path=%s",
+			uid, c.Request.URL.Path)
+		_ = c.Error(apperrors.NewForbiddenError("Only system administrators can manage workspaces"))
+		c.Abort()
 	}
 }
 

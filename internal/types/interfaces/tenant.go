@@ -25,12 +25,16 @@ type TenantService interface {
 	DeleteTenant(ctx context.Context, id uint64) error
 	// ListAllTenants lists all tenants (for users with cross-tenant access permission)
 	ListAllTenants(ctx context.Context) ([]*types.Tenant, error)
+	// CountTenants returns how many workspaces the deployment has. The
+	// delete path uses it to keep the last one.
+	CountTenants(ctx context.Context) (int64, error)
 	// BulkSetStorageQuota overwrites every tenant's storage_quota with
 	// quotaBytes. Returns how many rows were affected. Used by the
 	// SystemAdmin "apply default to all tenants" action; bypasses the
 	// per-tenant whitelist on PUT /tenants/:id (which intentionally
-	// forbids storage_quota edits for Owners). quotaBytes must be > 0;
-	// callers are responsible for resolving GB→bytes.
+	// forbids storage_quota edits for Owners). quotaBytes of 0 means
+	// unlimited; negative values are rejected. Callers are responsible
+	// for resolving GB→bytes.
 	BulkSetStorageQuota(ctx context.Context, quotaBytes int64) (int64, error)
 	// SearchTenants searches tenants with pagination and filters
 	SearchTenants(ctx context.Context, keyword string, tenantID uint64, page, pageSize int) ([]*types.Tenant, int64, error)
@@ -48,6 +52,8 @@ type TenantRepository interface {
 	GetTenantsByIDs(ctx context.Context, ids []uint64) (map[uint64]*types.Tenant, error)
 	// ListTenants lists all tenants
 	ListTenants(ctx context.Context) ([]*types.Tenant, error)
+	// CountTenants counts the (non-deleted) tenants.
+	CountTenants(ctx context.Context) (int64, error)
 	// SearchTenants searches tenants with pagination and filters
 	SearchTenants(ctx context.Context, keyword string, tenantID uint64, page, pageSize int) ([]*types.Tenant, int64, error)
 	// UpdateTenant updates a tenant

@@ -18,6 +18,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/handler/dto"
 	"github.com/magicyuan876/yuheng/internal/logger"
+	"github.com/magicyuan876/yuheng/internal/middleware"
 	"github.com/magicyuan876/yuheng/internal/ratelimit"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
@@ -663,8 +664,10 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	// 同步返回当前用户的 memberships，让前端在页面刷新（仅命中 /auth/me）
 	// 后也能恢复 currentTenantRole，避免角色信息只在 login 那一刻可用。
 	memberships := h.userService.BuildLoginMemberships(ctx, user, tenant)
-	canCreateTenant := user.CanAccessAllTenants ||
-		resolveTenantSelfServiceCreationEnabled(ctx, h.configInfo, h.systemSettingSvc)
+	// Only system administrators (and the opt-in cross-tenant superuser)
+	// create workspaces; the same predicate guards POST /tenants, so the
+	// SPA never shows a create button the API would refuse.
+	canCreateTenant := middleware.CanManageTenantCatalog(ctx, h.configInfo)
 	autoAcceptInvitation := h.systemSettingSvc != nil &&
 		h.systemSettingSvc.GetBool(ctx, "tenant.auto_accept_invitation", "YUHENG_TENANT_AUTO_ACCEPT_INVITATION", false)
 	c.JSON(http.StatusOK, gin.H{

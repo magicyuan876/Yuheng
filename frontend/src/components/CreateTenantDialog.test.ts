@@ -9,6 +9,8 @@ import CreateTenantDialog from "./CreateTenantDialog.vue";
 // with it the form rule that refused a blank name. These tests check the
 // hand-written replacement: a name of only spaces is refused with the old
 // message, a valid one is trimmed and sent, and the parent hears about it.
+// The owner field is optional: empty means the caller, anything else must
+// look like an email and travels as owner_email.
 
 const createTenant = vi.fn();
 vi.mock("@/api/tenant", () => ({
@@ -91,7 +93,27 @@ test("a valid name is trimmed and sent, and the parent receives the new workspac
   submitButton().click();
   await flushPromises();
 
-  assert.deepEqual(createTenant.mock.calls[0], [{ name: "Lab", description: undefined }]);
+  assert.deepEqual(createTenant.mock.calls[0], [{ name: "Lab" }]);
   assert.deepEqual(wrapper.emitted("created"), [[tenant]]);
   assert.deepEqual(wrapper.emitted("update:visible")?.at(-1), [false]);
+});
+
+test("a malformed owner email is refused, a valid one is sent as owner_email", async () => {
+  createTenant.mockResolvedValue({ success: true, data: { id: 8, name: "Sales" } });
+  await mountDialog();
+  const name = dialog().querySelector<HTMLInputElement>("#create-tenant-name");
+  const owner = dialog().querySelector<HTMLInputElement>("#create-tenant-owner-email");
+  assert.ok(name && owner);
+  await type(name, "Sales");
+  await type(owner, "not-an-email");
+
+  submitButton().click();
+  await flushPromises();
+  assert.equal(createTenant.mock.calls.length, 0);
+  assert.ok(dialog().textContent?.includes(enUS.tenant.create.ownerEmailInvalid));
+
+  await type(owner, " lead@example.com ");
+  submitButton().click();
+  await flushPromises();
+  assert.deepEqual(createTenant.mock.calls[0], [{ name: "Sales", owner_email: "lead@example.com" }]);
 });

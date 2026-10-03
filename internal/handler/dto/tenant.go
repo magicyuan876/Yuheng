@@ -28,6 +28,10 @@ type TenantResponse struct {
 	CreatedAt          time.Time                 `json:"created_at"`
 	UpdatedAt          time.Time                 `json:"updated_at"`
 	DeletedAt          gorm.DeletedAt            `json:"deleted_at"`
+	// MemberCount is the number of active members. Only the catalog
+	// endpoints (/tenants/all, /tenants/search) fill it in, for the
+	// system administrator's workspace list; elsewhere it is omitted.
+	MemberCount *int64 `json:"member_count,omitempty"`
 }
 
 // NewTenantResponse converts a stored tenant into its HTTP response shape.

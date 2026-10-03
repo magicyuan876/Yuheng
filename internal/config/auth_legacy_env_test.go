@@ -34,8 +34,6 @@ func TestApplyAuthAndTenantDefaults_DisableRegistrationDrivesRegistrationMode(t 
 			t.Setenv("DISABLE_REGISTRATION", tc.disable)
 			// Other tenant env vars must not leak between cases.
 			t.Setenv("YUHENG_TENANT_ENABLE_RBAC", "")
-			t.Setenv("YUHENG_TENANT_MAX_OWNED_PER_USER", "")
-			t.Setenv("YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED", "")
 
 			cfg := &Config{Auth: &AuthConfig{RegistrationMode: tc.cfgMode}}
 			applyAuthAndTenantDefaults(cfg)
@@ -45,31 +43,6 @@ func TestApplyAuthAndTenantDefaults_DisableRegistrationDrivesRegistrationMode(t 
 			}
 		})
 	}
-}
-
-func TestApplyAuthAndTenantDefaults_SelfServiceTenantCreation(t *testing.T) {
-	t.Run("defaults enabled", func(t *testing.T) {
-		t.Setenv("YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED", "")
-		cfg := &Config{Tenant: &TenantConfig{}}
-
-		applyAuthAndTenantDefaults(cfg)
-
-		if !cfg.Tenant.IsSelfServiceCreationEnabled() {
-			t.Fatal("self-service tenant creation should default to enabled")
-		}
-	})
-
-	t.Run("environment disables yaml default", func(t *testing.T) {
-		t.Setenv("YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED", "false")
-		on := true
-		cfg := &Config{Tenant: &TenantConfig{SelfServiceCreationEnabled: &on}}
-
-		applyAuthAndTenantDefaults(cfg)
-
-		if cfg.Tenant.IsSelfServiceCreationEnabled() {
-			t.Fatal("environment override should disable self-service tenant creation")
-		}
-	})
 }
 
 // TestApplyAuthAndTenantDefaults_CrossTenantAccess is a regression test for the
