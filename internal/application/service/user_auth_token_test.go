@@ -298,3 +298,27 @@ func TestUserIDFromSignedTokenAcceptsExpiredToken(t *testing.T) {
 		t.Fatalf("userIDFromSignedToken(expired) = %q, want user-1", userID)
 	}
 }
+
+// Two sessions opened by the same user in the same second, in the same
+// workspace, must not share a token string: the token table is keyed by it,
+// so revoking one would revoke the other.
+func TestTokensIssuedInTheSameSecondAreDistinct(t *testing.T) {
+	ctx := context.Background()
+	svc := newAuthTestUserService(&stubAuthTokenRepo{tokens: map[string]*types.AuthToken{}})
+	user := &types.User{ID: "user-1", Email: "a@example.com"}
+
+	access1, refresh1, err := svc.generateTokensForTenant(ctx, user, 7)
+	if err != nil {
+		t.Fatalf("first token pair: %v", err)
+	}
+	access2, refresh2, err := svc.generateTokensForTenant(ctx, user, 7)
+	if err != nil {
+		t.Fatalf("second token pair: %v", err)
+	}
+	if access1 == access2 {
+		t.Error("two access tokens issued together are identical")
+	}
+	if refresh1 == refresh2 {
+		t.Error("two refresh tokens issued together are identical")
+	}
+}

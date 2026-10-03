@@ -968,8 +968,13 @@ func (s *userService) generateTokensForTenant(
 	user *types.User,
 	activeTenantID uint64,
 ) (accessToken, refreshToken string, err error) {
+	// Every token carries a unique id (jti). Without it two logins by the same
+	// user in the same second, scoped to the same workspace, produce the same
+	// string; the token table is keyed by that string, so revoking the first
+	// session silently revoked the second one too.
 	// Generate access token (expires in 24 hours)
 	accessClaims := jwt.MapClaims{
+		"jti":       uuid.New().String(),
 		"user_id":   user.ID,
 		"email":     user.Email,
 		"tenant_id": activeTenantID,
@@ -986,6 +991,7 @@ func (s *userService) generateTokensForTenant(
 
 	// Generate refresh token (expires in 7 days)
 	refreshClaims := jwt.MapClaims{
+		"jti":     uuid.New().String(),
 		"user_id": user.ID,
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
 		"iat":     time.Now().Unix(),
