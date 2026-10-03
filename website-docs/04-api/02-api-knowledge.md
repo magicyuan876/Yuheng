@@ -2,9 +2,9 @@
 
 路由注册：`internal/router/routes_knowledge.go` 的 `RegisterKnowledgeBaseRoutes`、`RegisterKnowledgeRoutes`、`RegisterKnowledgeFindingRoutes`、`RegisterKnowledgeStewardshipRoutes`。Handler：`internal/handler/knowledgebase.go`、`internal/handler/knowledge.go`、`internal/handler/knowledge_finding.go`、`internal/handler/knowledge_stewardship.go`。
 
-权限速记：读路由为 Viewer+ 且需对 KB 有 read 权限（自有，或经组织共享获得）；写路由为“KB 创建者 OR Admin+”且需 write 权限。API key：读需 `retrieve`，内容写需 `ingest`，KB 生命周期需 `manage_kbs`（均可被 full-access 覆盖），并受 KB 白名单约束。
+权限速记：知识库只能从拥有它的空间访问——KB 访问守卫对别的空间的知识库与不存在的 ID 一样返回 404。读路由为 Viewer+；写路由为“KB 创建者 OR Admin+”。下文的「KB read」/「KB write」是沿用的速记，都指路由挂了 KB 访问守卫（`KBAccess`，知识库须属于本空间）；读写的区别只在角色与所有权守卫上。API key：读需 `retrieve`，内容写需 `ingest`，KB 生命周期需 `manage_kbs`（均可被 full-access 覆盖），并受 KB 白名单约束。
 
-分块、标签与分块预览接口（`/chunks`、`/knowledge-bases/:id/tags`、`/chunker/preview`）在[分块与标签](./02-api-chunks.md)；知识库活动流 `GET /knowledge-bases/:id/activity` 在[租户与成员](./02-api-tenant.md)；知识库共享在[组织与共享](./02-api-org.md)。
+分块、标签与分块预览接口（`/chunks`、`/knowledge-bases/:id/tags`、`/chunker/preview`）在[分块与标签](./02-api-chunks.md)；知识库活动流 `GET /knowledge-bases/:id/activity` 在[租户与成员](./02-api-tenant.md)。
 
 ## 知识库（/api/v1/knowledge-bases）
 
@@ -23,7 +23,7 @@
 | `summary_model_id` | string | 否 | 摘要模型 ID |
 | `chunking_config` | object | 否 | 分块配置（chunk_size/overlap/separators/strategy…） |
 | `image_processing_config` / `vlm_config` / `asr_config` | object | 否 | 图像处理、VLM、语音识别配置 |
-| `storage_backend_id` | string | 否 | 新文件写入的存储后端；缺省绑定空间默认。响应里另有 `storage_backend`（`{id,name,provider,source,is_builtin}`），只对知识库所属空间返回；共享给其他空间时这两个字段都不返回 |
+| `storage_backend_id` | string | 否 | 新文件写入的存储后端；缺省绑定空间默认。响应里另有 `storage_backend`（`{id,name,provider,source,is_builtin}`） |
 | `vector_store_id` | string | 否 | 检索引擎实例绑定，仅创建时可设（非法返回 code 2200，不可用返回 2201） |
 | `faq_config` / `wiki_config` / `extract_config` / `indexing_strategy` | object | 否 | 类型相关配置 |
 | `question_generation_config` / `auto_tag_config` | object | 否 | 问题生成、自动打标配置 |
@@ -46,11 +46,9 @@
 | 字段 | 说明 |
 | --- | --- |
 | `vector_store_name` | 存储展示名；未绑定时为 `System default` |
-| `vector_store_source` | `env`（环境变量虚拟存储）/ `user`（数据库中创建的存储）/ `shared`（经组织共享访问的 KB）/ `unavailable`（绑定的存储已无法解析） |
+| `vector_store_source` | `env`（环境变量虚拟存储）/ `user`（数据库中创建的存储）/ `unavailable`（绑定的存储已无法解析） |
 | `vector_store_engine_type` | 引擎类型 |
 | `vector_store_status` | `available` / `unavailable`；`unavailable` 表示绑定的存储已被删除或未注册 |
-
-经组织共享访问（`source=shared`）时，`vector_store_id` 被移除，名称与引擎类型为空，避免泄漏属主空间的存储信息。
 
 ```bash
 curl -X POST $BASE/api/v1/knowledge-bases -H "Authorization: Bearer $TOKEN" \
@@ -59,13 +57,13 @@ curl -X POST $BASE/api/v1/knowledge-bases -H "Authorization: Bearer $TOKEN" \
 
 ### GET /api/v1/knowledge-bases
 
-用途：当前空间的知识库列表（不分页）。权限：Viewer+；API key `retrieve`/full；KB 白名单受限的 key 只看到白名单内的 KB。组织共享给本空间的 KB 用 `GET /shared-knowledge-bases`（见[组织与共享](./02-api-org.md)）。
+用途：当前空间的知识库列表（不分页）。权限：Viewer+；API key `retrieve`/full；KB 白名单受限的 key 只看到白名单内的 KB。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `creator` | string | 否 | `mine`（我创建的）/ `others`（同空间其他成员创建的）；不传返回全部 |
 
-响应：200 `{"success":true,"data":[KnowledgeBase]}`，每项附 `knowledge_count`、`chunk_count`、`processing_count`、`share_count`、`creator_name`、`is_pinned`/`pinned_at` 等统计与状态字段。
+响应：200 `{"success":true,"data":[KnowledgeBase]}`，每项附 `knowledge_count`、`chunk_count`、`processing_count`、`creator_name`、`is_pinned`/`pinned_at` 等统计与状态字段。
 
 ```bash
 curl $BASE/api/v1/knowledge-bases -H "X-API-Key: $API_KEY"
@@ -73,7 +71,7 @@ curl $BASE/api/v1/knowledge-bases -H "X-API-Key: $API_KEY"
 
 ### GET /api/v1/knowledge-bases/:id
 
-用途：知识库详情（共享 KB 携带 `my_permission`）。权限：Viewer+，KB read。
+用途：知识库详情。权限：Viewer+；别的空间的知识库返回 404。
 
 响应：200 `{"success":true,"data":{KnowledgeBase}}`
 
@@ -100,7 +98,7 @@ curl -X PUT $BASE/api/v1/knowledge-bases/kb-1 -H "Authorization: Bearer $TOKEN" 
 
 ### POST /api/v1/knowledge-bases/:id/rebuild-index
 
-用途：重建索引——逐篇重新解析 KB 内的全部文档，使修改后的 `indexing_strategy`（向量/关键词/Wiki/图谱）作用于已有文档。每篇文档按单篇 `reparse` 的规则处理，沿用其上传时保存的解析覆盖；草稿与删除中的文档跳过。异步执行：请求只统计文档数并排入 maintenance 队列，由后台任务分页逐篇提交解析，大库不会在请求里加载全部文档。权限：创建者 OR Admin+，KB write（组织共享需 editor）；API key `ingest`/full。无请求体。
+用途：重建索引——逐篇重新解析 KB 内的全部文档，使修改后的 `indexing_strategy`（向量/关键词/Wiki/图谱）作用于已有文档。每篇文档按单篇 `reparse` 的规则处理，沿用其上传时保存的解析覆盖；草稿与删除中的文档跳过。异步执行：请求只统计文档数并排入 maintenance 队列，由后台任务分页逐篇提交解析，大库不会在请求里加载全部文档。权限：创建者 OR Admin+；API key `ingest`/full。无请求体。
 
 同一 KB 已有重建在排队或进行中时返回 409，不会重复解析；FAQ 知识库没有可重新解析的文档，返回 400。没有可处理的文档时不排任务，返回 `document_count: 0`。
 
@@ -112,7 +110,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/kb-1/rebuild-index -H "Authorization: 
 
 ### DELETE /api/v1/knowledge-bases/:id
 
-用途：删除知识库，级联清理其下全部知识与分块（锁定为属主空间 + Admin；共享 editor 不可删，返回 403 `Only knowledge base owner can delete`）。权限：创建者 OR Admin+，KB write；API key `manage_kbs`/full。
+用途：删除知识库，级联清理其下全部知识与分块。权限：创建者 OR Admin+；API key `manage_kbs`/full。
 
 响应：200 `{"success":true,"message":"Knowledge base deleted successfully"}`
 
@@ -183,7 +181,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/copy -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/knowledge-bases/:id/duplicate
 
-用途：同步创建 KB 副本，只复制设置（分块、模型、索引策略、FAQ/Wiki 配置等），不复制知识条目、分块、FAQ 条目、Wiki 页面、索引、数据源绑定、分享关系与置顶状态。权限：Contributor+，源 KB read；API key `manage_kbs`/full。源 KB 必须属于调用者所在空间（否则 403 `No permission to duplicate this knowledge base`，不存在 404）。无请求体。
+用途：同步创建 KB 副本，只复制设置（分块、模型、索引策略、FAQ/Wiki 配置等），不复制知识条目、分块、FAQ 条目、Wiki 页面、索引、数据源绑定与置顶状态。权限：Contributor+，源 KB read；API key `manage_kbs`/full。源 KB 必须属于调用者所在空间（否则 403 `No permission to duplicate this knowledge base`，不存在 404）。无请求体。
 
 与 `/copy` 的区别：`/duplicate` 同步、只有设置、总是新建；`/copy` 异步、带全部内容、可写入已有目标库。
 
@@ -217,11 +215,11 @@ curl $BASE/api/v1/knowledge-bases/kb-1/move-targets -H "Authorization: Bearer $T
 
 ### GET /api/v1/knowledge-bases/:id/files
 
-用途：KB 范围文件代理（渲染共享 KB 内容中的图片；上下文 tenant 已被重写为 KB 属主）。权限：Viewer+，KB read；KB 受限 key 拒绝，全空间 `retrieve`/full key 放行。注册于 `serveKBScopedFiles`（`internal/router/files.go`），与其它文件访问方式的对比见[文件服务](./02-api-files.md)。
+用途：KB 范围文件代理，渲染知识库内容（分块、Wiki 页面）里嵌入的图片；只读本空间 `exports/` 区域的资源，不给原始上传文件。权限：Viewer+，KB 须属于本空间；KB 受限 key 拒绝，全空间 `retrieve`/full key 放行。注册于 `serveKBScopedFiles`（`internal/router/files.go`），与其它文件访问方式的对比见[文件服务](./02-api-files.md)。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `file_path` | string | 是 | `resource://<handle>` 引用；须属于 KB 属主空间、位于其 `exports/` 区域 |
+| `file_path` | string | 是 | `resource://<handle>` 引用；须属于本空间、位于其 `exports/` 区域 |
 
 响应：200 文件流（`Content-Type` 按资源记录推断；`Cache-Control: private`）。
 
@@ -327,7 +325,7 @@ curl "$BASE/api/v1/knowledge-bases/kb-1/knowledge?page=1&parse_status=completed"
 
 ### GET /api/v1/knowledge-bases/:id/knowledge/folders
 
-用途：获取知识库的文件夹目录树。整目录上传时目录结构会被保留（migration `000079` 起存在 `knowledges.folder_path` 列，早期把路径塞在 `file_name` 里的数据已回填）。权限：Viewer+ + KBAccessRead。
+用途：获取知识库的文件夹目录树。整目录上传时目录结构会被保留（migration `000079` 起存在 `knowledges.folder_path` 列，早期把路径塞在 `file_name` 里的数据已回填）。权限：Viewer+ + KBAccess。
 
 响应：200 `{"success":true,"data":[{KnowledgeFolderNode}]}`，节点字段：`path`、`name`（最后一段）、`document_count`（直接位于该目录的文档数）、`total_count`（含子目录）、`children`（按名称排序）。
 
@@ -337,7 +335,7 @@ curl $BASE/api/v1/knowledge-bases/kb-1/knowledge/folders -H "Authorization: Bear
 
 ### PUT /api/v1/knowledge-bases/:id/knowledge/folders
 
-用途：重命名或移动文件夹，连同其所有子目录一起改路径。目标路径已存在时两个文件夹合并；不允许移动到自己的子目录下。权限：KB owner 或 Admin+ + KBAccessWrite。
+用途：重命名或移动文件夹，连同其所有子目录一起改路径。目标路径已存在时两个文件夹合并；不允许移动到自己的子目录下。权限：KB owner 或 Admin+ + KBAccess。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
@@ -370,7 +368,7 @@ curl -X DELETE $BASE/api/v1/knowledge-bases/kb-1/knowledge -H "Authorization: Be
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `ids` | []string | 是 | 知识 ID（可重复传参或逗号分隔） |
-| `kb_id` | string | 否 | 限定 KB（校验访问权限；共享 KB 按属主空间查询） |
+| `kb_id` | string | 否 | 限定 KB（校验访问权限） |
 
 响应：200 `{"success":true,"data":[Knowledge]}`
 
@@ -480,7 +478,7 @@ curl -X POST $BASE/api/v1/knowledge/k-1/cancel-parse -H "Authorization: Bearer $
 
 ### GET /api/v1/knowledge/:id/download
 
-用途：下载原始源文件（比预览更严格：Contributor+ 且 KB write；组织共享 Viewer 不可下载源文件）。API key `retrieve`/full。
+用途：下载原始源文件（比预览更严格：Contributor+；Viewer 不可下载源文件）。API key `retrieve`/full。
 
 响应：200 二进制流（`Content-Type: application/octet-stream`，`Content-Disposition: attachment; filename="..."`）。
 
@@ -511,7 +509,7 @@ curl -X PUT $BASE/api/v1/knowledge/image/k-1/c-1 -H "Authorization: Bearer $TOKE
 
 ### GET /api/v1/knowledge/search
 
-用途：按文件名跨 KB 搜索知识（会话里 @文件 的选择器），范围是自有 KB 与共享给本空间的 KB；KB 白名单受限的 API key 只搜白名单内的 KB。权限：Viewer+；API key `retrieve`/full。
+用途：按文件名跨 KB 搜索知识（会话里 @文件 的选择器），范围是本空间的 KB；KB 白名单受限的 API key 只搜白名单内的 KB。权限：Viewer+；API key `retrieve`/full。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
@@ -543,7 +541,7 @@ curl $BASE/api/v1/knowledge/move/progress/task-1 -H "Authorization: Bearer $TOKE
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `updates` | map[string][]string | 是（`binding:"required,min=1"`） | knowledge_id → tag_ids |
-| `kb_id` | string | 否 | 限定 KB，按该 KB 校验 editor 权限（共享 KB 按属主空间处理）；不传时取 `updates` 中第一个知识所属的 KB 鉴权 |
+| `kb_id` | string | 否 | 限定 KB，按该 KB 校验写权限；不传时取 `updates` 中第一个知识所属的 KB 鉴权 |
 
 响应：200 `{"success":true}`
 
@@ -688,7 +686,7 @@ curl -X PATCH $BASE/api/v1/knowledge-bases/kb-1/findings/f-1 -H "Authorization: 
 
 ### POST /api/v1/knowledge-bases/:id/findings/scan
 
-用途：为知识库中所有已完成索引的文档安排一次重新检测（分批执行，已在排队的不重复安排）。仅知识库所属空间可发起，组织共享的 editor 返回 403。权限：KB 创建者 OR Admin+，KB write；API key `manage_kbs`/full。无请求体。
+用途：为知识库中所有已完成索引的文档安排一次重新检测（分批执行，已在排队的不重复安排）。权限：KB 创建者 OR Admin+；API key `manage_kbs`/full。无请求体。
 
 响应：200 `{"success":true,"data":{"queued":N}}`
 

@@ -133,7 +133,7 @@ flowchart TD
 
 所有 Wiki 路由挂在 `/api/v1/knowledgebase/:kb_id/wiki` 之下（`internal/router/routes_knowledge.go` 的 `RegisterWikiPageRoutes`），**没有免登录的公开访问模式**，读写均受 RBAC 与 KB 访问控制约束：
 
-### 读接口（Viewer + KBAccessRead）
+### 读接口（Viewer + KBAccess）
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -147,9 +147,9 @@ flowchart TD
 | GET | `/lint` | 质量检查结果 |
 | GET | `/revisions/*slug` | 版本历史列表；带 `?version=N` 取该版本全文 |
 
-`KBAccessRead` 覆盖：KB 所有者与组织共享。
+`KBAccess` 要求知识库属于调用者的空间（别的空间的知识库返回 404）。
 
-### 写接口（OwnedWikiKBOrAdmin + KBAccessWrite）
+### 写接口（OwnedWikiKBOrAdmin + KBAccess）
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |

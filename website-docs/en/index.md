@@ -5,7 +5,7 @@ titleTemplate: Yuheng
 
 # Yuheng documentation
 
-Yuheng is an open-source (MIT) enterprise knowledge platform: the knowledge layer for AI agents. It brings in documents, web pages and content synced from Feishu/Lark, Notion, Yuque, RSS, GitLab and Tencent ima, or written in its own optional collaborative documents; organizes them into knowledge bases, FAQ entries, an LLM-generated Wiki and an optional knowledge graph; answers questions with hybrid retrieval and cited, streamed answers; keeps the knowledge maintained through knowledge health (duplicates, divergent copies, documents due for review, answers people found unhelpful, each routed to a document owner); and exposes all of it through a REST API (`/api/v1`), an MCP server with 23 tools, a Go SDK, the `yuheng` CLI and a DeepSeek Harness plugin.
+Yuheng is an open-source (MIT) enterprise knowledge platform: the knowledge layer for AI agents. It brings in documents, web pages and content synced from Feishu/Lark, Notion, Yuque, RSS, GitLab and Tencent ima, or written in its own optional collaborative documents; organizes them into knowledge bases, FAQ entries, an LLM-generated Wiki and an optional knowledge graph; answers questions with hybrid retrieval and cited, streamed answers; keeps the knowledge maintained through knowledge health (duplicates, divergent copies, documents due for review, answers people found unhelpful, each routed to a document owner); and exposes all of it through a REST API (`/api/v1`), an MCP server with 22 tools, a Go SDK, the `yuheng` CLI and a DeepSeek Harness plugin.
 
 Yuheng is not an agent framework. It does not run agents; it is what agents call for knowledge they can trust.
 

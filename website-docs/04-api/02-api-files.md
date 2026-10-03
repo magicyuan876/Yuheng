@@ -26,7 +26,7 @@ curl "$BASE/files?file_path=resource://AbCdEfGhIjKlMnOpQrStUv" -H "Authorization
 
 ### GET /api/v1/knowledge-bases/:id/files
 
-用途：知识库范围的文件代理，用来渲染组织共享知识库内容里的图片（`/files` 只允许本空间资源，取不到属主空间的）。KB 访问守卫会把请求的空间改写为 KB 的属主空间；资源须属于该属主空间，且位于属主的 `exports/` 区域（正文图片与导出产物写在这里）——借阅方能看属主的正文图片，读不到属主的原始上传文件。权限：Viewer+，KB read；API key 需 `retrieve`/full，且不受 KB 白名单限制。查询参数：`file_path`（必填，`resource://`）。
+用途：知识库范围的文件代理，用来渲染知识库内容（分块、Wiki 页面）里嵌入的图片。先过 KB 访问守卫（知识库须属于本空间，否则 404）；资源须属于本空间，且位于 `exports/` 区域（正文图片与导出产物写在这里）——这条路由只渲染内容，不给原始上传文件（那走 `GET /knowledge/:id/download` 及其更严的权限）。权限：Viewer+；API key 需 `retrieve`/full，且不受 KB 白名单限制。查询参数：`file_path`（必填，`resource://`）。
 
 响应：200 文件流（`Cache-Control: private, max-age=86400`）。
 
@@ -37,7 +37,7 @@ curl "$BASE/api/v1/knowledge-bases/kb-1/files?file_path=resource://AbCdEfGhIjKlM
 
 ### GET /api/v1/sessions/:id/messages/:message_id/files
 
-用途：消息范围的文件代理：回答里引用的资源可能存放在另一个空间（例如引用了组织共享知识库的内容），授权依据是已持久化的消息本身，不接受客户端指定来源空间。消息不属于调用者的会话时返回 404。权限：Viewer+；API key `chat`/full。查询参数：`file_path`（必填，`resource://`）。
+用途：消息范围的文件代理：回答里引用的资源按已持久化的消息本身授权——消息引用了它，调用者能读这条消息，就能读它；不接受客户端指定来源空间。消息不属于调用者的会话时返回 404。权限：Viewer+；API key `chat`/full。查询参数：`file_path`（必填，`resource://`）。
 
 响应：200 文件流（`Cache-Control: private, max-age=86400`）。
 

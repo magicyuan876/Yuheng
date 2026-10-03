@@ -1,6 +1,6 @@
 # Web 前端（frontend/）
 
-Yuheng 的 Web 前端是一个基于 **Vue 3 + TypeScript + Vite** 的单页应用（SPA），承载知识库管理、知识健康、对话问答、在线文档、组织协作与系统设置等全部交互界面。构建产物由 nginx 容器托管，`/api`、`/files`、`/r/` 与 `/collab` 反向代理到后端服务。
+Yuheng 的 Web 前端是一个基于 **Vue 3 + TypeScript + Vite** 的单页应用（SPA），承载知识库管理、知识健康、对话问答、在线文档、空间与成员管理、系统设置等全部交互界面。构建产物由 nginx 容器托管，`/api`、`/files`、`/r/` 与 `/collab` 反向代理到后端服务。
 
 ## 技术栈总览
 
@@ -61,7 +61,7 @@ flowchart TB
 
     subgraph app["应用层"]
         ROUTER["路由 (src/router/index.ts)<br/>导航守卫: 登录 / 租户 / 部署能力 / SystemAdmin"]
-        VIEWS["视图层 (src/views)<br/>knowledge / chat / creatChat / docs / settings / organization / system ..."]
+        VIEWS["视图层 (src/views)<br/>knowledge / chat / creatChat / docs / settings / system ..."]
         COMP["通用组件 (src/components)<br/>ui/ 为 shadcn-vue 组件"]
     end
 
@@ -122,8 +122,7 @@ flowchart TB
 | `/register` | `registerByInvite` | `src/views/auth/Login.vue` | 邀请注册落地页：复用 Login 组件，挂载时检测 `?token=xxx` 切换到邀请注册模式 |
 | `/d/:key` | `docsPublicLink` | `src/views/docs/public/PublicDoc.vue` | 在线文档的公开分享链接，匿名访问 |
 | `/s/:spaceId`、`/s/:spaceId/:short` | `docsPublicSpace` / `docsPublicSpacePage` | `src/views/docs/public/PublicSpace.vue`、`PublicDoc.vue` | 公开空间及其页面，匿名访问 |
-| `/onboarding/workspace` | `workspaceOnboarding` | `src/views/auth/WorkspaceOnboarding.vue` | 无租户用户的工作空间引导页（创建或等待被邀请），需要登录但不要求已有租户 |
-| `/join` | `joinOrganization` | 重定向 | 加入组织邀请链接，把 `?code=` 转成 `invite_code` 参数并跳到 `/platform/organizations` |
+| `/onboarding/workspace` | `workspaceOnboarding` | `src/views/auth/WorkspaceOnboarding.vue` | 还没有加入任何空间的用户的引导页：提示联系管理员、查看待处理邀请；系统管理员在这里可以直接创建空间（`capabilities.can_create_tenant`）。需要登录但不要求已有租户 |
 | `/platform` | `Platform` | `src/views/platform/index.vue` | 平台主布局（左侧菜单 + 路由出口 + 全局设置模态 + 拖拽上传遮罩），默认重定向到知识库列表 |
 | `/platform/dev/markdown` | `markdownTest` | `src/views/dev/MarkdownTestPage.vue` | 仅开发模式（`import.meta.env.DEV`）注册的 Markdown 渲染测试页 |
 
@@ -139,7 +138,6 @@ flowchart TB
 | `/platform/docs` | `docsSpaceList` | `src/views/docs/SpaceList.vue` | 在线文档空间列表（需部署能力 `docs`） |
 | `/platform/docs/spaces/:slug/:pageSlug?` | `docsSpace` | `src/views/docs/SpaceHome.vue` | 空间首页与页面（同一路由记录，切换页面时页面树保持状态） |
 | `/platform/docs/spaces/:slug/settings` | `docsSpaceSettings` | `src/views/docs/SpaceSettings.vue` | 空间设置 |
-| `/platform/organizations` | `organizationList` | `src/views/organization/OrganizationList.vue` | 组织列表：创建/加入组织、成员与共享资源管理（需部署能力 `organizations`） |
 | `/platform/settings` | `settings` | `src/views/settings/Settings.vue` | 设置中心（全屏模态形态），分区见下方「设置中心的分区与可见性」 |
 
 在线文档模块的功能说明见[在线文档](../03-features/07-docs.md)。
@@ -151,30 +149,29 @@ flowchart TB
 | 分组 | 分区（`section` 值） |
 | --- | --- |
 | 账户 | `general`（个人偏好）、`userprofile` |
-| 空间 | `tenant`（空间信息）、`members`（成员）、`groups`（用户组，属于在线文档的权限模型）、`chathistory` |
+| 空间 | `tenant`（空间信息）、`members`（成员）、`groups`（空间组）、`apikeys`（API Key）、`chathistory` |
 | 模型与运行 | `models`、`ollama` |
 | 数据与扩展 | `vectorstore`、`parser`、`storage`、`websearch` |
-| 系统管理 | `system-global`、`runtime-queues`、`platform-api-keys`、`system-audit-log` |
+| 系统管理 | `users-workspaces`（用户与空间：空间目录、任意空间的成员、创建账号、重置密码、系统管理员）、`system-global`、`runtime-queues`、`platform-api-keys`、`system-audit-log` |
 | 平台 | `system`（版本信息）、`enterprise`（企业版说明，只读） |
 
 可见性由以下规则共同决定，**前端只做收敛展示，后端路由守卫才是权威**：
 
 - **空间角色门槛**：`frontend/src/config/settingsAccess.ts` 的 `SETTINGS_SECTION_MIN_ROLE` 给每个分区规定最低角色。`general`、`models`、`system`、`userprofile`、`tenant`、`members`、`groups`、`enterprise` 从 `viewer` 起可见；`ollama`、`websearch`、`chathistory`、`vectorstore`、`parser`、`storage` 要求 `admin`。`SETTINGS_MANAGEMENT_SHORTCUT_MIN_ROLE` 给头像菜单里标着「管理」的快捷入口更高的门槛（成员管理要 `owner`，模型管理要 `admin`）。跨空间超管（`canAccessAllTenants`）不受角色门槛限制。
-- **系统管理员白名单**：`SYSTEM_ADMIN_SETTINGS_SECTIONS`（`system-global`、`runtime-queues`、`platform-api-keys`、`system-audit-log`）只对系统管理员显示，与空间角色无关，详见[平台管理与系统管理员](../03-features/20-platform-admin.md)。
+- **系统管理员白名单**：`SYSTEM_ADMIN_SETTINGS_SECTIONS`（`users-workspaces`、`system-global`、`runtime-queues`、`platform-api-keys`、`system-audit-log`）只对系统管理员显示，与空间角色无关，详见[平台管理与系统管理员](../03-features/20-platform-admin.md)。
 - **集中管控模式**：系统设置 `governance.centralized_infra` 打开时，`PLATFORM_MANAGED_SETTINGS_SECTIONS`（`models`、`ollama`、`websearch`、`vectorstore`、`parser`、`storage`）只对系统管理员与跨空间超管显示。建库时的选择器走各自的 Viewer+ 读接口，所以隐藏入口不影响普通成员挑选平台资源。该开关由 `stores/governance.ts` 通过 `GET /api/v1/system/governance` 读取。
-- **部署能力**：`SETTINGS_SECTION_CAPABILITY` 把 `websearch`、`vectorstore`、`storage` 分别对应到部署能力 `settings.websearch`、`settings.vectorstore`、`settings.storage`，`groups` 对应 `docs`。后端明确返回 `supported: false` 时入口隐藏；探测失败时保持可见。
+- **部署能力**：`SETTINGS_SECTION_CAPABILITY`（`src/config/deploymentCapabilities.ts`）把 `websearch`、`vectorstore`、`storage` 分别对应到部署能力 `settings.websearch`、`settings.vectorstore`、`settings.storage`。`groups` 不在其中：空间组是空间级能力，后端无论在线文档模块开没开都提供。后端明确返回 `supported: false` 时入口隐藏；探测失败时保持可见。
 - **推广分区**：`enterprise` 在运行时配置 `HIDE_ENTERPRISE_PROMOTION` 为 true 时对所有人隐藏。
 
 ### 知识库编辑弹窗的分区
 
-不少配置**不在设置中心，而在知识库编辑弹窗里**（`src/views/knowledge/KnowledgeBaseEditorModal.vue`），因为它们按库生效。侧栏分区按五组组织：
+不少配置**不在设置中心，而在知识库编辑弹窗里**（`src/views/knowledge/KnowledgeBaseEditorModal.vue`），因为它们按库生效。侧栏分区按四组组织：
 
 | 分组 | 分区（`key`） | 备注 |
 | --- | --- | --- |
 | 基础 | `basic`、`models`、`vectorStore`、`faq` | 名称、类型、复审周期（`review_interval_days`）、对话/向量/摘要模型；`faq` 仅 FAQ 类型库；`vectorStore` 绑定后不可改 |
 | 处理 | `parser`、`chunking`、`multimodal`、`asr`、`graph`、`advanced` | 仅文档类型库：解析引擎、分块参数、图片理解、语音转写、知识图谱、高级项 |
 | 数据 | `storage`、`datasource` | `datasource` 仅编辑模式，飞书 / Notion / 语雀 / RSS 同步配在这里 |
-| 集成 | `share` | 仅编辑模式，共享到组织 |
 | 管理 | `activity` | 知识库活动流，按权限显示 |
 
 ### 知识健康相关界面
@@ -203,8 +200,8 @@ flowchart TB
 1. **OIDC 回调放行**：URL hash 含 `oidc_result=` / `oidc_error=` 时直接放行，交由 `App.vue` 消费；
 2. **公开路由放行**：`requiresAuth: false` 或 `requiresInit: false` 的路由（登录、注册、在线文档公开链接）直接放行；已登录用户访问 `/login` 被送回知识库列表或工作空间引导页；
 3. **会话恢复**：未登录时先用 `localStorage` 中的 `yuheng_token` 调 `getCurrentUser()` 恢复会话（同时刷新 memberships 与 `can_create_tenant` 等能力）；
-4. **租户门槛**：已登录但无有效租户 → 跳 `/onboarding/workspace`；
-5. **部署能力门槛**：并行等待 `deploymentCapabilities` 与 `governance` 两个 store 加载，路由声明了 `requiredCapability`（`docs`、`organizations`）而后端不支持时提示并跳回知识库列表；首次通过时顺带刷新上传上限（`GET /api/v1/system/upload-limits`）；
+4. **租户门槛**：已登录但没有任何可用空间（`tenant_required`）→ 跳 `/onboarding/workspace`；
+5. **部署能力门槛**：并行等待 `deploymentCapabilities` 与 `governance` 两个 store 加载，路由声明了 `requiredCapability`（`docs`）而后端不支持时提示并跳回知识库列表；首次通过时顺带刷新上传上限（`GET /api/v1/system/upload-limits`）；
 6. **SystemAdmin 门槛**：`requiresSystemAdmin` 路由对非系统管理员跳回知识库列表（仅 UI 层拦截，服务端另有校验）。
 
 ## 状态管理（Pinia）
@@ -220,11 +217,9 @@ flowchart TB
 | `stores/chatResources.ts` | `useChatResourcesStore` | 空间级资源缓存（TTL 60s）：知识库、模型列表，供聊天/新建对话选择器复用 |
 | `stores/editorResources.ts` | `useEditorResourcesStore` | 编辑器/设置相关资源缓存（TTL 60s） |
 | `stores/commandPalette.ts` | `useCommandPaletteStore` | 全局命令面板开关与查询；最近搜索按 (user, tenant) 作用域存储 |
-| `stores/organization.ts` | `useOrganizationStore` | 组织协作：组织列表、成员、共享知识库、加入申请与审核、角色升级 |
-| `stores/organizationState.ts` | 纯函数模块 | 组织列表 upsert / merge 等纯逻辑（配套单测 `organizationState.test.ts`） |
 | `stores/settings.ts` | `useSettingsStore` | 对话输入栏配置：选中的知识库/文件/标签、当前对话模型、Ollama 地址、Web 搜索开关，以及进入历史会话时的快照/还原 |
 | `stores/settingsStorage.ts` | 纯函数模块 | `loadSettings`：从 `localStorage` 读取设置并铺在默认值之上，损坏时回退到默认值（配套 `settingsStorage.test.ts`） |
-| `stores/menu.ts` | `useMenuStore` | 左侧导航菜单：新建对话、知识库、在线文档（需 `docs` 能力）、组织、设置、退出 |
+| `stores/menu.ts` | `useMenuStore` | 左侧导航菜单：新建对话、知识库、在线文档（需 `docs` 能力）、设置、退出 |
 | `stores/knowledge.ts` | `knowledgeStore` | 知识卡片列表与总数（轻量） |
 | `stores/ui.ts` | `useUIStore` | 全局 UI 状态：设置模态、知识库编辑模态、手工文档编辑器、侧栏折叠等 |
 | `stores/uploadConfirm.ts` | `useUploadConfirmStore` | 上传/URL 导入/手工录入/重新解析前的处理参数确认对话框状态 |
@@ -244,8 +239,8 @@ flowchart TB
 | 模块 | 职责 |
 | --- | --- |
 | `api/auth/` | 登录、注册、OIDC、`getCurrentUser` 会话恢复 |
-| `api/tenant/`（`index` / `members` / `invitations` / `audit-log`） | 租户（工作空间）信息、成员管理、邀请、审计日志 |
-| `api/organization/` | 组织 CRUD、成员、共享知识库、加入申请 |
+| `api/tenant/`（`index` / `members` / `invitations` / `groups` / `audit-log`） | 租户（工作空间）信息、成员管理、邀请、空间组、审计日志 |
+| `api/system/` | 系统管理：设置、队列、平台 API Key、系统管理员、创建用户（可带空间与角色）、任意空间的成员（`/system/admin/tenants/:id/members*`） |
 | `api/knowledge-base/` | 知识库 CRUD 与文件/知识条目管理 |
 | `api/findings/` | 知识健康：检测结果列表与摘要、忽略/重开、指派、取代、重新检测、我的待办 |
 | `api/stewardship/` | 文档负责人与复审确认（`/knowledge/:id/stewardship`、`/owner`、`/review`） |

@@ -124,7 +124,7 @@ const features = [
   {
     icon: 'mcp',
     title: 'MCP Server 集成',
-    desc: '通过 yuheng-mcp（Python MCP Server，23 个工具）把检索、问答与知识库管理暴露给 Claude、Cursor 等 MCP 客户端；同样的能力也覆盖在 REST API 与 Go SDK。',
+    desc: '通过 yuheng-mcp（Python MCP Server，22 个工具）把检索、问答与知识库管理暴露给 Claude、Cursor 等 MCP 客户端；同样的能力也覆盖在 REST API 与 Go SDK。',
     href: '/03-features/08-mcp',
     tag: '工具生态',
   },
@@ -236,7 +236,6 @@ const map = [
       { text: '分块与标签', link: '/04-api/02-api-chunks' },
       { text: '模型与初始化', link: '/04-api/02-api-model-system' },
       { text: '系统与平台管理', link: '/04-api/02-api-system' },
-      { text: '组织与共享', link: '/04-api/02-api-org' },
       { text: '租户与成员', link: '/04-api/02-api-tenant' },
     ],
   },

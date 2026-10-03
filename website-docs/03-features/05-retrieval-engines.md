@@ -54,7 +54,7 @@
 
 检索入口 `HybridSearch`（`knowledgebase_search.go`）按 KB 的绑定关系选择引擎：
 
-1. `resolveStoreGroups` 把参与检索的 KB 按 `(VectorStoreID, 属主租户)` 分组；
+1. `resolveStoreGroups` 把参与检索的 KB 按 `VectorStoreID` 分组（所有 KB 都属于请求的租户，别的空间的知识库在更早的守卫处就按不存在处理）；
 2. 每组调用 `retriever.CreateRetrieveEngineForKB`（`factory.go`）：
    - KB 未绑定 store（`VectorStoreID` 为空，当前默认）→ 走租户的 `GetRetrieverEngines()`：租户配置了 `RetrieverEngines.Engines` 则用之，否则 `GetDefaultRetrieverEngines()` 按 `RETRIEVE_DRIVER` 环境变量生成（`internal/types/tenant.go`）；
    - KB 绑定了 store → 先 `StoreOwnedBy`（`ownership.go`）校验租户属主（防跨租户探测，失败返回 `ErrVectorStoreForbidden`），再按 store ID 取实例（必要时按需重建，未注册返回 `ErrVectorStoreNotFound`，暂不可用返回 `ErrVectorStoreUnavailable`），包装为单成员 Composite；
@@ -69,7 +69,7 @@ flowchart TD
     REG --> BET["byEngineType: postgres"]
     REG --> BSI["byStoreID: store-uuid 到引擎实例"]
 
-    Q["HybridSearch(kbIDs, params)"] --> GRP["resolveStoreGroups 按 (VectorStoreID, 属主租户) 分组"]
+    Q["HybridSearch(kbIDs, params)"] --> GRP["resolveStoreGroups 按 VectorStoreID 分组"]
     GRP --> F1{"KB 绑定 VectorStore ?"}
     F1 -- "否 (默认)" --> TEN["租户 GetRetrieverEngines 或 RETRIEVE_DRIVER 默认"]
     TEN --> BET
@@ -182,7 +182,7 @@ sequenceDiagram
     H->>H: 授权校验 + validateSameEmbeddingModel
     H->>H: 过召回 matchCount = max(topK*5,50)*n, 上限500
     H->>H: GetQueryEmbedding 每模型身份一次
-    H->>G: 按 (VectorStoreID, 属主租户) 分组
+    H->>G: 按 VectorStoreID 分组
     G->>G: CreateRetrieveEngineForKB 解析引擎
     G->>G: buildRetrievalParams (FAQ库/文档库分索引路由)
     H->>C: retrieveFromStores (errgroup 并发上限4, 每组30s)

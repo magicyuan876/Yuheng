@@ -10,7 +10,7 @@ Yuheng 本身**不是智能体框架**：它不运行智能体、不编排工具
  接入            组织              问答               维护                开放
  ────────────    ──────────────    ───────────────    ────────────────    ──────────────
  文件与网页      知识库与分块      混合检索 + 重排    重复与内容出入      REST /api/v1
- 数据源同步      FAQ 与标签        带引用的流式问答    定期复核            MCP（23 个工具）
+ 数据源同步      FAQ 与标签        带引用的流式问答    定期复核            MCP（22 个工具）
  在线协同文档    自动 Wiki         联网搜索           回答反馈            Go SDK · CLI
                  知识图谱（可选）                      负责人与待办
 ```
@@ -19,7 +19,7 @@ Yuheng 本身**不是智能体框架**：它不运行智能体、不编排工具
 - **组织**：知识库、树形文件夹与标签、可配置的分块、FAQ 问答对、由 LLM 生成的 Wiki，可选的 Neo4j 知识图谱。
 - **问答**：向量 + BM25 混合检索、RRF 融合、Rerank 重排、查询改写；回答流式输出，每条都链接回来源分块；可选联网搜索。
 - **维护**：**知识健康**在内容变化时比对同一知识库的文档，找出重复和「几乎一样却不一样」的内容，按复核周期提醒无人确认的文档，把被标为「没帮助」的回答交给被引用文档的负责人；每个问题都派给具体的人，汇总进个人待办。
-- **开放**：界面上能做的事都有 REST 接口（`/api/v1`，JWT 或细粒度能力的 API Key），另有 MCP Server（23 个工具）、Go SDK、`yuheng` 命令行与 DeepSeek Harness 插件。
+- **开放**：界面上能做的事都有 REST 接口（`/api/v1`，JWT 或细粒度能力的 API Key），另有 MCP Server（22 个工具）、Go SDK、`yuheng` 命令行与 DeepSeek Harness 插件。
 
 当前版本 0.1.0，处于预览阶段：`/api/v1` 在 0.x 期间仍可能调整，MCP 工具名保持稳定。Yuheng 源自腾讯 WeKnora，现为独立演进的分支，架构已大幅重构，两者不互通。
 
@@ -35,7 +35,7 @@ Yuheng 本身**不是智能体框架**：它不运行智能体、不编排工具
 | 模型绑定单一厂商 | 模型抽象层：Ollama 本地模型与 OpenAI 兼容的远程接口均可，LLM / Embedding / Rerank / VLM / ASR 分类管理 |
 | 数据安全与私有化 | 全栈私有部署；数据库里的 API Key 等凭据以 AES-256-GCM 加密（`SYSTEM_AES_KEY`）；多租户隔离、RBAC 角色鉴权、审计日志、登录限流 |
 | 智能体拿不到企业知识 | 检索、问答、读取文档与写入知识都有 REST 接口和 MCP 工具，API Key 可按能力与知识库限定范围 |
-| 团队协作 | 工作空间 + 四级成员角色 + 组织（Organization）跨空间共享知识库 + 邀请机制；在线文档支持多人实时协同 |
+| 团队协作 | 一个企业一个工作空间，空间内知识库任意多；四级成员角色、空间组、邀请机制；系统管理员统一管理空间与账号；在线文档支持多人实时协同 |
 
 ## 核心概念
 
@@ -45,12 +45,12 @@ Yuheng 本身**不是智能体框架**：它不运行智能体、不编排工具
 
 | 概念 | 说明 |
 | --- | --- |
-| 租户 Tenant | 即「工作空间」。持有存储配额（`StorageQuota`，默认 10GB）、检索参数（`RetrievalConfig`）、上下文配置（`ContextConfig`）、联网搜索、解析引擎配置，以及默认存储后端。所有知识库、模型、会话都归属某个工作空间 |
-| 用户 User | 全局唯一的用户名与邮箱，`TenantID` 指向其主工作空间；`IsSystemAdmin` 标记平台级系统管理员，`CanAccessAllTenants` 标记可跨空间访问的超管 |
+| 租户 Tenant | 即「工作空间」，一个企业通常只有一个，由部署的首个注册者创建，再建只有系统管理员可以。持有存储配额（`StorageQuota`，默认不限）、检索参数（`RetrievalConfig`）、上下文配置（`ContextConfig`）、联网搜索、解析引擎配置，以及默认存储后端。所有知识库、模型、会话都归属某个工作空间 |
+| 用户 User | 全局身份：唯一的用户名与邮箱，本身不属于任何工作空间，通过成员关系进入空间（注册只建账号）；`IsSystemAdmin` 标记平台级系统管理员，`CanAccessAllTenants` 标记可跨空间访问的超管 |
 | 成员 TenantMember | 用户与工作空间的多对多关系，携带角色与状态（`active` / `invited` / `suspended`） |
 | 角色 TenantRole | 四级：`owner`（完全控制）> `admin`（管理成员、模型与集成）> `contributor`（创建知识库）> `viewer`（只读） |
 | API Key | 机器访问凭证，请求头 `X-API-Key` 携带。分 `tenant` / `platform` 两种作用域；可以是 `full_access`，也可以只授予部分能力（`retrieve`、`chat`、`ingest`、`manage_kbs`、`manage_models` 等），并可用 `knowledge_base_ids` 限定可访问的知识库 |
-| 组织 Organization | 跨空间协作单元：邀请码加入，`admin` / `editor` / `viewer` 三级组织角色，把知识库共享给其他空间 |
+| 空间组 TenantGroup | 空间内的一组成员，作为一个授权主体使用（在线文档的空间成员与页面授权可以授给组）；`source` 为 SSO 组映射预留 |
 
 ### 知识
 
@@ -103,7 +103,7 @@ flowchart TB
         T["Tenant 工作空间"]
         TM["TenantMember 角色 owner/admin/contributor/viewer"]
         AK["API Key X-API-Key"]
-        ORG["Organization 跨空间组织"]
+        TG["TenantGroup 空间组"]
     end
     subgraph knowledge["知识"]
         KB["KnowledgeBase document/faq"]
@@ -151,9 +151,9 @@ flowchart TB
 - **检索**：向量 + BM25 混合检索、RRF 融合、Rerank、查询改写与扩展、意图识别（问候、闲聊、追问、联网搜索等）。检索引擎只有 PostgreSQL（ParadeDB `pg_search` + pgvector）一种。见[检索引擎与向量存储](../03-features/05-retrieval-engines.md)。
 - **问答**：流式 SSE 回答、检索进度、可点击的引用、多轮上下文压缩、会话内临时附件、回答反馈；联网搜索支持 12 个提供商（Bing、Google、DuckDuckGo、Tavily、百度、智谱、Exa、秘塔、Firecrawl、Keenable、Ollama、自建 SearXNG）。见[会话与对话体验](../03-features/18-chat-experience.md)、[网络搜索与网页抓取](../03-features/11-web-search.md)。
 - **知识健康**：内容比对（重复 / 有出入，标出差异）、定期复核、回答反馈、文档负责人、自动派发与个人待办、以一份取代另一份或确认仍然有效。见[知识健康](../03-features/22-knowledge-health.md)。
-- **多租户与安全**：RBAC 角色鉴权（默认开启）、组织与共享、审计日志（默认保留 90 天）、OIDC 单点登录、注册策略（默认第一个账号成为系统管理员、之后关闭公开注册）、SSRF 防护、凭据加密、登录限流。见[租户、用户与认证授权](../03-features/01-tenant-auth.md)、[平台管理与系统管理员](../03-features/20-platform-admin.md)。
+- **多租户与安全**：RBAC 角色鉴权（默认开启）、空间组、审计日志（默认保留 90 天）、OIDC 单点登录、注册策略（默认第一个账号创建默认空间并成为系统管理员、之后关闭公开注册；再建空间与账号由系统管理员统一管理）、SSRF 防护、凭据加密、登录限流。见[租户、用户与认证授权](../03-features/01-tenant-auth.md)、[平台管理与系统管理员](../03-features/20-platform-admin.md)。
 - **运维与可观测性**：`/health` 存活与 `/ready` 就绪探针、启动时自动迁移、Langfuse 追踪、评估任务、Swagger（`GIN_MODE=debug` 时）。见[可观测性与审计](../03-features/16-observability.md)、[评估能力](../03-features/15-evaluation.md)、[备份与升级](./05-backup-and-upgrade.md)。
-- **开放接口**：REST API（`/api/v1`）+ API Key、MCP Server（`mcp-server/`，23 个工具，stdio / SSE / HTTP）、Go SDK（`client/`）、`yuheng` 命令行（`cli/`）、DeepSeek Harness 插件（`packages/dsh-yuheng/`）。见 [MCP 集成](../03-features/08-mcp.md)、[API 总览](../04-api/01-api-overview.md)、[命令行工具](../05-clients/02-cli.md)、[Go SDK](../05-clients/03-go-sdk.md)。
+- **开放接口**：REST API（`/api/v1`）+ API Key、MCP Server（`mcp-server/`，22 个工具，stdio / SSE / HTTP）、Go SDK（`client/`）、`yuheng` 命令行（`cli/`）、DeepSeek Harness 插件（`packages/dsh-yuheng/`）。见 [MCP 集成](../03-features/08-mcp.md)、[API 总览](../04-api/01-api-overview.md)、[命令行工具](../05-clients/02-cli.md)、[Go SDK](../05-clients/03-go-sdk.md)。
 
 ## 系统组件一览
 

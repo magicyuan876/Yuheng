@@ -17,14 +17,14 @@ If you want to integrate through the API, skip to section 7, which has a chain o
 
 The first visit lands on the sign-in page. Registration is a tab on the same page, and it is only shown while registration is open (the frontend decides from `/auth/config`). There is no built-in default account:
 
-- **On a fresh deployment, the first account you register becomes the system administrator of the whole deployment**, and also gets a workspace of its own (you are its Owner). After that, public registration closes automatically and other people join by invitation.
+- **On a fresh deployment, the first account you register becomes the system administrator of the whole deployment** and creates the deployment's default workspace (the registration page shows an extra "workspace name" field at that point, defaulting to "Default Workspace"; you are its Owner). After that, public registration closes automatically and other people join by invitation, or you create their accounts under Settings, Users & workspaces, placing them in the workspace as you do.
 - To keep registration open, set `DISABLE_REGISTRATION=false`. To close it from the start (accounts are created some other way), set `DISABLE_REGISTRATION=true`. When it is not set, the default `auto` mode applies: registration is open only until the first user exists. A system administrator can also change the registration mode after signing in, under Settings, System Settings (key `auth.registration_mode`; it takes effect immediately, no restart, and the database value takes precedence over the environment variable).
 
 Worth knowing:
 
 - Usernames are 2 to 50 characters. The registration page requires a password of 8 to 32 characters with letters and digits (a direct call to `POST /auth/register` only checks for at least 6, but use 8 or more anyway).
 - To invite members, sign in and send invitations under Settings, Member Management (an in-app invitation, or an invitation link). Invited people register through the invitation and are not affected by the registration switch above.
-- If the deployment sets the default workspace policy to `tenantless` (`auth.default_tenant_mode`), registering does **not** create a workspace. You are sent to `/onboarding/workspace` and must create one or accept an invitation before you can continue.
+- Registration only creates an account, never a workspace: anyone who registers after the first account (for example with `DISABLE_REGISTRATION=false`) signs in to a "your account is not in any workspace yet" page and needs a workspace administrator's invitation, or a system administrator to add them, before they can continue. One company normally needs just this one default workspace with any number of knowledge bases in it; only a system administrator can create further workspaces.
 
 ::: tip Workspace Owner is not the same as System Administrator
 These are two different kinds of identity and are easy to confuse:
@@ -32,7 +32,7 @@ These are two different kinds of identity and are easy to confuse:
 - **Workspace Owner:** the highest role inside one workspace. It manages that workspace's members, models and knowledge bases.
 - **System Administrator:** a platform-level identity that manages the whole deployment: global system settings, the task queue, platform API keys, the cross-workspace audit log and resetting user passwords. It belongs to no workspace.
 
-The first account to register has both. Add further system administrators under Settings, System Settings. If a deployment already has users but no system administrator (for example after upgrading from an older version), set `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL=<email of a registered account>` on the app service and restart. On start-up that user is promoted to system administrator; the variable has no effect once a system administrator exists. See [Tenants, users and authorization](../../03-features/01-tenant-auth.md) (Chinese).
+The first account to register has both. Add further system administrators under Settings, Users & workspaces. If a deployment already has users but no system administrator (for example after upgrading from an older version), set `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL=<email of a registered account>` on the app service and restart. On start-up that user is promoted to system administrator; the variable has no effect once a system administrator exists. See [Tenants, users and authorization](../../03-features/01-tenant-auth.md) (Chinese).
 :::
 
 ## 3. Configure models and create a knowledge base

@@ -179,8 +179,9 @@ flowchart TD
 | 分组前缀 | Register 函数 | API Key 策略示例 |
 | --- | --- | --- |
 | `/auth`、`/me` | RegisterAuthRoutes / RegisterMyInvitationRoutes | 多数免 Key；登录、注册、切换租户按 IP 限流 |
-| `/tenants`、`/tenants/:id/*`（成员/邀请/审计） | RegisterTenantRoutes | `manage_members` / `manage_spaces`；`/:id` 组挂 `PathTenantMatch()` |
-| `/knowledge-bases`、`/knowledge-bases/:id/knowledge\|faq\|tags\|shares\|activity` | RegisterKnowledgeBaseRoutes 等 | `retrieve` / `ingest` |
+| `/tenants`、`/tenants/:id/*`（成员/邀请/审计） | RegisterTenantRoutes | `manage_members`；目录接口（`/all`、`/search`、`POST`）挂 `TenantCatalog()`，`/:id` 组挂 `PathTenantMatch()` |
+| `/groups`、`/groups/:gid/members` | RegisterGroupRoutes（始终注册，不随 docs 模块） | `manage_members`；读 Viewer+，写 Admin+ |
+| `/knowledge-bases`、`/knowledge-bases/:id/knowledge\|faq\|tags\|activity` | RegisterKnowledgeBaseRoutes 等 | `retrieve` / `ingest` |
 | `/knowledge`、`/chunks` | RegisterKnowledgeRoutes / RegisterChunkRoutes | `ingest` |
 | `/docs/*` | RegisterDocsRoutes（模块未启用时不注册） | 按读 / 写 / 管理三档声明；页面与空间权限由模块自己的 `acl.Guard` 判定 |
 | `/knowledge-bases/:id/findings*`、`/findings/assigned*` | RegisterKnowledgeFindingRoutes | 读 `retrieve`，处理 `ingest`，重新检测 `manage_kbs` |
@@ -188,10 +189,10 @@ flowchart TD
 | `/sessions/:id/feedback`、`/sessions/:id/messages/:message_id/feedback` | RegisterMessageFeedbackRoutes | 路由策略 `chat`；提交反馈要求登录用户，API Key 调用被拒绝 |
 | `/sessions`、`/knowledge-chat`、`/knowledge-search`、`/messages` | RegisterSessionRoutes / RegisterChatRoutes / RegisterMessageRoutes | `chat` / `retrieve` |
 | `/models`、`/evaluation`、`/initialization` | RegisterModelRoutes / RegisterEvaluationRoutes / RegisterInitializationRoutes | `manage_models` / `run_evaluations` |
-| `/system`、`/system/admin` | RegisterSystemRoutes / RegisterSystemAdminRoutes | admin 组强制 `g.SystemAdmin()` |
+| `/system`、`/system/admin`（含 `/system/admin/tenants/:id/members*`） | RegisterSystemRoutes / RegisterSystemAdminRoutes | admin 组强制 `g.SystemAdmin()` |
 | `/web-search`、`/web-search-providers` | RegisterWebSearchRoutes / RegisterWebSearchProviderRoutes | `manage_web_search` |
 | `/vector-stores`、`/storage-backends` | RegisterVectorStoreRoutes / RegisterStorageBackendRoutes | `manage_vector_stores` / `manage_storage_backends` |
-| `/organizations`、`/user/favorites` | RegisterOrganizationRoutes / RegisterUserFavoriteRoutes | `manage_spaces` 等 |
+| `/user/favorites` | RegisterUserFavoriteRoutes | 仅 JWT（默认拒绝 API Key） |
 | `/datasource`、`/knowledgebase/:kb_id/wiki`、`/chunker/preview` | RegisterDataSourceRoutes / RegisterWikiPageRoutes / RegisterChunkerDebugRoutes | `manage_datasources` / `ingest` |
 
 各端点的精确权限见 04 API 参考；知识健康相关端点见 [知识健康](../03-features/22-knowledge-health.md) 第 6 节。
@@ -206,8 +207,8 @@ kb.PUT("/:id", g.OwnedKBOrAdmin(), handler.UpdateKnowledgeBase)
 
 - **角色守卫**（调用者在租户内是什么角色）：`Viewer()` / `Contributor()` / `Admin()` / `Owner()` / `AdminOrSystemAdmin()` / `SystemAdmin()`，底层是 `middleware.RequireRole`；
 - **所有权守卫**（是否为资源创建者或 Admin+）：`OwnedKBOrAdmin()`、`OwnedKnowledgeKBOrAdmin()`、`OwnedChunkKBOrAdmin()`、`OwnedWikiKBOrAdmin()` 等——子资源通过 `KBCreatorLookupFromKnowledgeID` 等闭包沿 URL 参数回溯到所属 KB 的 `creator_id`；
-- **知识库访问守卫**（自有 KB / 跨组织共享 KB 两层解析）：`KBAccessRead|Write(param)` 及 `...FromKnowledgeIDParam` / `...FromChunkIDParam` 变体，底层是 `middleware.RequireKBAccess`；
-- **租户边界守卫**：`CrossTenant()`（平台级操作需 `EnableCrossTenantAccess` + `CanAccessAllTenants`）、`PathTenantMatch()`（`/tenants/:id` 必须与上下文租户一致）。
+- **知识库访问守卫**（知识库必须属于调用者的空间，否则 404）：`KBAccess(param)` 及 `...FromKnowledgeIDParam` / `...FromChunkIDParam` 变体，底层是 `middleware.RequireKBAccess`，同时执行 API Key 的知识库白名单；
+- **租户边界守卫**：`CrossTenant()`（平台级操作需 `EnableCrossTenantAccess` + `CanAccessAllTenants`）、`TenantCatalog()`（空间目录：系统管理员 / 跨空间超管 / 平台 Key）、`PathTenantMatch()`（`/tenants/:id` 必须与上下文租户一致）。
 
 所有守卫尊重 `cfg.Tenant.EnableRBAC`：关闭时只记录"本应拒绝"日志后放行。
 
@@ -227,7 +228,7 @@ kb.PUT("/:id", g.OwnedKBOrAdmin(), handler.UpdateKnowledgeBase)
 | `ErrorHandler()` | `error_handler.go` | 读取 `c.Errors` 末位错误：`*errors.AppError` 按其 `HTTPCode` 返回 `{success:false, error:{code,message,details}}`；其余 500 |
 | `AuthIPRateLimit(scope, limit)` | `auth_ip_ratelimit.go` | 登录、注册、切换租户、在线文档公开页解锁的按 IP 每分钟限流；有 Redis 时跨实例共享 |
 | `PublicAuthRateLimit()` | `auth_public_ratelimit.go` | 免认证的邀请查询 / 受邀注册路由：进程内存滑动窗口，超限 429 |
-| `Auth(...)` | `auth.go` | 认证三态：JWT（`Authorization: Bearer`）、API Key（`X-API-Key`）、免认证白名单。支持 `X-Tenant-ID` 切换租户（自有租户 / 跨租户管理员 / 有效成员关系三层校验）；写入 `TenantIDContextKey`、`UserContextKey`、`TenantRoleContextKey`、`PrincipalContextKey` 等 |
+| `Auth(...)` | `auth.go` | 认证三态：JWT（`Authorization: Bearer`）、API Key（`X-API-Key`）、免认证白名单。目标租户按 `X-Tenant-ID`（须有活跃成员关系或跨租户超管）→ JWT `tenant_id` → `UserService.ResolveActiveTenantID`（偏好 → 最早的成员关系）解析，都没有则只放行身份级路由、其余 409 `TENANT_REQUIRED`；写入 `TenantIDContextKey`、`UserContextKey`、`TenantRoleContextKey`、`PrincipalContextKey` 等 |
 | `langfuse.GinMiddleware()` | `internal/tracing/langfuse` | LLM trace；未配置 `LANGFUSE_*` 时为 no-op |
 | `AuditServiceProvider()` | `audit_provider.go` | 把 `AuditLogService` 注入 gin context，供 RBAC 拒绝路径记审计 |
 | `APIKeyRouteAuthorizer.Middleware()` | `api_key_gate.go` | API Key 主体的路由级网关：查策略表，校验 `PlatformOnly` / `RequireFullAccess` / `Capabilities`；未声明路由默认拒绝；JWT 用户透传 |
@@ -275,9 +276,10 @@ kb.PUT("/:id", g.OwnedKBOrAdmin(), handler.UpdateKnowledgeBase)
 
 ```mermaid
 erDiagram
-    TENANT ||--o{ USER : "主租户 (users.tenant_id)"
-    TENANT ||--o{ TENANT_MEMBER : "成员"
+    TENANT ||--o{ TENANT_MEMBER : "成员 (用户与空间的唯一关系)"
     USER ||--o{ TENANT_MEMBER : "加入多个空间"
+    TENANT ||--o{ TENANT_GROUP : "空间组"
+    USER ||--o{ TENANT_GROUP_MEMBER : "组成员"
     TENANT ||--o{ TENANT_API_KEY : "API Key (tenant_id 为空则平台级)"
     TENANT ||--o{ KNOWLEDGE_BASE : "拥有"
     TENANT ||--o{ MODEL : "模型配置"

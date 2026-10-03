@@ -17,12 +17,12 @@ PostgreSQL 是 Yuheng **唯一**的数据库，生产与测试都是：
 ```text
 migrations/
 ├── embed.go       # //go:embed versioned/*.sql，把核心迁移编进二进制（migrations.Core()）
-├── versioned/     # 版本化迁移：000000–000089 与 000120–000137（.up.sql / .down.sql 成对）
+├── versioned/     # 版本化迁移：000000–000089 与 000120–000139（.up.sql / .down.sql 成对）
 └── paradedb/      # 00-init-db.sql（扩展与基础表初始化）、01-migrate-to-paradedb.sql（存量库切换）
 ```
 
-- `versioned/` 是唯一的增量历史，当前最新版本为 **000137**（`000137_resources_backend_required`）；
-- 000090–000119 **没有文件**：在线文档模块为了能独立合入，预留了 000120–000139 这段编号（见 `000120_docs_module.up.sql` 头部注释），后续的知识健康迁移也接在这段之后。golang-migrate 只要求版本号递增，不要求连续；
+- `versioned/` 是唯一的增量历史，当前最新版本为 **000139**（`000139_drop_users_tenant_id`）；
+- 000090–000119 **没有文件**：在线文档模块为了能独立合入，预留了 000120–000139 这段编号（见 `000120_docs_module.up.sql` 头部注释），后续的知识健康等迁移也接在这段之后，这段编号现已用完。golang-migrate 只要求版本号递增，不要求连续；
 - BM25 索引建在 `embeddings.content` 上，使用 `chinese_lindera` 分词器（`000002_embeddings`）。
 
 ### 2.1 versioned/ 迁移史概览（按主题）
@@ -32,18 +32,18 @@ migrations/
 | 000000 | 核心初始化 | `tenants`、`models`、`knowledge_bases`、`knowledges`、`chunks`、`sessions`、`messages` |
 | 000001 | 用户认证与上游 Agent/MCP | `users`、`auth_tokens`、`knowledge_tags`，以及上游的 `custom_agents`、`mcp_services`（前者 000089 删除） |
 | 000002–000011 | 向量/检索 | `embeddings`（HNSW + BM25，受 `app.skip_embedding` 门控）、`chunks.flags`、`seq_id`、ParadeDB BM25 索引 |
-| 000012–000018 | 跨租户协作 | `organizations`、`organization_members`、`kb_shares`、`organization_join_requests` |
+| 000012–000018 | 跨租户协作（已于 000138 删除） | `organizations`、`organization_members`、`kb_shares`、`organization_join_requests` |
 | 000019–000028 | 消息增强 | `messages` 扩列（images、rendered_content、channel 等）；同期的 IM 渠道表已于 000089 删除 |
 | 000029–000036 | 数据源与向量库抽象 | `data_sources`、`sync_logs`、`web_search_providers`、`vector_stores`、KB 的 `asr_config` / `vector_store_id` |
 | 000037–000041 | Wiki 与任务队列 | `wiki_pages`、`wiki_folders`、`task_pending_ops`、`task_dead_letters`（`wiki_log_entries` 已于 000077 删除，`wiki_page_issues` 已于 000130 删除） |
-| 000042–000054 | RBAC / 审计 / 邀请 / 系统设置 | `tenant_members`、`audit_logs`、`organization_tenant_members`、`user_resource_favorites`、`tenant_invitations`（000054 增加邀请链接 `token`）、`user_kb_pins`、`users.is_system_admin` 与 `system_settings`（000053） |
+| 000042–000054 | RBAC / 审计 / 邀请 / 系统设置 | `tenant_members`、`audit_logs`、`organization_tenant_members`（000138 删除）、`user_resource_favorites`、`tenant_invitations`（000054 增加邀请链接 `token`）、`user_kb_pins`、`users.is_system_admin` 与 `system_settings`（000053） |
 | 000055–000060 | 处理管道 | `knowledge_processing_spans`、`knowledges.pending_subtasks_count`（000056）、HNSW 1024 维索引 |
 | 000061–000067 | Wiki 层级 / 文档多标签 / API Key / 建议问题 | `wiki_pages` 层级列、`knowledge_tag_relations`、`tenant_api_keys`、`message_suggestion_sets`、`message_suggestion_events`；同期的 `mcp_oauth_clients` / `mcp_oauth_tokens` 为上游遗留 |
 | 000068–000074 | 存储/资源/临时文档 | `storage_backends`、`resources`、`resource_bindings`、`resource_access_grants`、`temporary_documents`、平台级 API Key（`scope_type`）、认证时间戳改 TIMESTAMPTZ |
 | 000075–000079 | Wiki 版本、分块编辑、文件夹 | `wiki_page_revisions`、`chunks` 的 `source_content`/`content_revision`/`index_status`/`context_header`、`chunk_revisions`、`knowledges.custom_metadata`（000078）、`knowledges.folder_path`（000079） |
 | 000080–000088 | 自动打标与上游遗留 | `knowledge_bases.auto_tag_config`（000080）、`messages.usage`（000085）、`is_builtin` 列（000088）；同段的沙箱、记忆、技能等为上游功能，大部分在 000089 删除 |
 | 000089 | 移除 Agent 基础设施 | DROP `custom_agents`、`agent_shares`、`tenant_disabled_shared_agents`、`mcp_tool_approvals`、`tenant_skills`（+快照）、`memory_*`（6 张）、`im_channels`、`im_channel_sessions`、`embed_channels`；`sessions.agent_config`→`last_request_state`、`messages.agent_steps`→`turn_steps`，并删除若干 `agent_*` 列 |
-| 000120 | 在线文档模块 | `tenant_groups`、`tenant_group_members` 与全部 `docs_*` 表（见 3.8） |
+| 000120 | 在线文档模块 | `tenant_groups`、`tenant_group_members`（空间组，现为核心概念，见 3.1）与全部 `docs_*` 表（见 3.8） |
 | 000121 | 清理存储配置 | 把 `knowledge_bases.cos_config` 中的 provider 迁入 `storage_provider_config`，删除 `cos_config` |
 | 000122 | 文档索引队列 | `docs_index_state` |
 | 000123 | 页面排除出知识库 | `docs_pages.exclude_from_knowledge` 取代 `status`（草稿即排除） |
@@ -61,6 +61,8 @@ migrations/
 | 000135 | 删除空间存储配置 | DROP `tenants.storage_engine_config` |
 | 000136 | 删除知识库存储类型 | DROP `knowledge_bases.storage_provider_config` |
 | 000137 | 资源按后端定位 | `resources.storage_backend_id` 必填，DROP `resources.provider`，位置唯一索引改为 `(storage_backend_id, location_hash)` |
+| 000138 | 删除组织与跨空间共享 | DROP `kb_shares`、`organization_join_requests`、`organization_tenant_members`、`organization_members_pre_plan3`（000045 改名后从未删除）、`organizations`；一个知识库只能从拥有它的空间访问 |
+| 000139 | 用户是全局身份 | DROP `users.tenant_id`（及索引 `idx_users_tenant_id`、外键 `fk_users_tenant`）；删除 `system_settings` 中 `auth.default_tenant_mode`、`tenant.self_service_creation_enabled`、`tenant.max_owned_per_user` 三行。成员关系只有 `tenant_members`，当前空间只有 `users.preferences.last_active_tenant_id` |
 
 ## 3. 最终表结构
 
@@ -71,12 +73,12 @@ migrations/
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
 | `tenants` | 租户（工作空间），多租户体系根 | `id`（SERIAL，起始 10000）、`name`、`retriever_engines`（JSONB）、`status`、`storage_quota`/`storage_used`、`context_config`/`conversation_config`/`web_search_config`/`credentials`（JSONB）、`default_storage_backend_id`（必填，默认 `env`；`agent_config` 为上游遗留的空列） |
-| `users` | 登录用户 | `id`（UUID）、`username`（唯一）、`email`（唯一）、`password_hash`、`tenant_id`（FK→tenants，ON DELETE SET NULL）、`is_active`、`is_system_admin`、`can_access_all_tenants`、`preferences`（JSON） |
+| `users` | 登录用户（全局身份，不属于任何租户；000139 起没有 `tenant_id`） | `id`（UUID）、`username`（唯一）、`email`（唯一）、`password_hash`、`is_active`、`is_system_admin`、`can_access_all_tenants`、`preferences`（JSONB，`last_active_tenant_id` 是用户指向租户的唯一指针，按 `tenant_members` 校验） |
 | `auth_tokens` | 登录令牌 | `user_id`（FK→users，CASCADE）、`token`、`token_type`（access/refresh）、`expires_at`（TIMESTAMPTZ）、`is_revoked` |
-| `tenant_members` | 租户级 RBAC 成员关系 | `user_id`+`tenant_id`（软删除下唯一）、`role`（owner/admin/contributor/viewer）、`status`、`invited_by`、`joined_at` |
+| `tenant_members` | 租户级 RBAC 成员关系——用户与租户之间**唯一**的关系；对 `tenants` 没有外键，服务层在加成员前校验租户存在 | `user_id`+`tenant_id`（软删除下唯一）、`role`（owner/admin/contributor/viewer）、`status`、`invited_by`、`joined_at` |
 | `tenant_invitations` | 站内邀请与邀请链接 | `tenant_id`、`invitee_user_id`、`role`、`status`（pending/accepted/rejected）、`token`、`accepted_count`、`expires_at` |
 | `tenant_api_keys` | 租户/平台 API Key | `tenant_id`（平台作用域时为 NULL）、`scope_type`（tenant/platform）、`key_hash`（唯一，认证用）、`key_hint`（掩码提示）、`full_access`、`knowledge_base_ids`、`capabilities`、`expires_at`/`revoked_at` |
-| `tenant_groups` / `tenant_group_members` | 租户内用户组（000120，在线文档的空间成员与页面授权可以授给组） | 组：`name`、`is_default`、`source`/`external_id`；成员：PK（`group_id`,`user_id`） |
+| `tenant_groups` / `tenant_group_members` | 空间组（000120 随在线文档建表，现为核心概念：成员关系的另一半，授权可以授给 `group:<id>`；在线文档的空间成员与页面授权是第一个使用者，`source` 为 SSO 组映射预留） | 组：`name`（租户内不区分大小写唯一）、`description`、`is_default`（隐式「所有人」组，不写成员行）、`source`（manual/oidc/ldap）/`external_id`、`creator_id`；成员：PK（`group_id`,`user_id`）、`added_by` |
 | `user_kb_pins` | 用户级知识库置顶 | PK（`tenant_id`,`user_id`,`kb_id`）+ `pinned_at` |
 | `user_resource_favorites` | 用户收藏（知识库、在线文档页面与空间等） | PK（`user_id`,`tenant_id`,`resource_type`,`resource_id`） |
 | `audit_logs` | 审计日志（000044） | `tenant_id`、`actor_user_id`/`actor_role`、`action`、`target_type`/`target_id`/`target_user_id`、`request_path`/`request_method`、`outcome`（success/denied）、`scope_type`/`scope_id`、`details`（JSONB） |
@@ -118,15 +120,9 @@ migrations/
 | `message_suggestion_events` | 建议问题曝光/点击 | `suggestion_set_id`（FK，CASCADE）、`question_id`、`event_type`、`actor_id` |
 | `temporary_documents` | 会话内临时附件（000070） | `session_id`、`resource_ref`、`file_name`/`file_type`/`file_size`、`status`（uploaded/processing/ready/expired）、`content`、`chunks`（JSONB）、`expires_at` |
 
-### 3.5 跨租户协作（组织）
+### 3.5 已删除：跨租户协作（组织）
 
-| 表 | 用途 | 关键字段 |
-| --- | --- | --- |
-| `organizations` | 组织（跨租户协作单元） | `name`、`owner_id`（FK→users）、`owner_tenant_id`、`invite_code`（唯一）+ 过期控制、`require_approval`、`searchable`、`member_limit` |
-| `organization_members` | 组织的用户成员 | `organization_id`（FK，CASCADE）、`user_id`、`tenant_id`、`role` |
-| `organization_tenant_members` | 组织的租户成员（000045） | (`organization_id`,`tenant_id`) 唯一、`role`（admin/editor/viewer）、`representative_user_id` |
-| `organization_join_requests` | 加入/升级申请 | `organization_id`、`user_id`、`status`、`requested_role`、`request_type`（join/upgrade） |
-| `kb_shares` | 知识库共享到组织 | (`knowledge_base_id`,`organization_id`) 软删除下唯一、`source_tenant_id`、`permission` |
+000012–000018、000045、000046 建立的组织层（`organizations`、`organization_members` → 改名为 `organization_members_pre_plan3`、`organization_tenant_members`、`organization_join_requests`、`kb_shares`）在 **000138** 全部删除：一个企业一个空间，知识库只能从拥有它的空间访问，团队用空间组表达。`000138.down.sql` 按原 DDL（含索引名与部分索引谓词）重建空表，不恢复数据。
 
 ### 3.6 Wiki
 
@@ -181,15 +177,16 @@ migrations/
 
 ```mermaid
 erDiagram
-    tenants ||--o{ users : "tenant_id (SET NULL)"
-    tenants ||--o{ tenant_members : "租户成员"
+    tenants ||--o{ tenant_members : "租户成员 (用户与租户的唯一关系)"
     users ||--o{ tenant_members : "user_id"
     users ||--o{ auth_tokens : "登录令牌"
     tenants ||--o{ models : "模型配置"
     tenants ||--o{ knowledge_bases : "知识库"
     tenants ||--o{ tenant_api_keys : "API Key"
     tenants ||--o{ audit_logs : "审计"
-    tenants ||--o{ tenant_groups : "用户组"
+    tenants ||--o{ tenant_groups : "空间组"
+    users ||--o{ tenant_group_members : "组成员"
+    tenant_groups ||--o{ tenant_group_members : "group_id"
 
     knowledge_bases ||--o{ knowledges : "文档"
     knowledge_bases }o--|| models : "embedding_model_id"
@@ -212,10 +209,6 @@ erDiagram
     messages ||--o{ message_suggestion_sets : "建议问题"
     message_suggestion_sets ||--o{ message_suggestion_events : "事件"
     sessions ||--o{ temporary_documents : "临时附件"
-
-    organizations ||--o{ organization_tenant_members : "租户成员"
-    organizations ||--o{ kb_shares : "知识库共享"
-    knowledge_bases ||--o{ kb_shares : "被共享"
 
     knowledge_bases ||--o{ wiki_pages : "Wiki 页面"
     wiki_folders ||--o{ wiki_folders : "parent_id (树)"
@@ -270,7 +263,7 @@ make migrate-goto version=120      # 迁移/回滚到指定版本
 
 ## 6. 如何新增一个迁移
 
-1. **创建文件**：`make migrate-create name=add_my_feature`，在 `migrations/versioned/` 下生成下一个版本号（当前最大为 `000137`，新迁移将是 `000138_add_my_feature.up.sql` / `.down.sql`）。由于 `embed.go` 用 `versioned/*.sql` 通配，新文件会自动编进二进制；
+1. **创建文件**：`make migrate-create name=add_my_feature`，在 `migrations/versioned/` 下生成下一个版本号（当前最大为 `000139`，新迁移将是 `000140_add_my_feature.up.sql` / `.down.sql`）。由于 `embed.go` 用 `versioned/*.sql` 通配，新文件会自动编进二进制；
 2. **编写 up SQL**：PostgreSQL 方言（JSONB、部分索引、TIMESTAMPTZ）。惯例：`IF NOT EXISTS` / `IF EXISTS` 保证可重入，开头结尾用 `RAISE NOTICE` 标记，文件头注释说明为什么这样设计；涉及 `embeddings` 表时参考既有迁移用 `current_setting('app.skip_embedding', true)` 门控；
 3. **编写 down SQL**：必须可逆，否则回滚链会断；
 4. **同步 GORM 模型**：在 `internal/types/`（或在线文档的 `internal/docs/model/`）对应 struct 增加字段。GORM 只做映射，**不使用 AutoMigrate**，schema 完全由 SQL 迁移驱动；

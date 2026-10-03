@@ -84,9 +84,9 @@ flowchart TD
 路由注册在 `internal/router/routes_knowledge.go`：
 
 ```go
-kb.POST("/file",   g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), handler.CreateKnowledgeFromFile)
-kb.POST("/url",    g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), handler.CreateKnowledgeFromURL)
-kb.POST("/manual", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), handler.CreateManualKnowledge)
+kb.POST("/file",   g.OwnedKBOrAdmin(), g.KBAccess("id"), handler.CreateKnowledgeFromFile)
+kb.POST("/url",    g.OwnedKBOrAdmin(), g.KBAccess("id"), handler.CreateKnowledgeFromURL)
+kb.POST("/manual", g.OwnedKBOrAdmin(), g.KBAccess("id"), handler.CreateManualKnowledge)
 ```
 
 配套的管理端点：`POST /knowledge/:id/reparse`（重新解析）、`POST /knowledge/:id/cancel-parse`（取消解析）、`POST /knowledge/batch-reparse`、`POST /knowledge/batch-delete`、`POST /knowledge/move`（跨库移动）。

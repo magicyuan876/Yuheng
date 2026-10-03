@@ -266,11 +266,11 @@ flowchart LR
 
 | 分组 | 动作 |
 | --- | --- |
-| RBAC / 成员 | `rbac.member_added`、`rbac.member_removed`、`rbac.member_role_changed`、`rbac.member_left`、`rbac.access_denied`、`rbac.invitation_sent`、`rbac.invitation_accepted`、`rbac.invitation_declined`、`rbac.invitation_revoked`、`rbac.invitation_expired` |
+| RBAC / 成员 / 空间组 | `rbac.member_added`、`rbac.member_removed`、`rbac.member_role_changed`、`rbac.member_left`、`rbac.access_denied`、`rbac.invitation_sent`、`rbac.invitation_accepted`、`rbac.invitation_declined`、`rbac.invitation_revoked`、`rbac.invitation_expired`、`rbac.group_created`、`rbac.group_updated`、`rbac.group_deleted`、`rbac.group_member_added`、`rbac.group_member_removed`。系统管理员在自己不在的空间里改成员时 `actor_role` 记为 `system_admin` |
 | 向量库 | `vector_store.created`、`vector_store.updated`、`vector_store.deleted` |
-| 系统管理（tenant_id=0） | `system.setting_changed`、`system.admin_promoted`、`system.admin_revoked`、`system.user_password_reset`、`system.user_created`、`system.api_key_created`、`system.api_key_revoked` |
+| 系统管理（tenant_id=0） | `system.setting_changed`、`system.admin_promoted`、`system.admin_revoked`、`system.user_password_reset`、`system.user_created`、`system.api_key_created`、`system.api_key_revoked`、`system.tenant_created`（`details` 含 `name`、`owner_user_id`、`owner_email`）、`system.tenant_deleted` |
 | 运行时队列操作（tenant_id=0） | `system.queue_task_retried`、`system.queue_task_deleted`、`system.queue_task_run_now`、`system.queue_task_cancelled`、`system.queue_archived_purged` |
-| 知识库 | `kb.created`、`kb.updated`、`kb.deleted`、`kb.duplicated`、`kb.clone_started`、`kb.clone_completed`、`kb.clone_failed`、`kb.share_added`、`kb.share_permission_changed`、`kb.share_removed` |
+| 知识库 | `kb.created`、`kb.updated`、`kb.deleted`、`kb.duplicated`、`kb.clone_started`、`kb.clone_completed`、`kb.clone_failed`（历史行里还可能有已删除的跨空间共享动作 `kb.share_*`，界面按原字符串显示） |
 | 知识 | `knowledge.created`、`knowledge.updated`、`knowledge.deleted`、`knowledge.batch_deleted`、`knowledge.reparse_started`、`knowledge.parse_canceled`、`knowledge.move_started`、`knowledge.move_completed`、`knowledge.move_failed`、`knowledge.owner_changed`、`knowledge.reviewed` |
 | 标签 / 数据源 | `tag.created`、`tag.updated`、`tag.deleted`、`datasource.created`、`datasource.updated`、`datasource.deleted`、`datasource.sync_started`、`datasource.sync_completed`、`datasource.sync_failed`、`datasource.paused`、`datasource.resumed` |
 | Wiki / FAQ | `wiki.content_changed`、`faq.import_started`、`faq.import_completed`、`faq.import_failed` |
@@ -287,7 +287,7 @@ flowchart LR
 | 路由 | 权限 | 说明 |
 | --- | --- | --- |
 | `GET /api/v1/tenants/:id/audit-log` | PathTenantMatch + Admin | 空间审计流；只返回 `scope_type=''` 的空间级行（`UnscopedOnly`） |
-| `GET /api/v1/knowledge-bases/:id/activity` | KB 创建者或空间 Admin，且必须是 owner 空间（组织共享消费方不可读） | `scope_type=knowledge_base` + `scope_id=kbID` 的 KB 活动投影 |
+| `GET /api/v1/knowledge-bases/:id/activity` | KB 创建者或空间 Admin；知识库须属于本空间 | `scope_type=knowledge_base` + `scope_id=kbID` 的 KB 活动投影 |
 | `GET /api/v1/system/admin/audit-log` | SystemAdmin（或带 `system_audit_read` 能力的平台 API Key） | `tenant_id=0` 的平台级事件（settings / promote / queue 操作等） |
 
 统一查询参数：`after_id`（游标，返回 id 更小的行）、`limit`（1–100，默认 50，硬上限 `auditLogListLimitMax=100`）、`action` / `outcome` / `actor` 精确过滤。响应含 `next_cursor`（页内最小 id，0 表示到底）。

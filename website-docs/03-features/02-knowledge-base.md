@@ -136,7 +136,7 @@ graph TB
 
 ### 1.7 KB 计算字段
 
-列表 / 详情响应附带：`knowledge_count`、`chunk_count`、`is_processing`（FAQ 库）、`processing_count`（文档库处理中知识数）、`share_count`（共享到的组织数）、`creator_name`、`is_pinned` / `pinned_at`（当前用户置顶状态）。
+列表 / 详情响应附带：`knowledge_count`、`chunk_count`、`is_processing`（FAQ 库）、`processing_count`（文档库处理中知识数）、`creator_name`、`is_pinned` / `pinned_at`（当前用户置顶状态）。
 
 另有一个存储字段 `is_temporary`：标记**临时（ephemeral）知识库**，正常的知识库列表里不展示。它由系统内部使用，典型场景是联网搜索把抓回来的网页缓存成可检索内容。手工建库不会产生临时库。
 
@@ -146,28 +146,28 @@ graph TB
 
 ## 2. KB 路由与权限
 
-（门禁语义见《租户、用户与认证授权》篇；`KBAccessRead/Write` 会解析组织共享路径。）
+（门禁语义见《租户、用户与认证授权》篇；`KBAccess` 要求知识库属于调用者的空间，别的空间的知识库返回 404，读写同一个守卫，读写的区别在角色与所有权守卫上。）
 
 | 方法 | 路径 | Handler | 门禁 |
 | --- | --- | --- | --- |
 | POST | `/knowledge-bases` | CreateKnowledgeBase | Contributor+ / API Key `manage_kbs` |
 | GET | `/knowledge-bases` | ListKnowledgeBases | Viewer+ / `retrieve` |
-| GET | `/knowledge-bases/:id` | GetKnowledgeBase | Viewer+ + KBAccessRead |
-| PUT | `/knowledge-bases/:id` | UpdateKnowledgeBase | OwnedKBOrAdmin + KBAccessWrite |
-| DELETE | `/knowledge-bases/:id` | DeleteKnowledgeBase | OwnedKBOrAdmin + KBAccessWrite |
-| PUT | `/knowledge-bases/:id/pin` | TogglePinKnowledgeBase | Viewer+ + KBAccessRead |
-| POST | `/knowledge-bases/:id/hybrid-search` | HybridSearch | Viewer+ + KBAccessRead |
+| GET | `/knowledge-bases/:id` | GetKnowledgeBase | Viewer+ + KBAccess |
+| PUT | `/knowledge-bases/:id` | UpdateKnowledgeBase | OwnedKBOrAdmin + KBAccess |
+| DELETE | `/knowledge-bases/:id` | DeleteKnowledgeBase | OwnedKBOrAdmin + KBAccess |
+| PUT | `/knowledge-bases/:id/pin` | TogglePinKnowledgeBase | Viewer+ + KBAccess |
+| POST | `/knowledge-bases/:id/hybrid-search` | HybridSearch | Viewer+ + KBAccess |
 | POST | `/knowledge-bases/copy` | CopyKnowledgeBase | Contributor+ / `manage_kbs` |
-| POST | `/knowledge-bases/:id/duplicate` | DuplicateKnowledgeBase | Contributor+ / `manage_kbs` + KBAccessRead |
+| POST | `/knowledge-bases/:id/duplicate` | DuplicateKnowledgeBase | Contributor+ / `manage_kbs` + KBAccess |
 | GET | `/knowledge-bases/copy/progress/:task_id` | GetKBCloneProgress | Viewer+ / `retrieve` 或 `manage_kbs` |
-| GET | `/knowledge-bases/:id/move-targets` | ListMoveTargets | Viewer+ + KBAccessRead |
-| GET | `/knowledge-bases/:id/activity` | ListKnowledgeBaseActivity | OwnedKBOrAdmin + KBAccessRead（仅 JWT） |
+| GET | `/knowledge-bases/:id/move-targets` | ListMoveTargets | Viewer+ + KBAccess |
+| GET | `/knowledge-bases/:id/activity` | ListKnowledgeBaseActivity | OwnedKBOrAdmin + KBAccess（仅 JWT） |
 
-知识健康（`/knowledge-bases/:id/findings*`）、组织共享（`/knowledge-bases/:id/shares`）的路由分别见[知识健康](22-knowledge-health.md) §6 与[租户、用户与认证授权](01-tenant-auth.md) §8。
+知识健康（`/knowledge-bases/:id/findings*`）的路由见[知识健康](22-knowledge-health.md) §6。
 
 **创建流程**（`internal/handler/knowledgebase.go`）：Contributor 校验 → 请求参数校验（图谱抽取配置、各类 `custom_instructions` 长度）→ 服务层创建（含 `VectorStoreID` 绑定校验）→ 返回 KB 与向量存储的展示信息。存储配额不在建库时检查，而是在向库里添加内容时检查（见 §7）。
 
-**删除**（`DeleteKnowledgeBase`）：先软删除 KB 行并记 `kb.deleted` 活动，同步清理该库排队中的任务、删除它的组织共享记录、停止并软删除绑定的数据源；随后投递一个异步删除任务，在后台清掉库内知识、分块、检索索引与存储文件。共享侧的 editor 无法删除源 KB（handler 以调用者自己的租户比对 `kb.TenantID`，删除锁定为「所有者租户 + 创建者或 Admin」）。
+**删除**（`DeleteKnowledgeBase`）：先软删除 KB 行并记 `kb.deleted` 活动，同步清理该库排队中的任务、停止并软删除绑定的数据源；随后投递一个异步删除任务，在后台清掉库内知识、分块、检索索引与存储文件。
 
 ## 3. 知识（Knowledge）管理
 
@@ -200,25 +200,25 @@ stateDiagram-v2
 
 | 方法 | 路径 | 说明 | 门禁 |
 | --- | --- | --- | --- |
-| POST | `/knowledge-bases/:id/knowledge/file` | 上传文件 | OwnedKBOrAdmin + KBAccessWrite |
+| POST | `/knowledge-bases/:id/knowledge/file` | 上传文件 | OwnedKBOrAdmin + KBAccess |
 | POST | `/knowledge-bases/:id/knowledge/url` | URL 导入 | 同上 |
 | POST | `/knowledge-bases/:id/knowledge/manual` | 手动 Markdown 知识 | 同上 |
-| GET | `/knowledge-bases/:id/knowledge` | 列表（分页 + 过滤） | Viewer+ + KBAccessRead |
-| DELETE | `/knowledge-bases/:id/knowledge` | 清空 KB 内容 | Admin + KBAccessWrite |
+| GET | `/knowledge-bases/:id/knowledge` | 列表（分页 + 过滤） | Viewer+ + KBAccess |
+| DELETE | `/knowledge-bases/:id/knowledge` | 清空 KB 内容 | Admin + KBAccess |
 | GET | `/knowledge/:id`、`/knowledge/batch` | 详情 / 批量获取 | Viewer+ |
 | GET | `/knowledge/:id/stages`、`/knowledge/:id/spans` | 处理阶段 / 跨度 | Viewer+ |
-| PUT / DELETE | `/knowledge/:id`、`/knowledge/manual/:id` | 更新（含 `custom_metadata`）/ 删除 | OwnedKnowledgeKBOrAdmin + KBAccessWrite |
+| PUT / DELETE | `/knowledge/:id`、`/knowledge/manual/:id` | 更新（含 `custom_metadata`）/ 删除 | OwnedKnowledgeKBOrAdmin + KBAccess |
 | POST | `/knowledge/:id/reparse`、`/knowledge/:id/cancel-parse` | 重解析 / 取消解析 | 同上 |
 | POST | `/knowledge/:id/regenerate-summary` | 重新生成文档摘要 | 同上 |
-| GET | `/knowledge/:id/download` | 下载原始文件 | Contributor+ + KBAccessWrite |
-| GET | `/knowledge/:id/preview` | 预览文件 | Viewer+ + KBAccessRead |
+| GET | `/knowledge/:id/download` | 下载原始文件 | Contributor+ + KBAccess |
+| GET | `/knowledge/:id/preview` | 预览文件 | Viewer+ + KBAccess |
 | PUT | `/knowledge/tags` | 批量更新标签 | Contributor+ / `ingest` |
 | POST | `/knowledge/batch-reparse`、`/knowledge/batch-delete` | 批量重解析 / 删除 | Contributor+ / `ingest` |
 | POST | `/knowledge/move` | 移动知识 | Contributor+ / `ingest` |
 | GET | `/knowledge/move/progress/:task_id` | 移动进度 | Viewer+ |
 | POST | `/knowledge/folder` | 把文档移到文件夹（只改归类） | Contributor+ / `ingest` |
-| GET | `/knowledge/:id/stewardship` | 负责人、最近确认、复核到期时间 | Viewer+ + KBAccessRead |
-| PUT | `/knowledge/:id/owner` | 转交负责人 | OwnedKnowledgeKBOrAdmin + KBAccessWrite |
+| GET | `/knowledge/:id/stewardship` | 负责人、最近确认、复核到期时间 | Viewer+ + KBAccess |
+| PUT | `/knowledge/:id/owner` | 转交负责人 | OwnedKnowledgeKBOrAdmin + KBAccess |
 | POST | `/knowledge/:id/review` | 确认文档仍然有效（需要登录用户，API Key 不行） | 同上 |
 
 ### 3.3 列表过滤参数
@@ -328,7 +328,7 @@ type KnowledgeTagRelation struct { KnowledgeID, TagID string } // 多对多
 
 `internal/handler/knowledge_preview_security_test.go` 固化了这一点：内容是 `<script>alert(1)</script>` 的 HTML 文件只会作为附件下载。
 
-下载原始文件（`GET /knowledge/:id/download`）比预览更严：要求 Contributor+，且走 KBAccessWrite——空间 Viewer 与组织共享来的 Viewer 都不能下载原件。
+下载原始文件（`GET /knowledge/:id/download`）比预览更严：要求 Contributor+——空间 Viewer 不能下载原件。
 
 ## 4. 知识库复制与知识移动
 

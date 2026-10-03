@@ -308,7 +308,7 @@ operations that intentionally go through `yuheng api`:
   override, image attachments, web search toggle. Use `yuheng api POST
   /api/v1/knowledge-chat/<session-id> --input -`.
 - **Operations without a CLI verb** — register / change-password /
-  OIDC flows, organization / sharing endpoints, tenant management.
+  OIDC flows, tenant and member management.
 
 `yuheng api --help` documents the raw passthrough. Run
 `yuheng doctor` first to verify auth and base URL.

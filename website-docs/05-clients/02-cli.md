@@ -405,7 +405,7 @@ yuheng api /api/v1/knowledge-bases/<id> -X DELETE -y
 
 暴露**精选 8 个工具**（实现见 `cli/internal/mcp/tools.go`）：`kb_list` / `kb_view` / `doc_list` / `doc_view` / `doc_download` / `search_chunks` / `chunk_list` 为只读；`chat` 会创建会话/消息记录。破坏性动词（create / delete / upload）被刻意排除。
 
-它与仓库 `mcp-server/` 下的 Yuheng MCP Server（`yuheng-mcp`，23 个工具，支持 stdio / SSE / HTTP）是两个独立的实现：`yuheng mcp serve` 复用 CLI 的 profile 与凭证、只读为主，适合在本机给一个 Agent 挂上检索与问答；需要写入能力或网络传输时用 `yuheng-mcp`，见 [MCP 集成](../03-features/08-mcp.md)。
+它与仓库 `mcp-server/` 下的 Yuheng MCP Server（`yuheng-mcp`，22 个工具，支持 stdio / SSE / HTTP）是两个独立的实现：`yuheng mcp serve` 复用 CLI 的 profile 与凭证、只读为主，适合在本机给一个 Agent 挂上检索与问答；需要写入能力或网络传输时用 `yuheng-mcp`，见 [MCP 集成](../03-features/08-mcp.md)。
 
 MCP 客户端注册示例（写入客户端的 `mcpServers` 配置）：
 

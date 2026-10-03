@@ -144,6 +144,8 @@ Next steps: run ./scripts/migrate.sh version ...
 | 000135 | 列 `tenants.storage_engine_config` | 空间级的存储配置（含明文 S3 密钥）删除，存储只按存储后端实例配置 |
 | 000136 | 列 `knowledge_bases.storage_provider_config` | 知识库只按 `storage_backend_id` 绑定存储后端 |
 | 000137 | 列 `resources.provider`；索引 `idx_resources_tenant_location` | 文件位置只记后端 ID 与后端内位置，位置按后端唯一；旧版本写入的位置哈希不再参与去重 |
+| 000138 | 表 `organizations`、`organization_tenant_members`、`organization_join_requests`、`kb_shares`，以及 000045 改名后一直没删的 `organization_members_pre_plan3` | 组织、组织成员、加入申请与跨空间知识库共享**全部丢失且不迁移**：一个知识库只能从拥有它的空间访问。`.down.sql` 按原 DDL 重建空表（含索引名），数据回不来 |
+| 000139 | 列 `users.tenant_id`（及其索引与外键）；`system_settings` 中的 `auth.default_tenant_mode`、`tenant.self_service_creation_enabled`、`tenant.max_owned_per_user` 三行 | 用户不再有「主空间」：成员关系只看 `tenant_members`，当前空间只看 `preferences.last_active_tenant_id`。只有 `users.tenant_id` 而没有成员关系行的用户在升级后不属于任何空间，需要系统管理员在「用户与空间」里加回去。`.down.sql` 重建可空列，不回填 |
 
 另外：000044 的 `.down.sql` 会 `DROP TABLE audit_logs`，为防止误用，它要求会话里显式设置 `yuheng.allow_destructive_migration = 'true'` 才会执行。
 

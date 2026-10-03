@@ -264,7 +264,7 @@ curl -X PUT $BASE/api/v1/knowledgebase/kb-1/wiki/pages/overview -H "Authorizatio
 
 ### GET /api/v1/knowledgebase/:kb_id/wiki/revisions/*slug
 
-用途：页面版本历史（migration `000075`）。权限：Viewer+ + KBAccessRead。
+用途：页面版本历史（migration `000075`）。权限：Viewer+ + KBAccess。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
@@ -285,7 +285,7 @@ curl "$BASE/api/v1/knowledgebase/kb-1/wiki/revisions/entity/acme-corp?version=3"
 
 ### POST /api/v1/knowledgebase/:kb_id/wiki/revert
 
-用途：把页面回滚到某个历史版本。权限：KB owner 或 Admin+ + KBAccessWrite。
+用途：把页面回滚到某个历史版本。权限：KB owner 或 Admin+ + KBAccess。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |

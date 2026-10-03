@@ -38,7 +38,7 @@ Wiki and write knowledge back.
  Ingest             Organize             Answer                Maintain              Expose
  ───────────────    ─────────────────    ──────────────────    ──────────────────    ────────────────
  files and URLs     knowledge bases      hybrid retrieval      duplicates and        REST /api/v1
- data-source sync   chunking, FAQ, tags  cited streaming Q&A   near-copies           MCP (23 tools)
+ data-source sync   chunking, FAQ, tags  cited streaming Q&A   near-copies           MCP (22 tools)
  collaborative docs Auto-Wiki            web search            periodic review       Go SDK · CLI
                     graph (optional)                           answer feedback
                                                                owners and to-dos
@@ -64,9 +64,10 @@ Wiki and write knowledge back.
 - **Built for agents**: everything the web UI does is a REST endpoint (JWT or
   scoped API keys) and an MCP tool; there is also a Go SDK, the `yuheng` CLI and a
   DeepSeek Harness plugin.
-- **Enterprise-ready**: multi-tenant workspaces, four roles, organizations and
-  shared spaces, audit logs, AES-256-GCM encrypted credentials, login rate limits
-  and lockout, Langfuse tracing.
+- **Enterprise-ready**: one workspace per company with any number of knowledge
+  bases, four member roles and workspace groups, system administrators who
+  manage workspaces and accounts, audit logs, AES-256-GCM encrypted
+  credentials, login rate limits and lockout, Langfuse tracing.
 
 ## Features
 
@@ -116,12 +117,13 @@ Wiki and write knowledge back.
 - The `/api/v1` REST API, Swagger UI at `/swagger/index.html` (non-release mode)
 - Scoped API keys (retrieve, chat, ingest, manage_kbs, …), optionally limited to
   knowledge bases
-- [`yuheng-mcp`](./mcp-server/): 23 MCP tools over stdio / SSE / HTTP
+- [`yuheng-mcp`](./mcp-server/): 22 MCP tools over stdio / SSE / HTTP
 - [Go SDK](./client/), [`yuheng` CLI](./cli/), [DeepSeek Harness plugin](./packages/dsh-yuheng/)
 
 **🏢 Platform**
-- Multi-tenant workspaces with owner / admin / contributor / viewer roles;
-  organizations and shared spaces
+- Workspaces with owner / admin / contributor / viewer roles and workspace
+  groups; users are global identities placed into workspaces by invitation or
+  by a system administrator, who also creates workspaces
 - Audit logs and knowledge-base activity, task-queue dashboard, Langfuse, rate
   limiting
 - File storage: a local directory or any S3-compatible store, RustFS bundled by
@@ -229,7 +231,7 @@ steps: [installation](./website-docs/en/01-getting-started/02-installation.md) a
 | Client | Directory | Notes |
 | --- | --- | --- |
 | Web UI | [`frontend/`](./frontend/) | Vue 3.5 + TypeScript + Vite; Tailwind v4 + shadcn-vue (migrating from TDesign screen by screen) |
-| MCP server | [`mcp-server/`](./mcp-server/) | Install from source (`pip install ./mcp-server`); 23 tools |
+| MCP server | [`mcp-server/`](./mcp-server/) | Install from source (`pip install ./mcp-server`); 22 tools |
 | CLI | [`cli/`](./cli/) | `yuheng`: scriptable JSON output, multiple profiles |
 | Go SDK | [`client/`](./client/) | The CLI is built on it |
 | DeepSeek Harness plugin | [`packages/dsh-yuheng/`](./packages/dsh-yuheng/) | Install from source |

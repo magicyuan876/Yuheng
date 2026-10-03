@@ -26,7 +26,7 @@
 YUHENG_DOCS_ENABLED=true
 ```
 
-重启 app 后注册 `/api/v1/docs/**` 与 `/api/v1/groups/**` 路由，前端出现「文档」入口（前端按部署能力 `docs` 决定是否注册这组路由）。只做这一步就是独占编辑模式，不需要新容器。
+重启 app 后注册 `/api/v1/docs/**` 路由，前端出现「文档」入口（前端按部署能力 `docs` 决定是否注册这组路由）。只做这一步就是独占编辑模式，不需要新容器。
 
 **第二步（可选）：协同编辑。** `.env` 里再设置：
 
@@ -80,9 +80,9 @@ Helm 部署见 `helm/README.md`（`docs.enabled`、`collab.enabled`、`secrets.c
 | `open` 开放 | 工作区所有成员，按空间的**默认角色**（reader 或 writer）访问 |
 | `public` 公开 | 同上，另外匿名访客可以只读（见 4.7）。需要部署开启 `YUHENG_DOCS_PUBLIC_SHARING`，否则拒绝设置 |
 
-创建空间需要工作区 Contributor 及以上，创建者成为空间管理员。空间成员可以是用户或**用户组**，角色是 `reader`（只读、评论）、`writer`（编辑）、`admin`（管理成员、设置、回收站）。一个空间必须始终保留至少一个管理员。
+创建空间需要工作区 Contributor 及以上，创建者成为空间管理员。空间成员可以是用户或**空间组**，角色是 `reader`（只读、评论）、`writer`（编辑）、`admin`（管理成员、设置、回收站）。一个空间必须始终保留至少一个管理员。
 
-用户组是工作区级的能力（在线文档是第一个使用者），在「设置 → 用户组」里管理，只有工作区管理员可以增删改；每个工作区有一个默认组，所有成员隐式属于它。
+空间组是工作区级的核心能力（在线文档是第一个使用者，但它不依赖本模块），在「设置 → 空间 → 空间组」里管理，只有工作区管理员可以增删改；每个工作区有一个默认组，所有成员隐式属于它。删除一个组会在同一事务里清掉它在所有空间与页面上的授权。概念与接口见[租户、用户与认证授权](01-tenant-auth.md) §8。
 
 ### 2.2 权限怎么算
 
@@ -104,7 +104,7 @@ Helm 部署见 `helm/README.md`（`docs.enabled`、`collab.enabled`、`secrets.c
 - 授权只是**上限**，不是提升：在空间里只是 reader 的人，在页面上被授予 admin 仍然是 reader。面板会显示每个人实际得到的角色，并标出在空间里根本没有角色、授权不起作用的人；
 - 第一次限制时，页面作者自动被加入（admin，即「不收窄」），避免把写的人自己挡在外面；取消限制会连同授权列表一起清除；
 - 修改页面权限需要页面上的 admin，由于授权不能提升到 admin，实际上就是空间管理员；
-- 一个页面最多列 100 个用户或组，更多请用用户组；
+- 一个页面最多列 100 个用户或组，更多请用空间组；
 - 能打开页面的人都能查看权限面板（「为什么同事看不到」不需要问管理员）。在上层就被限制时，面板会说明，但看不到的祖先页面不显示标题。
 
 受限页面**不会进入知识库**，也**不能公开分享**：限制一个已入库或已分享的页面，会立即把它（及其子树）移出知识库，已有的公开链接随即失效。
@@ -430,7 +430,6 @@ Helm 部署见 `helm/README.md`（`docs.enabled`、`collab.enabled`、`secrets.c
 | GET / DELETE | `/docs/attachments/:aid` | 下载 / 删除附件 | 成员（服务按所属页面判断） |
 | GET | `/docs/imports/:jid`、`/exports/:jid`、`/exports/:jid/download` | 导入导出任务 | 成员（导出限发起人） |
 | POST | `/docs/maintenance/orphan-attachments`、`/maintenance/expired-trash` | 手动运行清理，默认试运行，`dry_run=false` 才删除 | 工作区管理员 |
-| GET / POST / PATCH / DELETE | `/groups[/:gid]`、`/groups/:gid/members[/:uid]` | 用户组 | 读：成员；写：工作区管理员 |
 
 **匿名路由**（仅 `YUHENG_DOCS_PUBLIC_SHARING=true` 时注册，无需登录）：`GET /docs/public/:key`、`POST /docs/public/:key/unlock`、`GET /docs/public-spaces/:sid`、`GET /docs/public-spaces/:sid/pages/:short`。
 

@@ -1,6 +1,6 @@
 # MCP（Model Context Protocol）集成
 
-Yuheng 通过 MCP 对外提供能力：仓库 `mcp-server/` 目录是一个独立的 Python MCP server（包名 **`yuheng-mcp`**，入口命令 `yuheng-mcp-server`），把 Yuheng 的知识库、检索、问答、Wiki 等 REST API 封装成 23 个 MCP 工具，供 Claude Desktop、VS Code Copilot 等外部 MCP 客户端使用。
+Yuheng 通过 MCP 对外提供能力：仓库 `mcp-server/` 目录是一个独立的 Python MCP server（包名 **`yuheng-mcp`**，入口命令 `yuheng-mcp-server`），把 Yuheng 的知识库、检索、问答、Wiki 等 REST API 封装成 22 个 MCP 工具，供 Claude Desktop、VS Code Copilot 等外部 MCP 客户端使用。
 
 简单说，这个方向是**让别人用 Yuheng**：在 Claude Desktop、Cursor 等 MCP 客户端里直接查你的知识库、让外部智能体检索与写入知识。方向只有这一个：Yuheng 自己不调用外部 MCP 服务，也不在服务端管理 MCP 服务配置（上游的「设置 → MCP 服务」页面与 `/api/v1/mcp-services` 接口已随内置智能体一起移除）。
 
@@ -88,13 +88,13 @@ SSE 与 HTTP 传输由 `MCPAuthMiddleware`（ASGI 中间件）统一鉴权：客
 
 ## 暴露的 MCP 工具清单
 
-共 23 个工具，对应 `yuheng_mcp_server.py` 中带 `@mcp.tool()` 装饰器的函数（参数列 `*` 表示 required；`YuhengClient.update_knowledge_base` 方法存在但**未注册**为工具）：
+共 22 个工具，对应 `yuheng_mcp_server.py` 中带 `@mcp.tool()` 装饰器的函数（参数列 `*` 表示 required；`YuhengClient.update_knowledge_base` 方法存在但**未注册**为工具）：
 
 **租户管理**
 
 | 工具名 | 参数 | 说明 |
 |---|---|---|
-| `create_tenant` | `name`\*, `description`\*, `business`\*, `retriever_engines` | 创建租户；未指定检索引擎时默认 postgres 的 keywords + vector 双引擎 |
+| `create_tenant` | `name`\*, `description`\*, `business`\*, `retriever_engines` | 创建租户（服务端只对系统管理员、跨空间超管与平台 API Key 开放；用平台 Key 时服务端要求 `owner_email`，本工具不传它，所以实际只能以系统管理员的 JWT 调用）；未指定检索引擎时默认 postgres 的 keywords + vector 双引擎 |
 | `list_tenants` | 无 | 列出所有租户 |
 
 **知识库管理**
@@ -102,8 +102,7 @@ SSE 与 HTTP 传输由 `MCPAuthMiddleware`（ASGI 中间件）统一鉴权：客
 | 工具名 | 参数 | 说明 |
 |---|---|---|
 | `create_knowledge_base` | `name`\*, `description`\*, `embedding_model_id`, `summary_model_id` | 创建知识库；工具固定写入的 chunking：`chunk_size` 1000、`chunk_overlap` 200、分隔符 `["."]`、开启 multimodal |
-| `list_knowledge_bases` | 无 | 列出当前租户自己的知识库 |
-| `list_shared_knowledge_bases` | 无 | 列出通过组织/共享空间授权给当前租户的知识库 |
+| `list_knowledge_bases` | 无 | 列出当前租户的知识库 |
 | `get_knowledge_base` | `kb_id`\* | 知识库详情 |
 | `delete_knowledge_base` | `kb_id`\* | 删除知识库 |
 | `hybrid_search` | `kb_id`\*, `query`\*, `vector_threshold`(0.5), `keyword_threshold`(0.3), `match_count`(5) | 向量 + 关键词混合检索；`kb_id` 支持 UUID **或名称**（`resolve_kb_id` 自动解析） |
@@ -217,7 +216,7 @@ MCP server 只是 REST API 的客户端，每个工具能否成功取决于 `YUH
 
 | 路径 | 内容 |
 |---|---|
-| `mcp-server/yuheng_mcp_server.py` | `YuhengClient`（REST 调用、`resolve_kb_id`、SSE 消费）、23 个 `@mcp.tool()` 工具、三种传输、`MCPAuthMiddleware` |
+| `mcp-server/yuheng_mcp_server.py` | `YuhengClient`（REST 调用、`resolve_kb_id`、SSE 消费）、22 个 `@mcp.tool()` 工具、三种传输、`MCPAuthMiddleware` |
 | `mcp-server/upload_paths.py` | `create_knowledge_from_file` 的路径校验与上传目录白名单 |
 | `mcp-server/main.py` | 启动入口 |
 | `mcp-server/pyproject.toml`、`uv.lock` | 包定义、`yuheng-mcp-server` 命令与锁定的依赖集 |

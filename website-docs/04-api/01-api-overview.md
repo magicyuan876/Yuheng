@@ -7,7 +7,7 @@ Yuheng 是给 AI Agent 用的知识层，本身不是 Agent 框架：它负责�
 | 方式 | 适用场景 | 文档 |
 | --- | --- | --- |
 | REST API | 任意语言直接调用 | 本章 |
-| MCP Server（`mcp-server/`，23 个工具） | 让支持 MCP 的 Agent / IDE 直接检索、问答、入库 | [MCP 集成](../03-features/08-mcp.md) |
+| MCP Server（`mcp-server/`，22 个工具） | 让支持 MCP 的 Agent / IDE 直接检索、问答、入库 | [MCP 集成](../03-features/08-mcp.md) |
 | Go SDK（`client/`） | Go 服务集成 | [Go SDK](../05-clients/03-go-sdk.md) |
 | `yuheng` CLI（`cli/`） | 运维脚本、CI、终端里的 Agent | [命令行工具](../05-clients/02-cli.md) |
 
@@ -42,7 +42,7 @@ Authorization: Bearer <access_token>
 
 - 通过 `POST /api/v1/auth/login`（或 register / OIDC）获得 `token` 与 `refresh_token`；`POST /api/v1/auth/refresh` 换发新 token。
 - 可选请求头 `X-Tenant-ID: <tenant_id>`：在 JWT 指向的空间之外切换目标空间（须为该空间活跃成员，或具备 `CanAccessAllTenants` 跨空间超管属性）。畸形或 `0` 值直接返回 400。
-- 若 JWT 未解析出任何空间且接口非“无空间可用”白名单（如 `/auth/me`、`/me/invitations` 等），返回 409 `{"code":"TENANT_REQUIRED"}`。
+- 没带 `X-Tenant-ID`、JWT 里也没有 `tenant_id` 时，按用户偏好 `last_active_tenant_id`（仍须是活跃成员）→ 最早的活跃成员关系解析；都没有则是「无空间」：只放行身份级白名单（`/auth/me`、`/auth/validate`、`/auth/switch-tenant`、`/me/invitations/*`、`POST /tenants` 等），其余返回 409 `{"code":"TENANT_REQUIRED"}`。
 
 ### 2. API Key（机器主体）
 
@@ -58,7 +58,7 @@ X-API-Key: <api_key>
   ```
 - 授权模型（`internal/middleware/api_key_gate.go`，默认拒绝）：每个 `/api/v1` 路由必须显式声明 API key 策略，未声明的路由对任何 key 一律 403。
   - `full_access` key：空间内全权（等效 Owner 的机器形态）。
-  - 受限（scoped）key：按 capability 放行，并受 `knowledge_base_ids` 白名单约束。Capability 常量见 `internal/types/tenant_api_key.go`：`retrieve`、`ingest`、`chat`、`manage_kbs`、`message_history`、`manage_models`、`manage_datasources`、`manage_vector_stores`、`manage_storage_backends`、`manage_web_search`、`run_evaluations`、`manage_members`、`manage_spaces`、`manage_tenant_settings`，在线文档模块另有 `docs_read`、`docs_write`、`docs_admin`；平台能力：`system_tenants_read/manage`、`system_settings_read/manage`、`system_runtime_read/manage`、`system_audit_read`。
+  - 受限（scoped）key：按 capability 放行，并受 `knowledge_base_ids` 白名单约束。Capability 常量见 `internal/types/tenant_api_key.go`：`retrieve`、`ingest`、`chat`、`manage_kbs`、`message_history`、`manage_models`、`manage_datasources`、`manage_vector_stores`、`manage_storage_backends`、`manage_web_search`、`run_evaluations`、`manage_members`（成员、邀请与空间组）、`manage_tenant_settings`，在线文档模块另有 `docs_read`、`docs_write`、`docs_admin`；平台能力：`system_tenants_read/manage`、`system_settings_read/manage`、`system_runtime_read/manage`、`system_audit_read`。
 - 外部用户主体（可选，按空间 `api-principal-config` 配置，见[租户与成员](./02-api-tenant.md)）：把一个 API key 请求映射到你系统里的某个终端用户，用来按用户隔离会话（会话的创建、列表与读取按外部用户分开）。它**不会**缩小 key 的路由权限，权限仍只由 capability 与 KB 白名单决定。
   - `tenant` 模式（默认）：全空间共用一个空间级主体。
   - `direct_header` 模式：`X-External-User-ID: <外部用户ID>`（≤128 字符）。这个 ID 由调用方自报，任何持有 key 的调用方都能冒充别的外部用户，只适合可信的服务端到服务端调用。缺少该 Header 时，`require_direct_header=false` 回落为空间级主体，`true` 返回 401。
@@ -76,7 +76,9 @@ flowchart TD
     D -- "有" --> F{"IsTenantAccessible?<br/>(成员/跨空间超管)"}
     F -- "否" --> G["403 Forbidden"]
     F -- "是" --> E
-    E --> R{"resolveTenantRole<br/>(成员表 → 超管 → 孤儿空间自愈 → EnableRBAC 兜底)"}
+    D -- "无, JWT 无 tenant_id" --> E2["偏好 last_active_tenant_id → 最早的成员关系 → 无空间 (409 TENANT_REQUIRED)"]
+    E2 --> R
+    E --> R{"resolveTenantRole<br/>(成员表 → 超管 → EnableRBAC 兜底)"}
     R -- "无角色且 RBAC 强制" --> G
     R -- "得到角色" --> P["注入 tenant/user/role 上下文"]
     C -- "无/无效" --> K{"X-API-Key?"}
@@ -110,7 +112,7 @@ flowchart TD
 - 文档中“Viewer+ / Contributor+ / Admin+ / Owner”表示最低角色要求；“创建者 OR Admin+”对应 `RequireOwnershipOrRole`（Contributor 只能改自己创建的 KB/内容）。
 - “PlatformManaged”用于共享基础设施（模型、Web 搜索引擎、向量存储、存储后端、解析引擎、Ollama）的写操作：系统设置 `governance.centralized_infra` 关闭时为 Admin+，开启后只允许 SystemAdmin；对应的读接口保持 Viewer+，建库时仍能选用平台资源。
 - `cfg.Tenant.EnableRBAC=false` 时角色守卫只记录日志不拦截（rollout fail-open）；SystemAdmin 守卫不受此开关影响。
-- KB 级访问守卫 `KBAccessRead/Write`（`internal/middleware/kb_access.go`）：解析“自有 / 组织共享”两类访问，并把请求上下文的 tenant 重写为 KB 属主空间。
+- KB 级访问守卫 `KBAccess`（`internal/middleware/kb_access.go`）：知识库只能从拥有它的空间访问，别的空间的知识库与不存在的 ID 一样返回 404；守卫同时执行 API key 的 KB 白名单。
 - API key 主体会短路 JWT 角色守卫，其真实权限完全由 APIKeyGate（capability + KB 白名单）决定。
 - 被拒绝的请求会写入审计日志（`middleware.AuditServiceProvider`，1 分钟滑动窗口去重）。
 
@@ -145,7 +147,9 @@ flowchart TD
 | 1008 | ErrServiceUnavailable 暂不可用 | 503 |
 | 1009 | ErrTimeout 超时 | — |
 | 1010 | ErrValidation 参数校验失败 | 400 |
-| 2000-2005 | 空间类：不存在/已存在/停用/名称必填/状态非法/自助创建被禁用 | 404/409/403/… |
+| 2000-2004 | 空间类：不存在/已存在/停用/名称必填/状态非法 | 404/409/… |
+| 2006 | 建空间没有 Owner（平台 key 未给 `owner_email`） | 400 |
+| 2007 / 2008 | 删空间被拒：还有其他成员 / 部署最后一个空间 | 409 |
 | 2200-2201 | VectorStore 绑定非法 / 当前不可用 | 400 |
 
 另有非编码错误：`types.StorageQuotaExceededError`（存储配额超限）、`types.DuplicateKnowledgeError`（重复文件/URL，上传接口返回 409 且 `data` 携带已存在的 Knowledge）。
@@ -220,15 +224,14 @@ X-Accel-Buffering: no
 | 在线文档加密分享解锁（`POST /docs/public/:key/unlock`） | 每 IP 10 次/分钟 | 同上 |
 | 反代信任 | 仅信任 `YUHENG_TRUSTED_PROXIES`（默认回环+内网段）的 `X-Forwarded-For`，防止伪造 IP 绕过限流 | `router.go` `trustedProxies()` |
 
-其余业务接口无全局限流；自助创建空间等配额类拒绝同样使用 429（code 1006）。
+其余业务接口无全局限流；配额类拒绝（存储配额等）同样使用 429（code 1006）。
 
 ## API 分组导航
 
 | 分组 | 文档 | 主要前缀 |
 | --- | --- | --- |
 | 认证与用户 | [02-api-auth.md](./02-api-auth.md) | `/auth`、`/me/invitations`、`/user/favorites` |
-| 租户（空间）与成员 | [02-api-tenant.md](./02-api-tenant.md) | `/tenants` |
-| 组织与共享 | [02-api-org.md](./02-api-org.md) | `/organizations`、`/shared-*`、`/knowledge-bases/:id/shares` |
+| 租户（空间）与成员 | [02-api-tenant.md](./02-api-tenant.md) | `/tenants`、`/system/admin/tenants/:id/members` |
 | 知识库与知识 | [02-api-knowledge.md](./02-api-knowledge.md) | `/knowledge-bases`、`/knowledge`、知识库文件夹 |
 | 知识健康 | [02-api-knowledge.md](./02-api-knowledge.md)，概念见[知识健康](../03-features/22-knowledge-health.md) | `/knowledge-bases/:id/findings`、`/findings/assigned`、`/knowledge/:id/stewardship` |
 | 分块与标签 | [02-api-chunks.md](./02-api-chunks.md) | `/chunks`、`/knowledge-bases/:id/tags`、`/chunker/preview` |
@@ -238,4 +241,4 @@ X-Accel-Buffering: no
 | 系统与平台管理 | [02-api-system.md](./02-api-system.md) | `/system`、`/system/admin` |
 | 基础设施与数据源 | [02-api-infra.md](./02-api-infra.md) | `/vector-stores`、`/storage-backends`、`/web-search-providers`、`/datasource` |
 | 文件服务 | [02-api-files.md](./02-api-files.md) | `/files`、`/r/:token`、外链预览 |
-| 在线文档 | [02-api-docs.md](./02-api-docs.md)，概念见[在线文档](../03-features/07-docs.md) | `/docs`、`/groups`，匿名的 `/docs/public`、`/docs/public-spaces` |
+| 在线文档 | [02-api-docs.md](./02-api-docs.md)，概念见[在线文档](../03-features/07-docs.md) | `/docs`，匿名的 `/docs/public`、`/docs/public-spaces`；空间组 `/groups`（空间级能力，文档暂放在这一页） |

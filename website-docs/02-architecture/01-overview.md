@@ -135,7 +135,7 @@ graph LR
 | 组织 | 知识库、分块、标签、FAQ、Auto-Wiki、可选知识图谱 | `internal/application/service/`、`internal/infrastructure/chunker/` |
 | 问答 | 混合检索（向量 + BM25）、重排、联网搜索、带引用的流式回答 | `internal/application/service/chat_pipeline/`、`knowledgebase_search*.go`、`internal/modelcontext/` |
 | 知识健康 | 索引后检测重复/有出入的文档、到期复核、被反馈「没帮助」的回答所引用的文档；文档负责人与派发 | `internal/application/service/findings/`、`knowledge_findings.go`、`knowledge_stewardship.go`、`message_feedback.go` |
-| 对外接口 | REST `/api/v1`、MCP Server（23 个工具）、Go SDK、`yuheng` CLI、DeepSeek Harness 插件 | `internal/router/`、`mcp-server/`、`client/`、`cli/`、`packages/dsh-yuheng/` |
+| 对外接口 | REST `/api/v1`、MCP Server（22 个工具）、Go SDK、`yuheng` CLI、DeepSeek Harness 插件 | `internal/router/`、`mcp-server/`、`client/`、`cli/`、`packages/dsh-yuheng/` |
 | 扩展接缝 | 独立扩展包在不改核心的前提下增加特性、路由、检索引擎、检测器与迁移 | `internal/extension/`、`internal/database/migration.go` |
 
 ## 6. 典型请求链路：文档上传与解析入库

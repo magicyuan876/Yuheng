@@ -73,7 +73,7 @@ type FAQEntry struct {
 
 ## 2. API 端点
 
-`internal/handler/faq.go`（路由注册于 `internal/router/routes_knowledge.go` 的 `RegisterFAQRoutes`，KB 门禁与知识库一致：读走 Viewer + KBAccessRead，写走 KB 所有者或 Admin + KBAccessWrite；API Key 读需 `retrieve`、写需 `ingest` 能力）：
+`internal/handler/faq.go`（路由注册于 `internal/router/routes_knowledge.go` 的 `RegisterFAQRoutes`，KB 门禁与知识库一致：读走 Viewer + KBAccess，写走 KB 所有者或 Admin + KBAccess；API Key 读需 `retrieve`、写需 `ingest` 能力）：
 
 | 方法 | 路径 | 功能 |
 | --- | --- | --- |

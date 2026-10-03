@@ -33,7 +33,7 @@ ReAct 循环——任何智能体——都可以来这里检索、问答、读 W
  接入            组织              问答               维护                开放
  ────────────    ──────────────    ───────────────    ────────────────    ──────────────
  文件与网页      知识库与分块      混合检索 + 重排    重复与内容出入      REST /api/v1
- 数据源同步      FAQ 与标签        带引用的流式问答    定期复核            MCP（23 个工具）
+ 数据源同步      FAQ 与标签        带引用的流式问答    定期复核            MCP（22 个工具）
  在线协同文档    自动 Wiki         联网搜索           回答反馈            Go SDK · CLI
                  知识图谱（可选）                      负责人与待办
 ```
@@ -49,8 +49,8 @@ ReAct 循环——任何智能体——都可以来这里检索、问答、读 W
   该处理的人，汇总进个人待办，可以一键以一份取代另一份或确认仍然有效。
 - **为智能体而设计**：界面上能做的事都有 REST 接口（JWT 或细粒度能力域的 API Key）和
   MCP 工具，另有 Go SDK、`yuheng` CLI 与 DeepSeek Harness 插件。
-- **企业级**：多租户工作空间、四级角色、组织与共享空间、审计日志、凭据 AES-256-GCM
-  加密、登录限流与锁定、Langfuse 追踪。
+- **企业级**：一个企业一个空间、空间内知识库任意多，四级成员角色与空间组，系统管理员
+  统一管理空间与账号；审计日志、凭据 AES-256-GCM 加密、登录限流与锁定、Langfuse 追踪。
 
 ## 核心功能
 
@@ -86,11 +86,12 @@ ReAct 循环——任何智能体——都可以来这里检索、问答、读 W
 **🤖 面向你的 AI 智能体**
 - `/api/v1` REST API，Swagger UI 位于 `/swagger/index.html`（非 release 模式）
 - 细粒度能力域的 API Key（retrieve、chat、ingest、manage_kbs 等），可限定知识库
-- [`yuheng-mcp`](./mcp-server/)：23 个 MCP 工具，stdio / SSE / HTTP
+- [`yuheng-mcp`](./mcp-server/)：22 个 MCP 工具，stdio / SSE / HTTP
 - [Go SDK](./client/)、[`yuheng` CLI](./cli/)、[DeepSeek Harness 插件](./packages/dsh-yuheng/)
 
 **🏢 平台能力**
-- 多租户工作空间，owner / admin / contributor / viewer 四级角色；组织与共享空间
+- 工作空间内 owner / admin / contributor / viewer 四级角色与空间组；用户是全局身份，
+  由邀请或系统管理员加入空间，再建空间也由系统管理员负责
 - 审计日志与知识库活动流、任务队列看板、Langfuse 可观测性、限流
 - 文件存储：本地目录或任意 S3 兼容存储，默认自带 RustFS
 
@@ -182,7 +183,7 @@ docker compose ps                     # 等服务都变成 healthy
 | 客户端 | 目录 | 说明 |
 | --- | --- | --- |
 | Web 界面 | [`frontend/`](./frontend/) | Vue 3.5 + TypeScript + Vite；Tailwind v4 + shadcn-vue（正从 TDesign 逐屏迁移） |
-| MCP 服务 | [`mcp-server/`](./mcp-server/) | 从源码安装（`pip install ./mcp-server`），23 个工具 |
+| MCP 服务 | [`mcp-server/`](./mcp-server/) | 从源码安装（`pip install ./mcp-server`），22 个工具 |
 | CLI | [`cli/`](./cli/) | `yuheng`：可脚本化的 JSON 输出，多 profile |
 | Go SDK | [`client/`](./client/) | CLI 即基于它 |
 | DeepSeek Harness 插件 | [`packages/dsh-yuheng/`](./packages/dsh-yuheng/) | 从源码安装 |

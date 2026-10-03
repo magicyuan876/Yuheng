@@ -36,7 +36,7 @@ flowchart TD
 
 ### Web 控制台
 
-前端把 `resource://` 引用改写成鉴权代理地址（`frontend/src/utils/protectedFileAccess.ts`），按上下文选路径：普通场景走 `/files`（Bearer + `X-Tenant-ID`，只能读本空间的资源）；跨租户共享的知识库走 `/api/v1/knowledge-bases/:id/files`（按 KB 访问权判定，能读到属主租户的正文图片，但读不到属主的原始上传文件）；会话回复里引用的资源走 `/api/v1/sessions/:id/messages/:mid/files`。这条路径不需要任何额外配置。
+前端把 `resource://` 引用改写成鉴权代理地址（`frontend/src/utils/protectedFileAccess.ts`），按上下文选路径：普通场景走 `/files`（Bearer + `X-Tenant-ID`，只能读本空间的资源）；知识库正文里的图片走 `/api/v1/knowledge-bases/:id/files`（经 KB 访问守卫，只给本空间 `exports/` 区域里的正文图片，不给原始上传文件）；会话回复里引用的资源走 `/api/v1/sessions/:id/messages/:mid/files`。这条路径不需要任何额外配置。
 
 ### REST API 与 SDK
 
@@ -57,7 +57,6 @@ flowchart TD
 | 加了 `resource_urls=public` 仍返回 `resource://` | 部署不具备外链能力（本机目录后端且未配 `APP_EXTERNAL_URL`） | 配 `APP_EXTERNAL_URL`（并让反向代理转发 `/r/`），或改用 `/files` 代理 |
 | `/files` 返回 400 `file_path must be a resource:// reference` | 传的是存储位置（`local://`、`s3://`）而不是引用 | 只用接口返回的 `resource://` 引用 |
 | 加了 `resource_urls=public`（或部署设了 `RESOURCE_URL_MODE=public`）后返回 403 | 用的是限定知识库的 API Key | 请求带 `?resource_urls=handle`，或换一把不限定知识库的 Key |
-| 网页端图片 404，日志显示租户不匹配 | 跨租户共享库的图存在属主租户下 | 该场景应走 `/api/v1/knowledge-bases/:id/files`，确认前端拿到的是 KB 维度的代理地址 |
 | 外链过一段时间失效 | 外链是限时的（`/r/<token>` grant 2 小时 / S3 预签名 24 小时） | 不要缓存外链本身，需要时重新取；配置了 `SYSTEM_AES_KEY` 时同一文件在有效期内会复用同一链接 |
 
 ## 4. 相关配置

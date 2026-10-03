@@ -1,6 +1,6 @@
 # API 参考：认证与用户
 
-路由注册：`internal/router/routes_auth_tenant.go` 的 `RegisterAuthRoutes` 与 `RegisterMyInvitationRoutes`，个人收藏在 `internal/router/routes_organization.go` 的 `RegisterUserFavoriteRoutes`。Handler：`internal/handler/auth.go`、`internal/handler/auth_register_by_invite.go`、`internal/handler/tenant_invitation.go`、`internal/handler/user_resource_favorite.go`。
+路由注册：`internal/router/routes_auth_tenant.go` 的 `RegisterAuthRoutes`、`RegisterMyInvitationRoutes` 与 `RegisterUserFavoriteRoutes`（个人收藏）。Handler：`internal/handler/auth.go`、`internal/handler/auth_register_by_invite.go`、`internal/handler/tenant_invitation.go`、`internal/handler/user_resource_favorite.go`。
 
 除特别标注外，本组接口在认证中间件之后仅要求“已登录”（无角色下限），且只接受 JWT：API key 能调用的只有 `GET /auth/me`。免认证接口见各条目。
 
@@ -8,15 +8,16 @@
 
 ### POST /api/v1/auth/register
 
-用途：注册新用户（自助注册模式）。免认证，每 IP 10 次/分钟。Handler: `internal/handler/auth.go`
+用途：注册新用户。免认证，每 IP 10 次/分钟。Handler: `internal/handler/auth.go`
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `username` | string | 是（`binding:"required,min=2,max=50"`） | 用户名，2-50 字符 |
 | `email` | string | 是（`binding:"required,email"`） | 邮箱 |
 | `password` | string | 是（`binding:"required,min=6"`） | 密码（≥6 位） |
+| `workspace_name` | string | 否（`binding:"omitempty,max=128"`） | 只在部署的**第一次**注册（`/auth/config` 的 `first_user` 为 true）时生效：默认空间的名称，空则为 `Default Workspace`。其他时候被忽略 |
 
-新用户是否得到个人空间由服务端的注册策略决定，调用方不能在请求里指定。注册未开放（`invite_only`，或 `auto` 模式下已有用户）时返回 403。
+注册只创建账号，不创建空间；新账号通过邀请或由系统管理员加入空间。唯一例外是部署的第一个账号（bootstrap）：同一事务里创建默认空间、把该用户设为系统管理员并写入 Owner 成员关系。注册未开放（`invite_only`，或 `auto` 模式下已有用户）时返回 403；两个人抢第一个账号时输的一方也得到 403。
 
 注册模式按「系统设置 `auth.registration_mode` > 配置文件 > 默认 `auto`」解析。`auto` 只在系统还没有任何用户时开放，首个注册者成为系统管理员。环境变量 `DISABLE_REGISTRATION` 在启动时折算进配置：`true` 等于 `invite_only`（一直关闭），`false` 等于 `self_serve`（一直开放），不设则保持 `auto`。`/auth/register` 与 `/auth/config` 用同一套解析，界面与接口的判断总是一致。
 
@@ -80,7 +81,7 @@ curl -X POST $BASE/api/v1/auth/login -H 'Content-Type: application/json' -d '{"e
 
 用途：查询注册模式等认证配置。免认证。Handler: `internal/handler/auth.go`
 
-响应：200 `{"success":true,"registration_mode":"self_serve|invite_only","configured_registration_mode":"auto|self_serve|invite_only","registration_open":true,"first_user":false}`。`registration_mode` 是**当前生效**的状态（`auto` 且已有用户时读作 `invite_only`）；`first_user` 为 true 表示这是全新部署，下一个注册者将成为系统管理员
+响应：200 `{"success":true,"registration_mode":"self_serve|invite_only","configured_registration_mode":"auto|self_serve|invite_only","registration_open":true,"first_user":false,"default_workspace_name":"Default Workspace"}`。`registration_mode` 是**当前生效**的状态（`auto` 且已有用户时读作 `invite_only`）；`first_user` 为 true 表示这是全新部署，下一个注册者将成为系统管理员并创建默认空间，注册页此时显示「空间名称」字段，`default_workspace_name` 是它的占位默认值
 
 ```bash
 curl $BASE/api/v1/auth/config
@@ -189,7 +190,7 @@ curl -X POST $BASE/api/v1/auth/logout -H "Authorization: Bearer $TOKEN"
 
 用途：查询当前调用者身份（用户/空间/成员关系/能力）。需登录；API key 亦可（策略 `apiKeyAny()`，任何有效 key）。Handler: `internal/handler/auth.go`
 
-响应：200 `{"success":true,"data":{"user":{UserInfo},"tenant":{TenantResponse},"memberships":[...],"tenant_required":bool,"capabilities":{"can_create_tenant":bool,"auto_accept_invitation":bool}}}`。`tenant_required` 为 true 表示调用者还没有任何可用空间。
+响应：200 `{"success":true,"data":{"user":{UserInfo},"tenant":{TenantResponse},"memberships":[...],"tenant_required":bool,"capabilities":{"can_create_tenant":bool,"auto_accept_invitation":bool}}}`。`user` 不带空间字段——当前空间是旁边的 `tenant`，按「`X-Tenant-ID` → JWT → 偏好 → 最早的成员关系」解析；`tenant_required` 为 true 表示调用者还没有任何可用空间。`can_create_tenant` 与 `POST /tenants` 的守卫同源：系统管理员、生效中的跨空间超管、平台 key 为 true。
 
 ```bash
 curl $BASE/api/v1/auth/me -H "X-API-Key: $API_KEY"
@@ -197,11 +198,11 @@ curl $BASE/api/v1/auth/me -H "X-API-Key: $API_KEY"
 
 ### PUT /api/v1/auth/me/preferences
 
-用途：更新个人偏好（最近活跃空间）。需登录。Handler: `internal/handler/auth.go`
+用途：更新个人偏好（当前空间）。需登录。Handler: `internal/handler/auth.go`
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `last_active_tenant_id` | *uint64 | 否 | 最近活跃空间 ID，null 清除 |
+| `last_active_tenant_id` | *uint64 | 否 | 当前空间 ID，0 清除。这是用户指向空间的唯一指针（没有「主空间」）；是否可用在下次登录按成员关系校验，不在这里校验 |
 
 响应：200 `{"success":true,"data":{UserPreferences}}`
 
@@ -278,7 +279,7 @@ curl -X POST $BASE/api/v1/me/invitations/12/decline -H "Authorization: Bearer $T
 
 ### POST /api/v1/me/invitations/accept-by-token
 
-用途：已登录用户用共享邀请链接的 token 加入空间（与 `register-by-invite` 相对，不创建新账号）；对已是成员的用户幂等。调用者还没有默认空间时，加入的空间会成为其默认空间。
+用途：已登录用户用共享邀请链接的 token 加入空间（与 `register-by-invite` 相对，不创建新账号）；对已是成员的用户幂等。调用者之前没有任何空间时，加入的空间会被记为其当前空间（`preferences.last_active_tenant_id`）。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |

@@ -97,16 +97,16 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 
 ## 资源与方法总览
 
-以下均为 `Client` 的公开方法（共 159 个），内部方法（`buildRequest`、`doRequest`、`doRequestStream`、`applyAuthHeaders`）不列入。
+以下均为 `Client` 的公开方法（共 130 个），内部方法（`buildRequest`、`doRequest`、`doRequestStream`、`applyAuthHeaders`）不列入。
 
-SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、组织、模型等管理接口；以下服务端接口**没有**类型化方法，需要时用 `Raw` 调用：知识健康（`/knowledge-bases/:id/findings`、`/findings/assigned`、`/knowledge/:id/stewardship` 等，见[知识健康](../03-features/22-knowledge-health.md)）、答案反馈（`/sessions/:id/feedback`）、在线文档（`/docs/...`）、Wiki、数据源、向量存储与存储后端、Web 搜索 provider 管理、成员与邀请、审计日志、系统管理（`/system/admin/...`）。
+SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、模型等管理接口；以下服务端接口**没有**类型化方法，需要时用 `Raw` 调用：知识健康（`/knowledge-bases/:id/findings`、`/findings/assigned`、`/knowledge/:id/stewardship` 等，见[知识健康](../03-features/22-knowledge-health.md)）、答案反馈（`/sessions/:id/feedback`）、在线文档（`/docs/...`）、Wiki、数据源、向量存储与存储后端、Web 搜索 provider 管理、成员与邀请、审计日志、系统管理（`/system/admin/...`）。
 
 ### 认证 Auth — `client/auth.go`
 
 | 方法 | 说明 |
 |---|---|
 | `Login` | 邮箱密码登录，返回 JWT access/refresh token（`POST /api/v1/auth/login`） |
-| `GetCurrentUser` | 获取当前登录主体与租户信息（`GET /api/v1/auth/me`） |
+| `GetCurrentUser` | 获取当前登录主体与租户信息（`GET /api/v1/auth/me`）。`AuthUser` 不带 `tenant_id`——用户是全局身份，当前空间是登录响应的 `ActiveTenant` 或 `/auth/me` 的 `Tenant`，成员关系在 `Memberships` 里 |
 | `RefreshToken` | 用 refresh token 换取新 access token |
 | `ChangePassword` | 修改当前用户密码（`POST /api/v1/auth/change-password`）；成功后服务端吊销该用户所有会话，调用方应丢弃本地 token |
 
@@ -215,27 +215,15 @@ SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、组�
 
 | 方法 | 说明 |
 |---|---|
-| `CreateTenant` / `GetTenant` / `UpdateTenant` / `DeleteTenant` | 租户 CRUD |
+| `CreateTenant` / `CreateTenantWithOwner` | 创建空间（只有系统管理员、跨空间超管与平台 API Key 可调）。`CreateTenant` 让调用者本人成为 Owner；平台 Key 不是人，必须用 `CreateTenantWithOwner` 在 `CreateTenantRequest.OwnerEmail` 里指定一位已注册用户（否则服务端返回 code 2006） |
+| `GetTenant` / `UpdateTenant` / `DeleteTenant` | 租户读取、更新、删除（删除在空间还有其他成员或是最后一个空间时被拒绝，code 2007 / 2008） |
 | `ListTenants` | 列出当前用户可访问的租户 |
-| `ListAllTenants` | 列出全部租户（跨租户权限） |
-| `SearchTenants` | 搜索租户（分页，跨租户权限） |
+| `ListAllTenants` | 列出全部租户（系统管理员 / 跨租户权限），每项带 `member_count` |
+| `SearchTenants` | 搜索租户（分页，同上） |
 | `ListTenantAPIKeys` / `CreateTenantAPIKey` / `UpdateTenantAPIKey` / `DeleteTenantAPIKey` | 租户 API Key 管理 |
 | `GetTenantKV` / `UpdateTenantKV` | 读取/更新租户级 KV 配置 |
 | `GetAPIPrincipalConfig` / `UpdateAPIPrincipalConfig` | API 主体配置 |
 | `CreateAPIPrincipalTestToken` | 创建 API 主体测试 token |
-
-### 组织与共享 Organization — `client/organization.go`
-
-| 方法 | 说明 |
-|---|---|
-| `CreateOrganization` / `ListMyOrganizations` / `GetOrganization` / `UpdateOrganization` / `DeleteOrganization` | 组织 CRUD |
-| `SearchOrganizations` / `PreviewOrganizationByInviteCode` | 搜索/邀请码预览组织 |
-| `JoinOrganizationByInviteCode` / `SubmitJoinRequest` / `JoinByOrganizationID` / `LeaveOrganization` / `RequestRoleUpgrade` | 加入/退出/申请升级角色 |
-| `GenerateInviteCode` / `SearchTenantsForInvite` / `InviteMember` | 邀请成员：成员单位是空间，按空间名搜索、按 `tenant_id` 邀请 |
-| `ListOrgMembers` / `UpdateMemberRole` / `RemoveMember` | 成员管理（后两者以成员空间的 `tenant_id` 定位） |
-| `ListJoinRequests` / `ReviewJoinRequest` | 加入申请审批 |
-| `ShareKnowledgeBase` / `ListKBShares` / `UpdateSharePermission` / `RemoveKBShare` | 知识库共享 |
-| `ListOrgShares` / `ListSharedKnowledgeBases` | 组织内共享的知识库、共享给我的知识库 |
 
 ### FAQ — `client/faq.go`
 

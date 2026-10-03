@@ -24,11 +24,12 @@ recorded in [`NOTICE`](./NOTICE).
   self-hosted SearXNG). Answers stream with citations.
 - Auto-Wiki: an LLM pipeline that turns a knowledge base into a Wiki with
   version history, human editing and an issue-feedback loop.
-- Multi-tenant workspaces with four roles, organizations and shared spaces,
-  audit logs, scoped API keys, AES-256-GCM encryption of stored credentials,
-  Langfuse tracing and rate limiting.
+- Workspaces with four member roles and workspace groups, system
+  administrators who manage workspaces and accounts, audit logs, scoped API
+  keys, AES-256-GCM encryption of stored credentials, Langfuse tracing and rate
+  limiting.
 - Interfaces for other software: REST API (`/api/v1`, Swagger UI), an MCP server
-  with 23 tools, a Go SDK, the `yuheng` CLI and a DeepSeek Harness plugin.
+  with 22 tools, a Go SDK, the `yuheng` CLI and a DeepSeek Harness plugin.
 - Optional collaborative documents (`docs` Compose profile).
 - Knowledge health: documents of a knowledge base are compared as they
   change — word-for-word copies are reported as duplicates, near-copies that
@@ -55,9 +56,8 @@ recorded in [`NOTICE`](./NOTICE).
   getting a copy of it.
 - Every file is located by its resource row: the backend it was written to and
   the backend's own locator. Reads never depend on the caller's workspace or a
-  knowledge base's current binding, so files on user-registered backends,
-  files of shared knowledge bases and docs attachments all resolve the same
-  way, and a knowledge base or docs space can be rebound while it has files
+  knowledge base's current binding, so files on user-registered backends
+  and docs attachments all resolve the same way, and a knowledge base or docs space can be rebound while it has files
   (new files go to the new backend). Workspace defaults, knowledge base and
   docs space bindings are required.
 - Writes always name a backend: knowledge base files (including FAQ import
@@ -81,12 +81,70 @@ recorded in [`NOTICE`](./NOTICE).
   `--storage-provider`. Migrations `000134`–`000137` target recreated
   deployments and keep no compatibility with data written before them.
 
-### Registration
+### Workspace model
 
-- Registration is closed by default after the first account. The first person
-  to register becomes the administrator of the deployment; after that public
-  registration is closed and members join by invitation. `DISABLE_REGISTRATION`
-  overrides this: `true` keeps registration closed, `false` keeps it open.
+A user is a global identity and a company is one workspace with any number of
+knowledge bases in it. This replaces the earlier shape, in which every
+registration created a personal workspace and workspaces federated through
+organizations. Breaking for anyone who deployed a pre-release build:
+
+- Registration creates an account and nothing else. The first person to
+  register (bootstrap) creates the deployment's default workspace, optionally
+  named through `workspace_name` on `POST /auth/register`, and becomes its
+  Owner and the system administrator, in one transaction; after that public
+  registration is closed and accounts enter a workspace by invitation or by a
+  system administrator. `DISABLE_REGISTRATION` overrides the mode: `true` keeps
+  registration closed, `false` keeps it open (accounts registered that way
+  belong to no workspace until added). OIDC first login also only creates an
+  account.
+- Removed: the `create_personal` / `tenantless` provisioning modes,
+  `auth.default_tenant_mode` and `YUHENG_AUTH_DEFAULT_TENANT_MODE`,
+  self-service workspace creation (`tenant.self_service_creation_enabled`,
+  `YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED`, `tenant.max_owned_per_user`,
+  `YUHENG_TENANT_MAX_OWNED_PER_USER`; error code 2005 is retired), the
+  `users.tenant_id` "home workspace" column (migration `000139`), the orphan
+  self-heal that promoted whoever logged in to Owner of a memberless workspace,
+  and the `manage_spaces` API-key capability.
+- Organizations and cross-workspace knowledge base sharing are gone (migration
+  `000138` drops `organizations`, `organization_tenant_members`,
+  `organization_join_requests`, `kb_shares` and the parked
+  `organization_members_pre_plan3`; share grants are not migrated). A knowledge
+  base is reachable only from the workspace that owns it: another workspace's
+  base answers `404`, the same as a missing id. Gone with them: the
+  `/organizations/**`, `/shared-knowledge-bases` and
+  `/knowledge-bases/:id/shares` routes, `share_count` and `my_permission` on
+  knowledge base responses, the `vector_store_source=shared` value, the
+  `kb.share_*` audit actions (historical rows render as their raw string), the
+  `organizations` deployment capability, the Go SDK's organization client and
+  the MCP `list_shared_knowledge_bases` tool (22 tools remain).
+- Which workspace a request acts in is resolved in one order everywhere:
+  `X-Tenant-ID` header, JWT `tenant_id`, `preferences.last_active_tenant_id`
+  (if still an active membership), the earliest active membership, none. A
+  user with no workspace can sign in and sees "your account is not in any
+  workspace yet"; non-identity routes answer `409 TENANT_REQUIRED`. `/auth/me`
+  and `AuthUser` in the Go SDK carry no `tenant_id`.
+- `POST /tenants` is a catalog operation for system administrators,
+  cross-tenant superusers and platform API keys (`system_tenants_manage`). It
+  takes `owner_email` and writes the Owner membership in the same request
+  (platform keys must name one; `400`, code 2006). `DELETE /tenants/:id` is
+  refused while other members remain (`409`, code 2007) or for the deployment's
+  last workspace (`409`, code 2008). `/tenants/all` and `/tenants/search` are
+  open to system administrators and return `member_count`. Audit:
+  `system.tenant_created`, `system.tenant_deleted`.
+- System administrators manage workspaces and members: a "Users & workspaces"
+  settings page, `GET/POST /system/admin/tenants/:id/members`,
+  `PATCH/DELETE /system/admin/tenants/:id/members/:user_id` (member audit rows
+  record `actor_role=system_admin`), and `POST /system/admin/users/create`
+  accepts `tenant_id` and `role` to place the new account in a workspace.
+- Workspace groups (`tenant_groups`) are a core concept, no longer gated by
+  the docs module: `/api/v1/groups/**` is always registered, the API-key
+  capability is `manage_members` instead of `docs_admin`, the UI says
+  "workspace groups", and the audit actions are `rbac.group_*` (were
+  `docs.group.*`). Paths, table and the ACL subject `group:<id>` are unchanged.
+- API keys always act as the synthetic `system-<tenantID>` identity instead of
+  impersonating the workspace's oldest human member.
+- `tenant.default_storage_quota_gb` / `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB`
+  defaults to `0` (unlimited); the model's former 10 GB column default is gone.
 
 ### Removed from the upstream code
 
@@ -98,6 +156,8 @@ recorded in [`NOTICE`](./NOTICE).
   Milvus, Weaviate, Qdrant, Doris and Tencent Cloud VectorDB drivers are gone;
   PostgreSQL with ParadeDB (`pg_search`) and pgvector is the only database, in
   production and in tests.
+- Organizations and cross-workspace knowledge base sharing (see "Workspace
+  model" above).
 - Dedicated cloud-storage providers (MinIO, COS, TOS, OSS, KS3, OBS). File
   storage is now `local` or `s3`; any S3-compatible service, including the
   vendors above through their S3 endpoints, works with `s3`. Existing
@@ -109,6 +169,8 @@ recorded in [`NOTICE`](./NOTICE).
 ### Destructive migrations
 
 Some database migrations delete data (for example migration `000089_drop_agent_infra`,
-which drops the tables of the removed agent runtime) and cannot be reversed. Back up the database and the file
+which drops the tables of the removed agent runtime, `000138_drop_organizations`,
+which drops organizations and knowledge base shares, and
+`000139_drop_users_tenant_id`) and cannot be reversed. Back up the database and the file
 storage before upgrading; see the
 [backup and upgrade guide](./website-docs/01-getting-started/05-backup-and-upgrade.md).

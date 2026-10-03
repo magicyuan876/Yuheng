@@ -70,14 +70,14 @@ npm run preview  # 预览构建产物
 
 | 文档 | 内容 |
 | --- | --- |
-| [租户、用户与认证授权](03-features/01-tenant-auth.md) | 多租户模型、注册模式、JWT / API Key / OIDC、登录限流与锁定、RBAC、组织与共享空间、CORS |
+| [租户、用户与认证授权](03-features/01-tenant-auth.md) | 空间模型（用户是全局身份、一个企业一个空间）、注册与 bootstrap、JWT / API Key / OIDC、登录限流与锁定、RBAC、空间组、CORS |
 | [知识库与知识管理](03-features/02-knowledge-base.md) | 知识库配置、文件夹与标签、分块编辑与版本、文档负责人与复核周期、预览安全、复制与移动、活动流、配额 |
 | [文档解析服务 docreader](03-features/03-document-parsing.md) | gRPC 接口、解析引擎（builtin / MinerU / PaddleOCR-VL 等）、支持格式（含视频）、部署与扩容 |
 | [分块机制](03-features/04-chunking.md) | 自适应分块、父子分块、重叠与边界、调试端点 |
 | [检索引擎与向量存储](03-features/05-retrieval-engines.md) | 引擎目录与 PostgreSQL（pgvector + ParadeDB）、按维度建 HNSW、打分归一化 |
 | [模型管理](03-features/06-models.md) | 5 类模型、25 个厂商、内置模型、Ollama、并发限制、权限 |
 | [在线文档](03-features/07-docs.md) | 空间与页面权限、协同编辑、评论与通知、历史与分享、导入导出、同步到知识库、页面负责人 |
-| [MCP 集成](03-features/08-mcp.md) | `yuheng-mcp`（23 个工具，stdio / SSE / HTTP）与 CLI 内置的 `yuheng mcp serve` |
+| [MCP 集成](03-features/08-mcp.md) | `yuheng-mcp`（22 个工具，stdio / SSE / HTTP）与 CLI 内置的 `yuheng mcp serve` |
 | [知识图谱](03-features/09-knowledge-graph.md) | 开启方式、LLM 实体关系抽取、Neo4j 存储、图谱增强检索 |
 | [数据源导入](03-features/10-datasource.md) | 9 类连接器（飞书 / Lark 知识库与云盘、Notion、语雀、RSS、GitLab、ima）、同步调度、删除同步与冲突策略 |
 | [网络搜索与网页抓取](03-features/11-web-search.md) | 12 个搜索提供商、SSRF 防护、web_fetch、SearXNG 自托管 |
@@ -87,7 +87,7 @@ npm run preview  # 预览构建产物
 | [FAQ 能力](03-features/17-faq.md) | FAQ 条目、导入导出与去重、检索命中方式 |
 | [会话与对话体验](03-features/18-chat-experience.md) | 进度与引用、导出对话、临时附件、历史搜索、回答反馈 |
 | [存储后端](03-features/19-storage-backends.md) | local 与 S3 兼容存储、默认 RustFS、按库绑定、连通性测试 |
-| [平台管理与系统管理员](03-features/20-platform-admin.md) | 首个管理员、控制台分区、运行时系统设置、集中管控 |
+| [平台管理与系统管理员](03-features/20-platform-admin.md) | 首个管理员、控制台分区、用户与空间（建空间、建账号、任意空间的成员）、运行时系统设置、集中管控 |
 | [图片与文件的对外访问](03-features/21-file-access.md) | 四种 URL 形式、各客户端怎么取、排查表 |
 | [知识健康](03-features/22-knowledge-health.md) | 重复与内容有出入、定期复核、回答反馈、负责人与派发、我的待办、取代与确认 |
 
@@ -99,8 +99,7 @@ npm run preview  # 预览构建产物
 | --- | --- |
 | [API 总览](04-api/01-api-overview.md) | Base URL、认证方式与 API Key 能力域、通用响应与错误码、分页、SSE、限流、各资源导航 |
 | [认证与用户](04-api/02-api-auth.md) | 注册登录、OIDC、token 刷新、邀请、个人收藏 |
-| [租户与成员](04-api/02-api-tenant.md) | 租户、成员、邀请、API Key、身份映射、KV 配置 |
-| [组织与共享](04-api/02-api-org.md) | 组织、知识库共享 |
+| [租户与成员](04-api/02-api-tenant.md) | 租户、成员（含系统管理员的成员接口）、邀请、API Key、身份映射、KV 配置 |
 | [知识库与知识](04-api/02-api-knowledge.md) | 知识库、知识、文件夹、搜索、知识健康与负责人 |
 | [分块与标签](04-api/02-api-chunks.md) | 分块读写与版本、生成问题、标签 |
 | [FAQ 与 Wiki](04-api/02-api-faq-wiki.md) | FAQ 管理与导入、Wiki 读写 |
@@ -136,7 +135,7 @@ flowchart LR
         FE["Web 前端 Vue 3"]
         CLI["CLI yuheng"]
         SDK["Go SDK"]
-        MCP["MCP Server（23 个工具）"]
+        MCP["MCP Server（22 个工具）"]
         AGENT["外部 AI 智能体"]
     end
     subgraph Core["核心服务"]
