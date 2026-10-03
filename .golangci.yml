@@ -16,6 +16,10 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+        # gin's c.Error records the error for the error middleware to render
+        # and returns the same error wrapped; every handler ignores the
+        # return, which carries nothing to act on.
+        - (*github.com/gin-gonic/gin.Context).Error
   exclusions:
     paths:
       # Swagger output written by `make docs`. swag's header does not match the
