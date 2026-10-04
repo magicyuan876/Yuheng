@@ -582,8 +582,8 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 
 | License | Packages |
 |---|---|
-| MIT | 656 |
-| ISC | 59 |
+| MIT | 667 |
+| ISC | 58 |
 | Apache-2.0 | 36 |
 | BSD-3-Clause | 13 |
 | BSD-2-Clause | 12 |
@@ -601,7 +601,7 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 | Unlicense | 1 |
 
 <details>
-<summary>Full list (810 packages)</summary>
+<summary>Full list (820 packages)</summary>
 
 | Package | Version | License |
 |---|---|---|
@@ -725,6 +725,19 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 | `@pagefind/linux-x64` | 1.5.2 | MIT |
 | `@pagefind/windows-arm64` | 1.5.2 | MIT |
 | `@pagefind/windows-x64` | 1.5.2 | MIT |
+| `@parcel/watcher` | 2.6.0 | MIT |
+| `@parcel/watcher-android-arm64` | 2.6.0 | MIT |
+| `@parcel/watcher-darwin-arm64` | 2.6.0 | MIT |
+| `@parcel/watcher-darwin-x64` | 2.6.0 | MIT |
+| `@parcel/watcher-freebsd-x64` | 2.6.0 | MIT |
+| `@parcel/watcher-linux-arm-glibc` | 2.6.0 | MIT |
+| `@parcel/watcher-linux-arm-musl` | 2.6.0 | MIT |
+| `@parcel/watcher-linux-arm64-glibc` | 2.6.0 | MIT |
+| `@parcel/watcher-linux-arm64-musl` | 2.6.0 | MIT |
+| `@parcel/watcher-linux-x64-glibc` | 2.6.0 | MIT |
+| `@parcel/watcher-linux-x64-musl` | 2.6.0 | MIT |
+| `@parcel/watcher-win32-arm64` | 2.6.0 | MIT |
+| `@parcel/watcher-win32-x64` | 2.6.0 | MIT |
 | `@pkgr/core` | 0.3.6 | MIT |
 | `@popperjs/core` | 2.11.8 | MIT |
 | `@radix-ui/primitive` | 1.0.0 | MIT |
@@ -970,14 +983,12 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 | `ajv-keywords` | 5.1.0 | MIT |
 | `alien-signals` | 3.1.2 | MIT |
 | `ansi-styles` | 6.2.1 | MIT |
-| `anymatch` | 3.1.3 | ISC |
 | `aria-hidden` | 1.2.6 | MIT |
 | `assertion-error` | 2.0.1 | MIT |
 | `asynckit` | 0.4.0 | MIT |
 | `axios` | 1.20.0 | MIT |
 | `balanced-match` | 4.0.4 | MIT |
 | `baseline-browser-mapping` | 2.11.26 | Apache-2.0 |
-| `binary-extensions` | 2.3.0 | MIT |
 | `birpc` | 2.5.0 | MIT |
 | `boolbase` | 1.0.0 | ISC |
 | `brace-expansion` | 5.0.12 | MIT |
@@ -993,7 +1004,7 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 | `chai` | 6.2.2 | MIT |
 | `chevrotain` | 11.0.3 | Apache-2.0 |
 | `chevrotain-allstar` | 0.3.1 | MIT |
-| `chokidar` | 3.6.0 | MIT |
+| `chokidar` | 5.0.0 | MIT |
 | `chrome-trace-event` | 1.0.4 | MIT |
 | `class-variance-authority` | 0.7.1 | Apache-2.0 |
 | `clsx` | 1.1.1 | MIT |
@@ -1148,13 +1159,12 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 | `ignore` | 7.0.9 | MIT |
 | `image-blob-reduce` | 3.0.1 | MIT |
 | `immediate` | 3.0.6 | MIT |
-| `immutable` | 4.3.9 | MIT |
+| `immutable` | 5.1.9 | MIT |
 | `imurmurhash` | 0.1.4 | MIT |
 | `inherits` | 2.0.4 | ISC |
 | `ini` | 1.3.8 | ISC |
 | `internmap` | 1.0.1 | ISC |
 | `internmap` | 2.0.3 | ISC |
-| `is-binary-path` | 2.1.0 | MIT |
 | `is-extglob` | 2.1.1 | MIT |
 | `is-glob` | 4.0.3 | MIT |
 | `is-number` | 7.0.0 | MIT |
@@ -1233,9 +1243,9 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 | `nanoid` | 5.1.16 | MIT |
 | `natural-compare` | 1.4.0 | MIT |
 | `neo-async` | 2.6.2 | MIT |
+| `node-addon-api` | 7.1.1 | MIT |
 | `node-releases` | 2.0.57 | MIT |
 | `nopt` | 10.0.1 | ISC |
-| `normalize-path` | 3.0.0 | MIT |
 | `npm-normalize-package-bin` | 4.0.0 | ISC |
 | `npm-run-all2` | 8.0.4 | MIT |
 | `nth-check` | 2.1.1 | BSD-2-Clause |
@@ -1306,7 +1316,7 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 | `react-style-singleton` | 2.2.3 | MIT |
 | `read-package-json-fast` | 4.0.0 | ISC |
 | `readable-stream` | 2.3.8 | MIT |
-| `readdirp` | 3.6.0 | MIT |
+| `readdirp` | 5.1.1 | MIT |
 | `reka-ui` | 2.10.5 | MIT |
 | `require-from-string` | 2.0.2 | MIT |
 | `reusify` | 1.1.0 | MIT |
@@ -1320,7 +1330,7 @@ Every package `frontend/package-lock.json` resolves, build tooling included, wit
 | `rw` | 1.3.3 | BSD-3-Clause |
 | `safe-buffer` | 5.1.2 | MIT |
 | `safer-buffer` | 2.1.2 | MIT |
-| `sass` | 1.51.0 | MIT |
+| `sass` | 1.105.1 | MIT |
 | `scheduler` | 0.28.0 | MIT |
 | `schema-utils` | 4.3.3 | MIT |
 | `semver` | 6.3.1 | ISC |
