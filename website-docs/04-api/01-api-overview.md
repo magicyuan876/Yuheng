@@ -151,6 +151,7 @@ flowchart TD
 | 2006 | 建工作区没有 Owner（平台 key 未给 `owner_email`） | 400 |
 | 2007 / 2008 | 删工作区被拒：还有其他成员 / 部署最后一个工作区 | 409 |
 | 2200-2201 | VectorStore 绑定非法 / 当前不可用 | 400 |
+| 2300 | 要代为新建知识库（如新建文档空间时 `knowledge_base.mode=create`），但工作区没有 Embedding 模型 | 400 |
 
 另有非编码错误：`types.StorageQuotaExceededError`（存储配额超限）、`types.DuplicateKnowledgeError`（重复文件/URL，上传接口返回 409 且 `data` 携带已存在的 Knowledge）。
 

@@ -4852,10 +4852,34 @@ export default {
         created: "Created",
         updated: "Updated",
         knowledgeBase: "Knowledge base",
-        knowledgeBaseNone: "Not bound",
         knowledgeBaseHint:
-          "Published pages of a bound space become searchable knowledge (the bridge ships in a later release)",
+          "Pages are synced into this knowledge base and can be asked about; restricted pages and pages kept out of the knowledge base are not.",
         yourRole: "Your role",
+      },
+      kbSync: {
+        title: "Sync to a knowledge base",
+        hint: "Pages are synced into the knowledge base as they are written, so answers can use them. Restricted pages and pages kept out of the knowledge base are never synced.",
+        mode: {
+          create: "Create a knowledge base",
+          existing: "Use an existing knowledge base",
+          none: "Don't sync",
+        },
+        createHint:
+          "Creates a document knowledge base named like the space, with the workspace's default models; you can adjust it in its settings later.",
+        noEmbedding: "The workspace has no embedding model, so no knowledge base can be created.",
+        configureModels: "Set up models",
+        existingPlaceholder: "Choose a knowledge base",
+        existingEmpty:
+          "No document knowledge base you can use: you can bind the ones you created; workspace administrators can bind any.",
+        current: "Currently synced to",
+        notSynced: "Not synced to a knowledge base",
+        missing: "This knowledge base no longer exists, or you cannot see it.",
+        bindEffect: "After saving, the space's pages are synced into the chosen knowledge base.",
+        unbindEffect: "After saving, the pages synced to “{name}” are removed from it.",
+        rebindEffect:
+          "After saving, the pages synced to “{name}” are removed from it and written into the new knowledge base; they are embedded again, which takes a while for a large space.",
+        saveSuccess: "Knowledge base sync saved",
+        saveFailed: "Failed to save the knowledge base sync",
       },
       createSuccess: "Space created",
       createFailed: "Failed to create the space",

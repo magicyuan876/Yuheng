@@ -4872,7 +4872,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "创建者自动成为空间管理员；slug 省略时由名称生成并保证唯一",
+                "description": "创建者自动成为空间管理员；slug 省略时由名称生成并保证唯一。\nknowledge_base 决定页面同步到哪个知识库：省略或 mode=none 不同步；\nmode=existing 绑定 id 指定的文档型知识库（调用者须是该知识库的创建者或工作区管理员）；\nmode=create 同时新建一个与空间同名的文档型知识库并绑定（与空间同一存储后端，使用工作区默认模型）。\n工作区没有 Embedding 模型时返回 400、错误码 2300；空间写入失败时新建的知识库会被删除。\nAPI Key 用 mode=create 需要 manage_kbs 或完全访问，且不能是限定知识库范围的 key",
                 "consumes": [
                     "application/json"
                 ],
@@ -4897,6 +4897,20 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误；错误码 2300 表示工作区没有 Embedding 模型",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "无权绑定该知识库或无权新建知识库",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -5233,7 +5247,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在工作区",
+                "description": "需要空间管理员。字段缺省表示不变；knowledge_base 取值同创建空间：\nnone 解绑、existing 改绑已有知识库、create 新建同名知识库并绑定；\nstorage_backend_id 为空字符串表示改回工作区默认。知识库变化后空间里的全部页面立即排队重新同步：\n解绑时已镜像的条目从原知识库删除，改绑时从原知识库删除并在新知识库重建",
                 "consumes": [
                     "application/json"
                 ],
@@ -5265,6 +5279,20 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误；错误码 2300 表示工作区没有 Embedding 模型",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "不是空间管理员，或无权绑定该知识库 / 新建知识库",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -6447,7 +6475,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "同时移除该组在所有模块中持有的授权（如文档工作区与页面）；默认组不可删除",
+                "description": "同时移除该组在所有模块中持有的授权（如文档空间与页面）；默认组不可删除",
                 "tags": [
                     "工作区组"
                 ],
@@ -17759,7 +17787,8 @@ const docTemplate = `{
                 2007,
                 2008,
                 2200,
-                2201
+                2201,
+                2300
             ],
             "x-enum-varnames": [
                 "ErrBadRequest",
@@ -17782,7 +17811,8 @@ const docTemplate = `{
                 "ErrTenantHasMembers",
                 "ErrTenantLastWorkspace",
                 "ErrVectorStoreBindingInvalid",
-                "ErrVectorStoreUnavailable"
+                "ErrVectorStoreUnavailable",
+                "ErrEmbeddingModelRequired"
             ]
         },
         "github_com_magicyuan876_yuheng_internal_infrastructure_chunker.DocProfile": {
@@ -21939,8 +21969,8 @@ const docTemplate = `{
         "handler.BindKnowledgeBaseRequest": {
             "type": "object",
             "properties": {
-                "knowledge_base_id": {
-                    "type": "string"
+                "knowledge_base": {
+                    "$ref": "#/definitions/handler.KnowledgeBaseChoiceRequest"
                 },
                 "storage_backend_id": {
                     "type": "string"
@@ -22032,8 +22062,13 @@ const docTemplate = `{
                 "icon": {
                     "type": "string"
                 },
-                "knowledge_base_id": {
-                    "type": "string"
+                "knowledge_base": {
+                    "description": "KnowledgeBase is what the space syncs its pages into; omitted means\nnone. The web form sends {\"mode\":\"create\"} unless told otherwise.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/handler.KnowledgeBaseChoiceRequest"
+                        }
+                    ]
                 },
                 "name": {
                     "type": "string"
@@ -22117,6 +22152,24 @@ const docTemplate = `{
                 },
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "handler.KnowledgeBaseChoiceRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "ID names the knowledge base for mode existing; empty otherwise.",
+                    "type": "string"
+                },
+                "mode": {
+                    "description": "Mode: none (pages stay out of every knowledge base), existing (bind the\nknowledge base named by id) or create (make a new document knowledge\nbase named like the space, on the space's storage backend, with the\nworkspace's default models, and bind it).",
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "existing",
+                        "create"
+                    ]
                 }
             }
         },

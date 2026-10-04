@@ -138,15 +138,38 @@ func (a *auditSink) has(action types.AuditAction) bool {
 	return false
 }
 
-// fakeKBs knows one knowledge base per tenant.
+// fakeKBs knows knowledge bases by id and tenant. Each is a document
+// knowledge base created by alice, the fixtures' usual actor, so binding one
+// is hers to do; tests about who may bind which knowledge base use kbTable.
 type fakeKBs map[string]uint64
 
 func (f fakeKBs) GetKnowledgeBaseByIDAndTenant(_ context.Context, id string, tenantID uint64) (*types.KnowledgeBase, error) {
 	if t, ok := f[id]; ok && t == tenantID {
-		return &types.KnowledgeBase{ID: id, TenantID: tenantID, Name: "kb"}, nil
+		return &types.KnowledgeBase{
+			ID: id, TenantID: tenantID, Name: "kb", Type: types.KnowledgeBaseTypeDocument, CreatorID: "alice",
+		}, nil
 	}
 	return nil, fmt.Errorf("knowledge base not found")
 }
+
+// kbTable is a set of knowledge bases spelled out in full.
+type kbTable map[string]*types.KnowledgeBase
+
+func (f kbTable) GetKnowledgeBaseByIDAndTenant(_ context.Context, id string, tenantID uint64) (
+	*types.KnowledgeBase, error,
+) {
+	if kb, ok := f[id]; ok && kb.TenantID == tenantID {
+		return kb, nil
+	}
+	return nil, fmt.Errorf("knowledge base not found")
+}
+
+// useKB and noKB are the knowledge-base choices tests make most.
+func useKB(id string) *KnowledgeBaseChoice {
+	return &KnowledgeBaseChoice{Mode: KnowledgeBaseExisting, ID: id}
+}
+
+func noKB() *KnowledgeBaseChoice { return &KnowledgeBaseChoice{Mode: KnowledgeBaseNone} }
 
 type env struct {
 	t          *testing.T

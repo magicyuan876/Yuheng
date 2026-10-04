@@ -81,6 +81,30 @@ recorded in [`NOTICE`](./NOTICE).
   `--storage-provider`. Migrations `000134`–`000137` target recreated
   deployments and keep no compatibility with data written before them.
 
+### Docs spaces and knowledge bases
+
+A docs space syncs its pages into a knowledge base, and the web UI now says
+which one and lets a space administrator change it.
+
+- Creating a space defaults to creating a knowledge base with it: a document
+  knowledge base named like the space, on the space's storage backend, with
+  the workspace's default models and the creator as its owner. The form can
+  also bind an existing knowledge base or not sync at all; without an
+  embedding model in the workspace, creating one is unavailable and the form
+  says why.
+- Space settings name the bound knowledge base and link to it, and rebind,
+  create or unbind it, stating what happens to the pages already synced.
+- API: `POST /docs/spaces` and `PUT /docs/spaces/:sid/knowledge-base` take
+  `knowledge_base: {"mode": "none" | "existing" | "create", "id"}`; the
+  `knowledge_base_id` field they took before is refused with 400. Error code
+  `2300` means the workspace has no embedding model.
+- Binding an existing knowledge base requires the right to add documents to
+  it (its creator or a workspace Owner/Admin), not only to see it, and only
+  document knowledge bases can be bound.
+- Fixed: rebinding, unbinding or trashing a space left its pages answerable
+  from the old knowledge base until the five-minutely sweep reached them, a
+  few hundred pages per round; every page of the space is now queued at once.
+
 ### Workspace model
 
 A user is a global identity and a company is one workspace with any number of

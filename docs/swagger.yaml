@@ -114,6 +114,7 @@ definitions:
     - 2008
     - 2200
     - 2201
+    - 2300
     type: integer
     x-enum-varnames:
     - ErrBadRequest
@@ -137,6 +138,7 @@ definitions:
     - ErrTenantLastWorkspace
     - ErrVectorStoreBindingInvalid
     - ErrVectorStoreUnavailable
+    - ErrEmbeddingModelRequired
   github_com_magicyuan876_yuheng_internal_infrastructure_chunker.DocProfile:
     properties:
       all_caps_short_line_count:
@@ -3417,8 +3419,8 @@ definitions:
     type: object
   handler.BindKnowledgeBaseRequest:
     properties:
-      knowledge_base_id:
-        type: string
+      knowledge_base:
+        $ref: '#/definitions/handler.KnowledgeBaseChoiceRequest'
       storage_backend_id:
         type: string
     type: object
@@ -3484,8 +3486,12 @@ definitions:
         type: string
       icon:
         type: string
-      knowledge_base_id:
-        type: string
+      knowledge_base:
+        allOf:
+        - $ref: '#/definitions/handler.KnowledgeBaseChoiceRequest'
+        description: |-
+          KnowledgeBase is what the space syncs its pages into; omitted means
+          none. The web form sends {"mode":"create"} unless told otherwise.
       name:
         type: string
       settings:
@@ -3546,6 +3552,23 @@ definitions:
       principal_type:
         type: string
       role:
+        type: string
+    type: object
+  handler.KnowledgeBaseChoiceRequest:
+    properties:
+      id:
+        description: ID names the knowledge base for mode existing; empty otherwise.
+        type: string
+      mode:
+        description: |-
+          Mode: none (pages stay out of every knowledge base), existing (bind the
+          knowledge base named by id) or create (make a new document knowledge
+          base named like the space, on the space's storage backend, with the
+          workspace's default models, and bind it).
+        enum:
+        - none
+        - existing
+        - create
         type: string
     type: object
   handler.KnowledgeRequest:
@@ -8202,7 +8225,13 @@ paths:
     post:
       consumes:
       - application/json
-      description: 创建者自动成为空间管理员；slug 省略时由名称生成并保证唯一
+      description: |-
+        创建者自动成为空间管理员；slug 省略时由名称生成并保证唯一。
+        knowledge_base 决定页面同步到哪个知识库：省略或 mode=none 不同步；
+        mode=existing 绑定 id 指定的文档型知识库（调用者须是该知识库的创建者或工作区管理员）；
+        mode=create 同时新建一个与空间同名的文档型知识库并绑定（与空间同一存储后端，使用工作区默认模型）。
+        工作区没有 Embedding 模型时返回 400、错误码 2300；空间写入失败时新建的知识库会被删除。
+        API Key 用 mode=create 需要 manage_kbs 或完全访问，且不能是限定知识库范围的 key
       parameters:
       - description: 空间
         in: body
@@ -8215,6 +8244,16 @@ paths:
       responses:
         "201":
           description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误；错误码 2300 表示工作区没有 Embedding 模型
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 无权绑定该知识库或无权新建知识库
           schema:
             additionalProperties: true
             type: object
@@ -8417,7 +8456,11 @@ paths:
     put:
       consumes:
       - application/json
-      description: 字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在工作区
+      description: |-
+        需要空间管理员。字段缺省表示不变；knowledge_base 取值同创建空间：
+        none 解绑、existing 改绑已有知识库、create 新建同名知识库并绑定；
+        storage_backend_id 为空字符串表示改回工作区默认。知识库变化后空间里的全部页面立即排队重新同步：
+        解绑时已镜像的条目从原知识库删除，改绑时从原知识库删除并在新知识库重建
       parameters:
       - description: 空间 ID
         in: path
@@ -8435,6 +8478,16 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误；错误码 2300 表示工作区没有 Embedding 模型
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 不是空间管理员，或无权绑定该知识库 / 新建知识库
           schema:
             additionalProperties: true
             type: object
@@ -9195,7 +9248,7 @@ paths:
       - 工作区组
   /groups/{gid}:
     delete:
-      description: 同时移除该组在所有模块中持有的授权（如文档工作区与页面）；默认组不可删除
+      description: 同时移除该组在所有模块中持有的授权（如文档空间与页面）；默认组不可删除
       parameters:
       - description: 工作区组 ID
         in: path

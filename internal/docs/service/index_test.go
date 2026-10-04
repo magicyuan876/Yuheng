@@ -137,7 +137,7 @@ func newIndexEnv(t *testing.T) (*pageEnv, *fakeKnowledge) {
 		d.Knowledge = kb
 		d.KnowledgeBases = fakeKBs{"kb-1": 1}
 	})
-	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-1"), nil)
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, useKB("kb-1"), nil)
 	require.NoError(t, err)
 	// The bind returns a view; refresh the fixture's space so later calls see
 	// the binding.
@@ -551,7 +551,7 @@ func newTwoKBEnv(t *testing.T) (*pageEnv, *fakeKnowledge) {
 		d.Knowledge = kb
 		d.KnowledgeBases = fakeKBs{"kb-1": 1, "kb-2": 1}
 	})
-	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-1"), nil)
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, useKB("kb-1"), nil)
 	require.NoError(t, err)
 	fresh, err := p.repos.Spaces.Get(ctx(), 1, p.space.ID)
 	require.NoError(t, err)
@@ -577,7 +577,7 @@ func TestAPageMovedToASpaceWithAnotherKnowledgeBaseFollowsIt(t *testing.T) {
 	p, kb := newTwoKBEnv(t)
 	target, err := p.svc.Spaces.Create(ctx(), p.alice, CreateSpaceInput{Name: "Target"})
 	require.NoError(t, err)
-	_, err = p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, target.Space, strPtr("kb-2"), nil)
+	_, err = p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, target.Space, useKB("kb-2"), nil)
 	require.NoError(t, err)
 
 	page := p.create(t, p.alice, nil, "会搬家的页面")
@@ -602,7 +602,7 @@ func TestReBindingASpaceMovesItsEntriesOnTheNextSync(t *testing.T) {
 	p.write(t, p.alice, page.ID, "足够长的正文内容在这里。")
 	p.indexAll(t, page.ID)
 
-	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-2"), nil)
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, useKB("kb-2"), nil)
 	require.NoError(t, err)
 	_, _, err = p.svc.Pages.SyncSpaceToKnowledge(ctx(), p.alice, p.space, model.RoleAdmin, "", 0)
 	require.NoError(t, err)
@@ -619,7 +619,7 @@ func TestAStrayEntryThatCannotBeRemovedIsNotDuplicated(t *testing.T) {
 	p.write(t, p.alice, page.ID, "足够长的正文内容在这里。")
 	p.indexAll(t, page.ID)
 
-	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-2"), nil)
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, useKB("kb-2"), nil)
 	require.NoError(t, err)
 	kb.failDelete = true
 	_, err = p.svc.Pages.SyncPageToKnowledge(ctx(), 1, page.ID)

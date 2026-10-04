@@ -127,6 +127,9 @@ type Deps struct {
 	// binding a space to either is then rejected.
 	KnowledgeBases  KnowledgeBases
 	StorageBackends StorageBackends
+	// KnowledgeBaseMaker makes the knowledge base a space asks for. Nil in
+	// trimmed builds; a space can then still bind an existing one.
+	KnowledgeBaseMaker KnowledgeBaseMaker
 	// Tokens is required by the collaboration callbacks only.
 	Tokens Tokens
 	// Collab is nil when no collaboration service is configured (exclusive

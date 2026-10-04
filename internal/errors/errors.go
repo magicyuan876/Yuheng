@@ -50,6 +50,13 @@ const (
 	ErrVectorStoreBindingInvalid ErrorCode = 2200
 	ErrVectorStoreUnavailable    ErrorCode = 2201
 
+	// Knowledge base creation related error codes (2300-2399).
+	// ErrEmbeddingModelRequired: a knowledge base that is meant to answer
+	// questions cannot be made without an embedding model, and the workspace
+	// has none. Typed so a client can point at the model settings instead
+	// of showing a message.
+	ErrEmbeddingModelRequired ErrorCode = 2300
+
 	// Add more error codes here
 )
 
@@ -236,6 +243,18 @@ func NewVectorStoreBindingInvalidError(message string) *AppError {
 	return &AppError{
 		Code:     ErrVectorStoreBindingInvalid,
 		Message:  message,
+		HTTPCode: http.StatusBadRequest,
+	}
+}
+
+// NewEmbeddingModelRequiredError signals that a knowledge base was to be
+// created on the caller's behalf and the workspace has no active embedding
+// model to give it. A knowledge base made anyway would accept documents and
+// never answer from them, which is worse than refusing.
+func NewEmbeddingModelRequiredError() *AppError {
+	return &AppError{
+		Code:     ErrEmbeddingModelRequired,
+		Message:  "the workspace has no embedding model; add one in the model settings first",
 		HTTPCode: http.StatusBadRequest,
 	}
 }

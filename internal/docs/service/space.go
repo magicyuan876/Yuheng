@@ -39,8 +39,9 @@ type CreateSpaceInput struct {
 	Visibility  model.SpaceVisibility
 	// DefaultRole applies to tenant members who are not members of the
 	// space; it is meaningful for open spaces only.
-	DefaultRole      model.SpaceRole
-	KnowledgeBaseID  *string
+	DefaultRole model.SpaceRole
+	// KnowledgeBase is what the space syncs its pages into; nil is none.
+	KnowledgeBase    *KnowledgeBaseChoice
 	StorageBackendID *string
 	Settings         json.RawMessage
 }
@@ -101,8 +102,11 @@ func (s *SpaceService) normaliseVisibility(v model.SpaceVisibility, role model.S
 	}
 }
 
-// Create makes a space and its first administrator (the creator).
-func (s *SpaceService) Create(ctx context.Context, actor *acl.Identity, in CreateSpaceInput) (*SpaceView, error) {
+// Create makes a space and its first administrator (the creator), and the
+// knowledge base it syncs to when asked for a new one (see spacekb.go).
+func (s *SpaceService) Create(ctx context.Context, actor *acl.Identity, in CreateSpaceInput) (
+	view *SpaceView, err error,
+) {
 	name, err := cleanName("name", in.Name)
 	if err != nil {
 		return nil, err
@@ -123,9 +127,22 @@ func (s *SpaceService) Create(ctx context.Context, actor *acl.Identity, in Creat
 	if err != nil {
 		return nil, err
 	}
-	kbID, err := s.checkKnowledgeBase(ctx, actor.TenantID, in.KnowledgeBaseID)
+	kbChoice, err := normaliseKnowledgeBaseChoice(in.KnowledgeBase)
 	if err != nil {
 		return nil, err
+	}
+	var kbID *string
+	switch kbChoice.Mode {
+	case KnowledgeBaseExisting:
+		id, err := s.bindableKnowledgeBase(ctx, actor, kbChoice.ID)
+		if err != nil {
+			return nil, err
+		}
+		kbID = &id
+	case KnowledgeBaseCreate:
+		if err := s.mayCreateKnowledgeBase(ctx, actor); err != nil {
+			return nil, err
+		}
 	}
 	var requested string
 	if in.StorageBackendID != nil {
@@ -139,6 +156,32 @@ func (s *SpaceService) Create(ctx context.Context, actor *acl.Identity, in Creat
 	explicitSlug := strings.ToLower(strings.TrimSpace(in.Slug))
 	if explicitSlug != "" && !ValidSlug(explicitSlug) {
 		return nil, invalid("slug must be %d-%d lowercase letters, digits or hyphens", MinSlugLen, MaxSlugLen)
+	}
+
+	// The knowledge base is made last, once everything that can refuse the
+	// space has had its say: an explicit slug already in use would otherwise
+	// be found only after the knowledge base existed. What can still fail
+	// after this point (the write itself) deletes it again.
+	if kbChoice.Mode == KnowledgeBaseCreate {
+		if explicitSlug != "" {
+			taken, err := s.slugTaken(ctx, actor.TenantID, explicitSlug, "")
+			if err != nil {
+				return nil, err
+			}
+			if taken {
+				return nil, conflict("slug %q is already in use", explicitSlug)
+			}
+		}
+		kb, kerr := s.d.KnowledgeBaseMaker.CreateForSpace(ctx, actor.TenantID, name, desc, storageID)
+		if kerr != nil {
+			return nil, kerr
+		}
+		kbID = &kb.ID
+		defer func() {
+			if err != nil {
+				s.discardKnowledgeBase(ctx, actor.TenantID, kb.ID)
+			}
+		}()
 	}
 
 	space := &model.Space{
@@ -206,26 +249,6 @@ func cleanIcon(icon *string) (*string, error) {
 	}
 	if len(v) > 64 {
 		return nil, invalid("icon must be at most 64 bytes")
-	}
-	return &v, nil
-}
-
-// checkKnowledgeBase validates an optional knowledge base reference.
-// A pointer to "" means "none".
-func (s *SpaceService) checkKnowledgeBase(ctx context.Context, tenantID uint64, id *string) (*string, error) {
-	if id == nil {
-		return nil, nil
-	}
-	v := strings.TrimSpace(*id)
-	if v == "" {
-		return nil, nil
-	}
-	if s.d.KnowledgeBases == nil {
-		return nil, invalid("knowledge base binding is not available in this deployment")
-	}
-	kb, err := s.d.KnowledgeBases.GetKnowledgeBaseByIDAndTenant(ctx, v, tenantID)
-	if err != nil || kb == nil {
-		return nil, invalid("knowledge base %q was not found in this workspace", v)
 	}
 	return &v, nil
 }
@@ -412,10 +435,15 @@ func (s *SpaceService) Update(ctx context.Context, actor *acl.Identity, space *m
 }
 
 // Delete moves a space to the trash. Its pages stay in place and become
-// unreachable; purge and retention are the maintenance job's business.
+// unreachable; purge and retention are the maintenance job's business. Their
+// knowledge-base entries go at once, like an unbinding's: a page nobody can
+// open must not keep answering questions until the periodic sweep comes by.
 func (s *SpaceService) Delete(ctx context.Context, actor *acl.Identity, space *model.Space) error {
 	if err := s.d.Repos.Spaces.SoftDelete(ctx, actor.TenantID, space.ID); err != nil {
 		return err
+	}
+	if space.KnowledgeBaseID != nil {
+		s.requeueSpace(ctx, actor.TenantID, space.ID)
 	}
 	s.invalidate(ctx, actor.TenantID)
 	s.publish(ctx, events.New(events.SpaceDeleted, actor.TenantID).WithSpace(space.ID).WithActor(actor.UserID))
@@ -442,6 +470,10 @@ func (s *SpaceService) Restore(ctx context.Context, actor *acl.Identity, spaceID
 	if err != nil {
 		return nil, err
 	}
+	if space.KnowledgeBaseID != nil {
+		// The entries left when the space was trashed; they come back now.
+		s.requeueSpace(ctx, actor.TenantID, space.ID)
+	}
 	s.invalidate(ctx, actor.TenantID)
 	s.publish(ctx, events.New(events.SpaceUpdated, actor.TenantID).WithSpace(space.ID).WithActor(actor.UserID).
 		With("restored", true))
@@ -450,71 +482,6 @@ func (s *SpaceService) Restore(ctx context.Context, actor *acl.Identity, spaceID
 		Action: audit.SpaceRestored, SpaceID: space.ID, TargetType: audit.TargetSpace, TargetID: space.ID,
 	})
 	return s.view(ctx, space, model.RoleAdmin)
-}
-
-// BindKnowledgeBase sets or clears the knowledge base and storage backend a
-// space uses. Pointers: nil leaves the field alone; "" clears the knowledge
-// base and rebinds storage to the workspace default. The
-// ingestion side effects of binding belong to the knowledge bridge (T5.1);
-// here only the reference is validated and stored.
-func (s *SpaceService) BindKnowledgeBase(ctx context.Context, actor *acl.Identity, space *model.Space,
-	knowledgeBaseID, storageBackendID *string,
-) (*SpaceView, error) {
-	fields := map[string]any{}
-	var kbAction audit.Entry
-	if knowledgeBaseID != nil {
-		kb, err := s.checkKnowledgeBase(ctx, actor.TenantID, knowledgeBaseID)
-		if err != nil {
-			return nil, err
-		}
-		fields["knowledge_base_id"] = kb
-		action := audit.SpaceKBBound
-		target := ""
-		if kb == nil {
-			action = audit.SpaceKBUnbound
-			if space.KnowledgeBaseID != nil {
-				target = *space.KnowledgeBaseID
-			}
-		} else {
-			target = *kb
-		}
-		kbAction = audit.Entry{
-			TenantID: actor.TenantID, ActorUserID: actor.UserID, ActorRole: actorRole(actor),
-			Action: action, SpaceID: space.ID, TargetType: "knowledge_base", TargetID: target,
-		}
-		space.KnowledgeBaseID = kb
-	}
-	if storageBackendID != nil {
-		// A space is never unbound: an empty id rebinds it to the workspace
-		// default. Existing files stay where they are and keep resolving.
-		sb, err := s.checkStorageBackend(ctx, actor.TenantID, *storageBackendID)
-		if err != nil {
-			return nil, err
-		}
-		fields["storage_backend_id"] = sb
-		space.StorageBackendID = sb
-	}
-	if len(fields) == 0 {
-		return s.view(ctx, space, model.RoleAdmin)
-	}
-	if err := s.d.Repos.Spaces.Update(ctx, actor.TenantID, space.ID, fields); err != nil {
-		return nil, err
-	}
-	s.publish(ctx, events.New(events.SpaceUpdated, actor.TenantID).WithSpace(space.ID).WithActor(actor.UserID).
-		With("changed", []string{"bindings"}))
-	if kbAction.Action != "" {
-		s.audit(ctx, kbAction)
-	} else {
-		s.audit(ctx, audit.Entry{
-			TenantID: actor.TenantID, ActorUserID: actor.UserID, ActorRole: actorRole(actor),
-			Action: audit.SpaceUpdated, SpaceID: space.ID, TargetType: audit.TargetSpace, TargetID: space.ID,
-		})
-	}
-	fresh, err := s.d.Repos.Spaces.Get(ctx, actor.TenantID, space.ID)
-	if err != nil {
-		return nil, err
-	}
-	return s.view(ctx, fresh, model.RoleAdmin)
 }
 
 // ---- members --------------------------------------------------------------------

@@ -119,7 +119,8 @@ func TestASyncOfAPageAWorkerHoldsIsLeftToTheWorker(t *testing.T) {
 }
 
 // Binding a knowledge base to a space that already has pages fills it, with
-// nobody pressing rebuild.
+// nobody pressing rebuild and without waiting for the periodic check: the
+// binding queues the space's pages itself.
 func TestBindingAKnowledgeBaseIndexesTheExistingPages(t *testing.T) {
 	kb := newFakeKnowledge()
 	p := newPageEnvWith(t, func(d *Deps) {
@@ -131,11 +132,8 @@ func TestBindingAKnowledgeBaseIndexesTheExistingPages(t *testing.T) {
 	require.NoError(t, p.drainIndex())
 	assert.Zero(t, kb.count(), "no binding yet")
 
-	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-1"), nil)
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, useKB("kb-1"), nil)
 	require.NoError(t, err)
-	n, err := p.svc.Pages.RequeueIndex(ctx(), 100)
-	require.NoError(t, err)
-	assert.Positive(t, n)
 	require.NoError(t, p.drainIndex())
 
 	assert.Equal(t, 1, kb.count())

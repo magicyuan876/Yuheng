@@ -4809,10 +4809,35 @@ export default {
         defaultRole: "기본 역할",
         created: "생성일",
         updated: "수정일",
-        knowledgeBase: "연결된 지식 베이스",
-        knowledgeBaseNone: "연결 안 됨",
-        knowledgeBaseHint: "연결된 공간의 게시된 페이지는 검색 가능한 지식이 됩니다(연동은 이후 버전에서 제공)",
+        knowledgeBase: "지식베이스",
+        knowledgeBaseHint:
+          "페이지가 이 지식베이스로 자동 동기화되어 질문에 활용됩니다. 제한된 페이지와 지식베이스에서 제외한 페이지는 동기화되지 않습니다.",
         yourRole: "내 역할",
+      },
+      kbSync: {
+        title: "지식베이스에 동기화",
+        hint: "작성한 페이지가 지식베이스로 자동 동기화되어 답변에 활용됩니다. 제한된 페이지와 지식베이스에서 제외한 페이지는 동기화되지 않습니다.",
+        mode: {
+          create: "새 지식베이스 만들기",
+          existing: "기존 지식베이스 연결",
+          none: "동기화 안 함",
+        },
+        createHint:
+          "공간과 같은 이름의 문서형 지식베이스를 워크스페이스 기본 모델로 만듭니다. 나중에 지식베이스 설정에서 조정할 수 있습니다.",
+        noEmbedding: "워크스페이스에 임베딩 모델이 없어 지식베이스를 만들 수 없습니다.",
+        configureModels: "모델 설정하기",
+        existingPlaceholder: "지식베이스 선택",
+        existingEmpty:
+          "연결할 수 있는 문서형 지식베이스가 없습니다. 직접 만든 지식베이스만 연결할 수 있으며, 워크스페이스 관리자는 모든 지식베이스를 연결할 수 있습니다.",
+        current: "현재 동기화 대상",
+        notSynced: "지식베이스에 동기화하지 않음",
+        missing: "이 지식베이스가 더 이상 없거나 볼 권한이 없습니다.",
+        bindEffect: "저장하면 공간의 페이지가 선택한 지식베이스로 차례로 동기화됩니다.",
+        unbindEffect: "저장하면 「{name}」에 동기화된 페이지가 제거됩니다.",
+        rebindEffect:
+          "저장하면 「{name}」에 동기화된 페이지가 제거되고 새 지식베이스에 다시 기록됩니다. 다시 임베딩해야 하므로 페이지가 많으면 시간이 걸립니다.",
+        saveSuccess: "지식베이스 동기화 설정을 저장했습니다",
+        saveFailed: "지식베이스 동기화 설정 저장 실패",
       },
       createSuccess: "공간을 만들었습니다",
       createFailed: "공간 생성 실패",

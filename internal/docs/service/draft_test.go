@@ -68,7 +68,7 @@ func newDraftEnv(t *testing.T) (*pageEnv, *fakeDrafter) {
 		d.Drafter = drafter
 		d.KnowledgeBases = fakeKBs{"kb-1": 1}
 	})
-	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-1"), nil)
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, useKB("kb-1"), nil)
 	require.NoError(t, err)
 	fresh, err := p.repos.Spaces.Get(ctx(), 1, p.space.ID)
 	require.NoError(t, err)

@@ -55,6 +55,24 @@ export interface SpaceMember {
   created_at: string;
 }
 
+/**
+ * What a space syncs its pages into: nothing, an existing knowledge base (id),
+ * or a new one the server creates, named like the space.
+ */
+export type KnowledgeBaseSyncMode = "none" | "existing" | "create";
+
+export interface KnowledgeBaseChoice {
+  mode: KnowledgeBaseSyncMode;
+  /** Only with mode "existing". */
+  id?: string;
+}
+
+/**
+ * The error code the server answers when a knowledge base was to be created
+ * and the workspace has no embedding model (internal/errors: 2300).
+ */
+export const EMBEDDING_MODEL_REQUIRED = 2300;
+
 export interface CreateSpaceRequest {
   name: string;
   slug?: string;
@@ -62,7 +80,8 @@ export interface CreateSpaceRequest {
   icon?: string | null;
   visibility?: SpaceVisibility;
   default_role?: SpaceRole;
-  knowledge_base_id?: string | null;
+  /** Omit for none. */
+  knowledge_base?: KnowledgeBaseChoice;
   /** Omit for the workspace default. */
   storage_backend_id?: string;
   settings?: Record<string, unknown>;
@@ -85,8 +104,12 @@ export interface SpaceMemberInput {
 }
 
 export interface BindKnowledgeBaseRequest {
-  /** Omit to leave unchanged; empty string clears the binding. */
-  knowledge_base_id?: string;
+  /**
+   * Omit to leave unchanged. Changing it queues every page of the space at
+   * once: mirrors leave the old knowledge base and, on a rebinding, are made
+   * anew in the new one.
+   */
+  knowledge_base?: KnowledgeBaseChoice;
   /**
    * Omit to leave unchanged; empty string rebinds the space to the workspace
    * default. Existing attachments stay where they are and remain readable.
@@ -162,7 +185,10 @@ export async function removeSpaceMember(id: string, type: PrincipalType, princip
   await del(`${base}/spaces/${encodeURIComponent(id)}/members/${type}/${encodeURIComponent(principalId)}`);
 }
 
-/** Backend: PUT /api/v1/docs/spaces/:sid/knowledge-base (space admin). */
+/**
+ * Backend: PUT /api/v1/docs/spaces/:sid/knowledge-base (space admin, and for
+ * an existing knowledge base its creator or a workspace administrator).
+ */
 export async function bindSpaceKnowledgeBase(id: string, body: BindKnowledgeBaseRequest): Promise<DocsSpace> {
   return unwrap<DocsSpace>(await put(`${base}/spaces/${encodeURIComponent(id)}/knowledge-base`, body));
 }

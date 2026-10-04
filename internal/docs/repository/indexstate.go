@@ -36,6 +36,9 @@ type IndexStateRepository interface {
 	Mark(ctx context.Context, tenantID uint64, pageIDs []string, delay time.Duration) error
 	// MarkSubtree marks a page and everything beneath it, trash included.
 	MarkSubtree(ctx context.Context, tenantID uint64, rootID string, delay time.Duration) error
+	// MarkSpace marks every page of a space, trash included: what changes the
+	// answer for all of them at once, such as the space's knowledge base.
+	MarkSpace(ctx context.Context, tenantID uint64, spaceID string, delay time.Duration) error
 	// Claim takes up to limit due pages that no worker holds, for the lease.
 	// Concurrent callers, on this instance or others, get different pages.
 	Claim(ctx context.Context, limit int, lease time.Duration) ([]IndexClaim, error)
@@ -69,16 +72,19 @@ func (r *indexStateRepository) Get(ctx context.Context, tenantID uint64, pageID 
 	return &row, nil
 }
 
-// markSQL upserts the state of the pages it selects. The two cases of due_at:
-// an urgent request pulls the page forward and nothing pushes it back; a
-// debounced one pushes the deadline out, so a page saved every ten seconds is
-// synchronised once the writing stops, unless it is already overdue, when
-// waiting longer would only delay it further.
-const markSQL = `
+// markInsertSQL and markUpsertSQL make the state of the pages selected
+// between them due. The two cases of due_at: an urgent request pulls the page
+// forward and nothing pushes it back; a debounced one pushes the deadline out,
+// so a page saved every ten seconds is synchronised once the writing stops,
+// unless it is already overdue, when waiting longer would only delay it
+// further. Mark and MarkSpace differ only in which pages they select.
+const (
+	markInsertSQL = `
 INSERT INTO docs_index_state (page_id, tenant_id, due_at, seq)
 SELECT p.id, p.tenant_id, NOW() + make_interval(secs => @delay), 1
 FROM docs_pages p
-WHERE p.tenant_id = @tenant AND p.id IN @ids
+`
+	markUpsertSQL = `
 ON CONFLICT (page_id) DO UPDATE SET
     seq = docs_index_state.seq + 1,
     due_at = CASE
@@ -86,6 +92,9 @@ ON CONFLICT (page_id) DO UPDATE SET
         WHEN docs_index_state.due_at IS NOT NULL AND docs_index_state.due_at <= NOW() THEN docs_index_state.due_at
         ELSE NOW() + make_interval(secs => @delay)
     END`
+	markSQL      = markInsertSQL + `WHERE p.tenant_id = @tenant AND p.id IN @ids` + markUpsertSQL
+	markSpaceSQL = markInsertSQL + `WHERE p.tenant_id = @tenant AND p.space_id = @space` + markUpsertSQL
+)
 
 func (r *indexStateRepository) Mark(ctx context.Context, tenantID uint64, pageIDs []string,
 	delay time.Duration,
@@ -95,6 +104,17 @@ func (r *indexStateRepository) Mark(ctx context.Context, tenantID uint64, pageID
 	}
 	return r.db.WithContext(ctx).Exec(markSQL, map[string]any{
 		"tenant": tenantID, "ids": pageIDs, "delay": delay.Seconds(),
+	}).Error
+}
+
+// MarkSpace is one statement however large the space: a page list passed as
+// parameters would hit the protocol's parameter limit on a big space, which is
+// exactly the space whose rebinding most needs to reach every page.
+func (r *indexStateRepository) MarkSpace(ctx context.Context, tenantID uint64, spaceID string,
+	delay time.Duration,
+) error {
+	return r.db.WithContext(ctx).Exec(markSpaceSQL, map[string]any{
+		"tenant": tenantID, "space": spaceID, "delay": delay.Seconds(),
 	}).Error
 }
 

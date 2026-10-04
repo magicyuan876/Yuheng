@@ -107,7 +107,8 @@ func TestDocsMirrorAgainstTheRealKnowledgeService(t *testing.T) {
 
 	space, err := mod.Services.Spaces.Create(ctx, actor, service.CreateSpaceInput{Name: "Handbook"})
 	must1(t, err)
-	_, err = mod.Services.Spaces.BindKnowledgeBase(ctx, actor, space.Space, &kb.ID, nil)
+	_, err = mod.Services.Spaces.BindKnowledgeBase(ctx, actor, space.Space,
+		&service.KnowledgeBaseChoice{Mode: service.KnowledgeBaseExisting, ID: kb.ID}, nil)
 	must1(t, err)
 
 	newPage := func(title, markdown string) string {

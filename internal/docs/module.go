@@ -58,9 +58,10 @@ type Params struct {
 	// and spaces rather than reimplemented. Optional for the same reason as
 	// the rest: without it, starring is simply unavailable.
 	Favourites interfaces.UserResourceFavoriteService `optional:"true"`
-	// KnowledgeBaseService and ModelService serve the drafting feature: the
+	// KnowledgeBaseService and ModelService serve the drafting feature (the
 	// model that writes a draft is the one the knowledge base already names
-	// for summaries, so there is no new setting.
+	// for summaries, so there is no new setting) and the knowledge base a new
+	// space can have made for it, with the workspace's default models.
 	KnowledgeBaseService interfaces.KnowledgeBaseService `optional:"true"`
 	ModelService         interfaces.ModelService         `optional:"true"`
 	// KnowledgeService mirrors pages into a space's bound knowledge base.
@@ -177,6 +178,7 @@ func NewModule(p Params) *Module {
 		deps.Knowledge = NewKnowledgeBridge(p.KnowledgeService, p.Tenants, p.Stewardship)
 	}
 	deps.Drafter = NewDraftBridge(p.KnowledgeService, p.KnowledgeBaseService, p.ModelService)
+	deps.KnowledgeBaseMaker = NewKnowledgeBaseMaker(p.KnowledgeBaseService, p.ModelService)
 	if p.UserService != nil {
 		deps.Tokens = p.UserService
 	}

@@ -62,13 +62,8 @@
           <dt class="text-muted-foreground text-[13px] leading-[22px]">
             {{ t("docs.spaces.overview.knowledgeBase") }}
           </dt>
-          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
-            <span
-              v-if="space.knowledge_base_id"
-              class="font-[family-name:var(--td-font-family-mono,ui-monospace,monospace)]"
-              >{{ space.knowledge_base_id }}</span
-            >
-            <span v-else>{{ t("docs.spaces.overview.knowledgeBaseNone") }}</span>
+          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]" data-testid="kb-bound">
+            <BoundKnowledgeBase :id="space.knowledge_base_id" :knowledge-base="boundKB" :loading="!syncOptions" />
             <span class="text-placeholder text-xs">{{ t("docs.spaces.overview.knowledgeBaseHint") }}</span>
           </dd>
           <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.spaces.overview.created") }}</dt>
@@ -262,6 +257,33 @@
             </Button>
           </div>
 
+          <section class="border-border mt-6 flex flex-col gap-3 border-t pt-5" data-testid="kb-sync-settings">
+            <div class="flex flex-col gap-1">
+              <span class="text-muted-foreground text-[13px]">{{ t("docs.spaces.kbSync.current") }}</span>
+              <BoundKnowledgeBase :id="space.knowledge_base_id" :knowledge-base="boundKB" :loading="!syncOptions" />
+            </div>
+            <KnowledgeBaseSyncField
+              v-model="kbChoice"
+              :options="syncOptions"
+              :current="boundKB"
+              :disabled="bindingKB"
+            />
+            <p v-if="kbEffect" class="text-muted-foreground m-0 text-xs" data-testid="kb-sync-effect">{{ kbEffect }}</p>
+            <div class="flex gap-2">
+              <Button
+                data-testid="kb-sync-save"
+                :disabled="!kbDirty || !choiceComplete(kbChoice) || bindingKB"
+                @click="saveKnowledgeBase"
+              >
+                <Loader2Icon v-if="bindingKB" class="animate-spin" />
+                {{ t("common.save") }}
+              </Button>
+              <Button variant="outline" :disabled="!kbDirty || bindingKB" @click="resetKnowledgeBase">
+                {{ t("common.cancel") }}
+              </Button>
+            </div>
+          </section>
+
           <div class="mt-6 rounded-[8px] border border-[var(--td-error-color-3)] bg-[var(--td-error-color-1)] p-4">
             <div class="text-destructive mb-1 font-semibold">{{ t("docs.spaces.dangerZone") }}</div>
             <p class="text-muted-foreground m-0 mb-3 text-[13px]">{{ t("docs.spaces.dangerZoneHint") }}</p>
@@ -450,6 +472,7 @@ import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
 import {
+  bindSpaceKnowledgeBase,
   deleteSpace,
   getSpaceBySlug,
   listSpaceMembers,
@@ -468,6 +491,7 @@ import {
   type ExportFormat,
   type ExportJobView,
   type ImportJobView,
+  type KnowledgeBaseChoice,
 } from "@/api/docs";
 import { listGroups, type TenantGroup } from "@/api/tenant/groups";
 import { Badge } from "@/components/ui/badge";
@@ -483,6 +507,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import SpaceAvatar from "@/components/SpaceAvatar.vue";
+import { useAuthStore } from "@/stores/auth";
 
 import StorageUsage from "./quota/StorageUsage.vue";
 
@@ -496,6 +521,18 @@ import {
   type SpaceFormModel,
   type SpaceFormProblem,
 } from "./docsAccess";
+import BoundKnowledgeBase from "./BoundKnowledgeBase.vue";
+import KnowledgeBaseSyncField from "./KnowledgeBaseSyncField.vue";
+import {
+  choiceComplete,
+  choiceRequest,
+  currentChoice,
+  isEmbeddingModelRequired,
+  loadSyncOptions,
+  sameChoice,
+  type KnowledgeBaseSummary,
+  type SyncOptions,
+} from "./knowledgeBaseSync";
 import SpaceForm from "./SpaceForm.vue";
 import { useMemberSearch, type MemberOption } from "./useMemberSearch";
 
@@ -504,6 +541,7 @@ type MemberRow = SpaceMember & { key: string };
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const space = ref<DocsSpace | null>(null);
 const loading = ref(true);
@@ -529,6 +567,8 @@ const load = async () => {
   try {
     space.value = await getSpaceBySlug(slugParam.value);
     resetForm();
+    resetKnowledgeBase();
+    void loadKnowledgeBaseOptions();
     await loadMembers();
   } catch (err: unknown) {
     space.value = null;
@@ -749,6 +789,67 @@ const saveSettings = async () => {
     MessagePlugin.error(errorText(err, t("docs.spaces.updateFailed")));
   } finally {
     saving.value = false;
+  }
+};
+
+// ---- knowledge base ---------------------------------------------------------------
+// The knowledge base the space syncs into, named rather than shown as an id,
+// and changeable by the space's administrators. A change queues every page at
+// once on the server: mirrors leave the old knowledge base, and on a rebinding
+// are written anew into the new one, which means embedding them again. The
+// note under the field says which of these is about to happen before Save.
+const syncOptions = ref<SyncOptions | null>(null);
+const kbChoice = ref<KnowledgeBaseChoice>({ mode: "none" });
+const bindingKB = ref(false);
+
+const loadKnowledgeBaseOptions = async () => {
+  syncOptions.value = null;
+  syncOptions.value = await loadSyncOptions({
+    userId: authStore.currentUserId,
+    isAdmin: authStore.hasRole("admin"),
+  });
+};
+
+const boundKB = computed<KnowledgeBaseSummary | null>(() => {
+  const id = space.value?.knowledge_base_id;
+  if (!id) return null;
+  return syncOptions.value?.all.find((kb) => kb.id === id) ?? null;
+});
+
+const resetKnowledgeBase = () => {
+  kbChoice.value = currentChoice(space.value?.knowledge_base_id);
+};
+
+const kbDirty = computed(() => !sameChoice(kbChoice.value, currentChoice(space.value?.knowledge_base_id)));
+
+const kbEffect = computed(() => {
+  if (!kbDirty.value) return "";
+  const from = space.value?.knowledge_base_id;
+  if (!from) return kbChoice.value.mode === "none" ? "" : t("docs.spaces.kbSync.bindEffect");
+  const name = boundKB.value?.name || from;
+  return kbChoice.value.mode === "none"
+    ? t("docs.spaces.kbSync.unbindEffect", { name })
+    : t("docs.spaces.kbSync.rebindEffect", { name });
+});
+
+const saveKnowledgeBase = async () => {
+  if (!space.value) return;
+  bindingKB.value = true;
+  try {
+    space.value = await bindSpaceKnowledgeBase(space.value.id, { knowledge_base: choiceRequest(kbChoice.value) });
+    MessagePlugin.success(t("docs.spaces.kbSync.saveSuccess"));
+    resetKnowledgeBase();
+    // A knowledge base made by this change is not in the list yet.
+    void loadKnowledgeBaseOptions();
+  } catch (err: unknown) {
+    if (isEmbeddingModelRequired(err)) {
+      MessagePlugin.error(t("docs.spaces.kbSync.noEmbedding"));
+      void loadKnowledgeBaseOptions();
+    } else {
+      MessagePlugin.error(errorText(err, t("docs.spaces.kbSync.saveFailed")));
+    }
+  } finally {
+    bindingKB.value = false;
   }
 };
 

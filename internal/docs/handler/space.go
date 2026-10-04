@@ -53,11 +53,40 @@ type CreateSpaceRequest struct {
 	// Visibility: private (default) or open.
 	Visibility string `json:"visibility"`
 	// DefaultRole for open spaces: reader (default) or writer.
-	DefaultRole      string          `json:"default_role"`
-	KnowledgeBaseID  *string         `json:"knowledge_base_id"`
-	StorageBackendID *string         `json:"storage_backend_id"`
-	Settings         json.RawMessage `json:"settings" swaggertype:"object"`
+	DefaultRole string `json:"default_role"`
+	// KnowledgeBase is what the space syncs its pages into; omitted means
+	// none. The web form sends {"mode":"create"} unless told otherwise.
+	KnowledgeBase *KnowledgeBaseChoiceRequest `json:"knowledge_base"`
+	// LegacyKnowledgeBaseID is the field knowledge_base replaced; it is
+	// refused rather than ignored, so an old client learns its binding did
+	// not happen.
+	LegacyKnowledgeBaseID *string         `json:"knowledge_base_id" swaggerignore:"true"`
+	StorageBackendID      *string         `json:"storage_backend_id"`
+	Settings              json.RawMessage `json:"settings" swaggertype:"object"`
 }
+
+// KnowledgeBaseChoiceRequest says what a space syncs its pages into.
+type KnowledgeBaseChoiceRequest struct {
+	// Mode: none (pages stay out of every knowledge base), existing (bind the
+	// knowledge base named by id) or create (make a new document knowledge
+	// base named like the space, on the space's storage backend, with the
+	// workspace's default models, and bind it).
+	Mode string `json:"mode" enums:"none,existing,create"`
+	// ID names the knowledge base for mode existing; empty otherwise.
+	ID string `json:"id"`
+}
+
+func (r *KnowledgeBaseChoiceRequest) choice() *service.KnowledgeBaseChoice {
+	if r == nil {
+		return nil
+	}
+	return &service.KnowledgeBaseChoice{Mode: service.KnowledgeBaseMode(r.Mode), ID: r.ID}
+}
+
+// legacyKnowledgeBaseField is the answer to a request still using
+// knowledge_base_id.
+const legacyKnowledgeBaseField = `knowledge_base_id was replaced by knowledge_base: ` +
+	`{"mode":"existing","id":"..."}, {"mode":"create"} or {"mode":"none"}`
 
 // UpdateSpaceRequest is the body of PATCH /docs/spaces/{sid}; absent fields
 // are left unchanged, an empty icon clears it.
@@ -84,11 +113,13 @@ type SetSpaceMembersRequest struct {
 }
 
 // BindKnowledgeBaseRequest is the body of PUT /docs/spaces/{sid}/knowledge-base.
-// Absent fields are unchanged; an empty knowledge_base_id clears that binding,
-// an empty storage_backend_id rebinds the space to the workspace default.
+// Absent fields are unchanged; knowledge_base {"mode":"none"} unbinds, an
+// empty storage_backend_id rebinds the space to the workspace default.
 type BindKnowledgeBaseRequest struct {
-	KnowledgeBaseID  *string `json:"knowledge_base_id"`
-	StorageBackendID *string `json:"storage_backend_id"`
+	KnowledgeBase *KnowledgeBaseChoiceRequest `json:"knowledge_base"`
+	// LegacyKnowledgeBaseID: see CreateSpaceRequest.
+	LegacyKnowledgeBaseID *string `json:"knowledge_base_id" swaggerignore:"true"`
+	StorageBackendID      *string `json:"storage_backend_id"`
 }
 
 // List godoc
@@ -117,12 +148,19 @@ func (h *SpaceHandler) List(c *gin.Context) {
 
 // Create godoc
 // @Summary      创建文档空间
-// @Description  创建者自动成为空间管理员；slug 省略时由名称生成并保证唯一
+// @Description  创建者自动成为空间管理员；slug 省略时由名称生成并保证唯一。
+// @Description  knowledge_base 决定页面同步到哪个知识库：省略或 mode=none 不同步；
+// @Description  mode=existing 绑定 id 指定的文档型知识库（调用者须是该知识库的创建者或工作区管理员）；
+// @Description  mode=create 同时新建一个与空间同名的文档型知识库并绑定（与空间同一存储后端，使用工作区默认模型）。
+// @Description  工作区没有 Embedding 模型时返回 400、错误码 2300；空间写入失败时新建的知识库会被删除。
+// @Description  API Key 用 mode=create 需要 manage_kbs 或完全访问，且不能是限定知识库范围的 key
 // @Tags         在线文档
 // @Accept       json
 // @Produce      json
 // @Param        request  body  CreateSpaceRequest  true  "空间"
 // @Success      201  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}  "参数错误；错误码 2300 表示工作区没有 Embedding 模型"
+// @Failure      403  {object}  map[string]interface{}  "无权绑定该知识库或无权新建知识库"
 // @Security     Bearer
 // @Router       /docs/spaces [post]
 func (h *SpaceHandler) Create(c *gin.Context) {
@@ -138,10 +176,14 @@ func (h *SpaceHandler) Create(c *gin.Context) {
 		badRequest(c, "invalid request body: "+err.Error())
 		return
 	}
+	if req.LegacyKnowledgeBaseID != nil {
+		badRequest(c, legacyKnowledgeBaseField)
+		return
+	}
 	view, err := h.svc.Create(c.Request.Context(), id, service.CreateSpaceInput{
 		Name: req.Name, Slug: req.Slug, Description: req.Description, Icon: req.Icon,
 		Visibility: model.SpaceVisibility(req.Visibility), DefaultRole: model.SpaceRole(req.DefaultRole),
-		KnowledgeBaseID: req.KnowledgeBaseID, StorageBackendID: req.StorageBackendID, Settings: req.Settings,
+		KnowledgeBase: req.KnowledgeBase.choice(), StorageBackendID: req.StorageBackendID, Settings: req.Settings,
 	})
 	if err != nil {
 		fail(c, err)
@@ -380,13 +422,18 @@ func (h *SpaceHandler) RemoveMember(c *gin.Context) {
 
 // BindKnowledgeBase godoc
 // @Summary      绑定/解绑知识库与存储后端
-// @Description  字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在工作区
+// @Description  需要空间管理员。字段缺省表示不变；knowledge_base 取值同创建空间：
+// @Description  none 解绑、existing 改绑已有知识库、create 新建同名知识库并绑定；
+// @Description  storage_backend_id 为空字符串表示改回工作区默认。知识库变化后空间里的全部页面立即排队重新同步：
+// @Description  解绑时已镜像的条目从原知识库删除，改绑时从原知识库删除并在新知识库重建
 // @Tags         在线文档
 // @Accept       json
 // @Produce      json
 // @Param        sid      path  string                    true  "空间 ID"
 // @Param        request  body  BindKnowledgeBaseRequest  true  "绑定"
 // @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}  "参数错误；错误码 2300 表示工作区没有 Embedding 模型"
+// @Failure      403  {object}  map[string]interface{}  "不是空间管理员，或无权绑定该知识库 / 新建知识库"
 // @Security     Bearer
 // @Router       /docs/spaces/{sid}/knowledge-base [put]
 func (h *SpaceHandler) BindKnowledgeBase(c *gin.Context) {
@@ -406,7 +453,11 @@ func (h *SpaceHandler) BindKnowledgeBase(c *gin.Context) {
 		badRequest(c, "invalid request body: "+err.Error())
 		return
 	}
-	view, err := h.svc.BindKnowledgeBase(c.Request.Context(), id, sp, req.KnowledgeBaseID, req.StorageBackendID)
+	if req.LegacyKnowledgeBaseID != nil {
+		badRequest(c, legacyKnowledgeBaseField)
+		return
+	}
+	view, err := h.svc.BindKnowledgeBase(c.Request.Context(), id, sp, req.KnowledgeBase.choice(), req.StorageBackendID)
 	if err != nil {
 		fail(c, err)
 		return

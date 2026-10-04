@@ -105,15 +105,22 @@ curl $BASE/api/v1/docs/spaces -H "Authorization: Bearer $TOKEN"
 | `icon` | string | 否 | 最多 64 字节 |
 | `visibility` | string | 否 | `private`（默认）/ `open` / `public`；`public` 需部署开启公开分享，否则 403 |
 | `default_role` | string | 否 | 开放、公开空间的默认角色 `reader`（默认）/ `writer`；私有空间固定为 `none` |
-| `knowledge_base_id` | string | 否 | 绑定的知识库，必须属于本工作区 |
+| `knowledge_base` | object | 否 | 页面同步到哪个知识库：`{"mode":"none"}`（省略时同此，不同步）、`{"mode":"existing","id":"<kb>"}`（绑定已有知识库）、`{"mode":"create"}`（新建一个与空间同名的知识库并绑定），规则见下 |
 | `storage_backend_id` | string | 否 | 新附件、导入与导出写入的存储后端，须为本工作区可用的启用实例；缺省用空间默认 |
 | `settings` | object | 否 | 自由 JSON 对象，最多 16 KiB |
 
-响应：201 `{"success":true,"data":{SpaceView}}`。显式给的 slug 已被占用返回 409；知识库或存储后端不在本工作区返回 400。
+`knowledge_base` 的规则：
+
+- `existing`：知识库须属于本工作区、是文档型（不是 FAQ，也不是内部临时知识库），且调用者是它的创建者或工作区 Owner / Admin——绑定会把页面写进这个知识库，与往里上传文档同一个权限；API Key 只能绑定其知识库范围内的；
+- `create`：服务端新建一个文档型知识库，名称、描述取自空间，存储后端与空间相同，Embedding / 问答模型取工作区默认（标为默认的那个，否则最早添加的启用中模型），分块与索引用平台默认，创建者记为调用者；工作区没有 Embedding 模型时返回 400、错误码 `2300`，什么也不创建。能提前检查的都在建知识库之前检查，空间写入仍然失败时新建的知识库会被删除。API Key 需要 `manage_kbs` 或完全访问，且不能是限定知识库范围的 Key；
+- 旧字段 `knowledge_base_id` 已被替换，带上它的请求返回 400，而不是被悄悄忽略。
+
+响应：201 `{"success":true,"data":{SpaceView}}`，`knowledge_base_id` 为绑定（或新建）的知识库。显式给的 slug 已被占用返回 409；`knowledge_base` 不合法、知识库不在本工作区或不是文档型、存储后端不可用返回 400；无权绑定该知识库或无权新建返回 403。
 
 ```bash
 curl -X POST $BASE/api/v1/docs/spaces -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"name":"产品手册","slug":"handbook","visibility":"open"}'
+  -H 'Content-Type: application/json' \
+  -d '{"name":"产品手册","slug":"handbook","visibility":"open","knowledge_base":{"mode":"create"}}'
 ```
 
 ### GET /api/v1/docs/spaces/:sid · GET /api/v1/docs/spaces/by-slug/:slug
@@ -186,18 +193,20 @@ curl -X PUT $BASE/api/v1/docs/spaces/<sid>/members -H "Authorization: Bearer $TO
 
 ### PUT /api/v1/docs/spaces/:sid/knowledge-base
 
-用途：绑定或解绑知识库与附件存储后端（前端没有入口）。只校验对象属于本工作区，不检查调用者能否编辑该知识库。权限：Contributor+，空间 admin；key `docs_write`。
+用途：改绑、新建或解绑知识库，以及改附件存储后端（前端在空间设置里）。权限：Contributor+，空间 admin；key `docs_write`；绑定已有知识库另需能往该知识库加文档（同创建空间的 `existing` 规则）。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `knowledge_base_id` | string | 缺省不变，空字符串解绑 |
-| `storage_backend_id` | string | 缺省不变，空字符串改回空间默认；已有附件留在原实例上、照常可读 |
+| `knowledge_base` | object | 缺省不变；取值同创建空间：`{"mode":"none"}` 解绑、`{"mode":"existing","id":"<kb>"}` 改绑、`{"mode":"create"}` 新建同名知识库并绑定（建在本次请求之后空间所用的存储后端上） |
+| `storage_backend_id` | string | 缺省不变，空字符串改回工作区默认；已有附件留在原实例上、照常可读 |
 
-响应：200 `{"success":true,"data":{SpaceView}}`。改绑、解绑后的镜像迁移由后台同步完成，见功能页 6.1。
+响应：200 `{"success":true,"data":{SpaceView}}`。错误同创建空间（400 / `2300` / 403）；旧字段 `knowledge_base_id` 返回 400。
+
+知识库一变，空间的全部页面立即排队重新同步：解绑时已同步的条目从原知识库删除；改绑时从原知识库删除、在新知识库重建（重新向量化）。发送与当前相同的绑定不触发同步。见功能页 6.1。
 
 ```bash
 curl -X PUT $BASE/api/v1/docs/spaces/<sid>/knowledge-base -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"knowledge_base_id":"kb-1"}'
+  -H 'Content-Type: application/json' -d '{"knowledge_base":{"mode":"existing","id":"kb-1"}}'
 ```
 
 ## 存储用量与配额

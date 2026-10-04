@@ -79,6 +79,9 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.SetMembers)
 	write.DELETE("/spaces/:sid/members/:ptype/:pid", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.RemoveMember)
+	// Binding needs the space's admin (the guard) and the right to fill the
+	// knowledge base it names, which the service checks against that
+	// knowledge base's own ownership rule (service/spacekb.go).
 	write.PUT("/spaces/:sid/knowledge-base", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.BindKnowledgeBase)
 	// ---- page tree and trash (T1.2) ---------------------------------------------

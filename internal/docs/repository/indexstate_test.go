@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/magicyuan876/yuheng/internal/docs/model"
 )
 
 func (f *fixture) indexState(t *testing.T, pageID string) (dueIn time.Duration, hasDue bool, seq int64) {
@@ -60,6 +62,33 @@ func TestMarkSubtreeReachesEveryDescendant(t *testing.T) {
 	}
 	_, err := f.repos.IndexQueue.Get(ctx(), 1, sibling.ID)
 	assert.True(t, errors.Is(err, ErrNotFound), "a page outside the subtree is untouched")
+}
+
+func TestMarkSpaceReachesEveryPageOfTheSpaceAndNoOther(t *testing.T) {
+	f := newFixture(t)
+	root := f.page(t, "Root", nil, "a0")
+	child := f.page(t, "Child", &root.ID, "a0")
+	trashed := f.page(t, "Trashed", nil, "a1")
+	_, err := f.repos.Pages.SoftDeleteSubtree(ctx(), 1, trashed.ID, "u1")
+	require.NoError(t, err)
+	elsewhere := &model.Page{
+		TenantID: 1, SpaceID: f.other.ID, Position: "a0", Title: "Elsewhere", ShortID: "zz0000",
+		Content: model.JSON(`{"type":"doc","content":[{"type":"paragraph"}]}`), CreatorID: ptr("u1"),
+	}
+	require.NoError(t, f.repos.Pages.Create(ctx(), elsewhere))
+	// One page is already waiting with a debounce; the space-wide request
+	// is urgent and pulls it forward.
+	require.NoError(t, f.repos.IndexQueue.Mark(ctx(), 1, []string{child.ID}, time.Hour))
+
+	require.NoError(t, f.repos.IndexQueue.MarkSpace(ctx(), 1, f.space.ID, 0))
+
+	for _, id := range []string{root.ID, child.ID, trashed.ID} {
+		dueIn, has, _ := f.indexState(t, id)
+		assert.True(t, has, id)
+		assert.LessOrEqual(t, dueIn, time.Second, id)
+	}
+	_, err = f.repos.IndexQueue.Get(ctx(), 1, elsewhere.ID)
+	assert.True(t, errors.Is(err, ErrNotFound), "a page of another space is untouched")
 }
 
 func TestClaimGivesEachDuePageToOneWorker(t *testing.T) {

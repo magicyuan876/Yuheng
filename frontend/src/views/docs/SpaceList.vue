@@ -131,9 +131,10 @@
           <DialogTitle>{{ t("docs.spaces.createTitle") }}</DialogTitle>
         </DialogHeader>
         <SpaceForm v-model="form" mode="create" :problems="problems" />
+        <KnowledgeBaseSyncField v-model="kbChoice" :options="syncOptions" :disabled="creating" />
         <DialogFooter>
           <Button variant="outline" @click="createVisible = false">{{ t("common.cancel") }}</Button>
-          <Button :disabled="creating" @click="submitCreate">
+          <Button :disabled="creating || !choiceComplete(kbChoice)" @click="submitCreate">
             <Loader2Icon v-if="creating" class="animate-spin" />
             {{ t("common.create") }}
           </Button>
@@ -150,7 +151,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
-import { createSpace, listSpaces, type DocsSpace } from "@/api/docs";
+import { createSpace, listSpaces, type DocsSpace, type KnowledgeBaseChoice } from "@/api/docs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -166,6 +167,14 @@ import {
   type SpaceFormModel,
   type SpaceFormProblem,
 } from "./docsAccess";
+import KnowledgeBaseSyncField from "./KnowledgeBaseSyncField.vue";
+import {
+  choiceComplete,
+  choiceRequest,
+  isEmbeddingModelRequired,
+  loadSyncOptions,
+  type SyncOptions,
+} from "./knowledgeBaseSync";
 import SpaceForm from "./SpaceForm.vue";
 
 const { t } = useI18n();
@@ -204,10 +213,27 @@ const creating = ref(false);
 const form = ref<SpaceFormModel>(emptyForm());
 const problems = ref<SpaceFormProblem[]>([]);
 
+// What the new space syncs into. A new knowledge base by default: writing
+// here rather than in a wiki next door is worth it because what is written
+// can then be asked about, and a team that first has to go and make a
+// knowledge base mostly does not. Without an embedding model none can be
+// made, and the field falls back to not syncing and says why.
+const kbChoice = ref<KnowledgeBaseChoice>({ mode: "create" });
+const syncOptions = ref<SyncOptions | null>(null);
+
+const loadKnowledgeBaseOptions = async () => {
+  syncOptions.value = null;
+  const options = await loadSyncOptions({ userId: authStore.currentUserId, isAdmin: authStore.hasRole("admin") });
+  syncOptions.value = options;
+  if (kbChoice.value.mode === "create" && !options.canCreate) kbChoice.value = { mode: "none" };
+};
+
 const openCreate = () => {
   form.value = emptyForm();
   problems.value = [];
+  kbChoice.value = { mode: "create" };
   createVisible.value = true;
+  void loadKnowledgeBaseOptions();
 };
 
 const submitCreate = async () => {
@@ -222,13 +248,21 @@ const submitCreate = async () => {
       description: model.description.trim(),
       visibility: model.visibility,
       default_role: model.default_role,
+      knowledge_base: choiceRequest(kbChoice.value),
     });
     MessagePlugin.success(t("docs.spaces.createSuccess"));
     createVisible.value = false;
     spaces.value = [...spaces.value, created].sort((a, b) => a.name.localeCompare(b.name));
     router.push({ name: "docsSpace", params: { slug: created.slug } });
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t("docs.spaces.createFailed")));
+    if (isEmbeddingModelRequired(err)) {
+      // The model was removed since the form loaded: show the field as it
+      // now is rather than a bare error.
+      MessagePlugin.error(t("docs.spaces.kbSync.noEmbedding"));
+      void loadKnowledgeBaseOptions();
+    } else {
+      MessagePlugin.error(errorText(err, t("docs.spaces.createFailed")));
+    }
   } finally {
     creating.value = false;
   }
