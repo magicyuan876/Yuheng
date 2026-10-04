@@ -1,6 +1,6 @@
 # API 参考：在线文档
 
-路由注册：`internal/router/routes_docs.go` 的 `RegisterDocsRoutes`（`/api/v1/docs/**`）、`RegisterDocsPublicRoutes`（匿名的 `/api/v1/docs/public/**`、`/api/v1/docs/public-spaces/**`）与 `RegisterDocsInternalRoutes`（协同服务回调 `/internal/collab/**`）。Handler：`internal/docs/handler/*.go`，业务规则在 `internal/docs/service/`。空间组 `/api/v1/groups/**` 不属于本模块（`internal/router/routes_groups.go`，始终注册），只是文档沿用了这一页的位置，见文末。
+路由注册：`internal/router/routes_docs.go` 的 `RegisterDocsRoutes`（`/api/v1/docs/**`）、`RegisterDocsPublicRoutes`（匿名的 `/api/v1/docs/public/**`、`/api/v1/docs/public-spaces/**`）与 `RegisterDocsInternalRoutes`（协同服务回调 `/internal/collab/**`）。Handler：`internal/docs/handler/*.go`，业务规则在 `internal/docs/service/`。工作区组 `/api/v1/groups/**` 不属于本模块（`internal/router/routes_groups.go`，始终注册），只是文档沿用了这一页的位置，见文末。
 
 空间、页面限制、锁定、独占编辑、知识库同步等概念见功能页[在线文档](../03-features/07-docs.md)，本页只写接口。模块默认关闭：只有 `YUHENG_DOCS_ENABLED=true` 时才注册这些路由，关闭时所有路径都是 404；匿名路由另需 `YUHENG_DOCS_PUBLIC_SHARING=true`，协同回调另需 `YUHENG_COLLAB_SHARED_SECRET`。
 
@@ -39,7 +39,7 @@ API key 在本模块里以**自己的身份**解析权限，不借用任何真�
 
 ### 响应与错误
 
-- 成功：`{"success":true,"data":...}`，状态码 200；创建空间、页面、复制页面、上传附件、创建空间组为 201；导入与空间导出这类后台任务为 202；删除空间、成员、附件、空间组等无返回内容的操作为 204（无响应体）。
+- 成功：`{"success":true,"data":...}`，状态码 200；创建空间、页面、复制页面、上传附件、创建工作区组为 201；导入与空间导出这类后台任务为 202；删除空间、成员、附件、工作区组等无返回内容的操作为 204（无响应体）。
 - 服务层错误走统一错误中间件：`{"success":false,"error":{"code":...,"message":"...","details":null}}`。常见：参数不合法 400（code 1010）、权限不足 403（1002）、不存在 404（1003）、冲突 409（1005）、配额超限 409。
 - 本模块里 `repository.ErrDuplicate` 映射为 400 `already exists`，版本冲突为 409 `version conflict; reload and retry`。
 - 未知错误只记日志，返回 500 `internal error`，不带原始错误文本。
@@ -47,7 +47,7 @@ API key 在本模块里以**自己的身份**解析权限，不借用任何真�
 ### 幂等与分页
 
 - 写操作支持 `Idempotency-Key` 请求头（≤128 字符）：同一用户、同一路由、同一 key 在 24 小时内重放第一次的成功响应（带响应头 `Idempotent-Replayed: true`）；前一个同 key 请求还在执行时返回 409。只存 2xx 且响应体不超过 1 MiB 的结果。以下写操作**没有**这个中间件：附件上传、导入、租约获取与释放、Yjs 保存、维护清理，以及匿名路由。
-- 列表分页多为游标式：请求带 `cursor`（或 `after`）与 `limit`，响应带 `next_cursor`，为空表示没有下一页。空间组成员列表例外，用 `page` / `page_size`。
+- 列表分页多为游标式：请求带 `cursor`（或 `after`）与 `limit`，响应带 `next_cursor`，为空表示没有下一页。工作区组成员列表例外，用 `page` / `page_size`。
 
 ```bash
 BASE=http://localhost:8080
@@ -64,7 +64,7 @@ TOKEN=<JWT>
 
 - 通知（`docs.notification.created`）只推给接收人；
 - 页面事件推给能读该页面的人；页面已被彻底删除，或已移到别的空间（从原空间看的那一条），则推给能读事件所在空间的人，这时只带 ID；
-- 空间事件推给能读该空间的人；不带空间和页面的事件（空间组、工作区模板、缓存失效）只带 ID，推给所有成员；
+- 空间事件推给能读该空间的人；不带空间和页面的事件（工作区组、工作区模板、缓存失效）只带 ID，推给所有成员；
 - 连接期间失去某个页面或空间的权限时，只会再收到让它消失的那一个事件，之后的事件不再推送；
 - 订阅者被移出工作区时，连接直接结束。
 
@@ -155,7 +155,7 @@ curl -X PATCH $BASE/api/v1/docs/spaces/<sid> -H "Authorization: Bearer $TOKEN" \
 
 ### GET /api/v1/docs/spaces/:sid/members
 
-用途：列出直接成员（用户与空间组），管理员在前，同一角色内空间组在前。权限：Viewer+，空间 reader；key `docs_read`。
+用途：列出直接成员（用户与工作区组），管理员在前，同一角色内工作区组在前。权限：Viewer+，空间 reader；key `docs_read`。
 
 响应：200 `{"success":true,"data":[{principal_type,principal_id,role,name,email,avatar,is_default_group,group_member_count,added_by,created_at}]}`
 
@@ -167,10 +167,10 @@ curl -X PATCH $BASE/api/v1/docs/spaces/<sid> -H "Authorization: Bearer $TOKEN" \
 | --- | --- | --- | --- |
 | `members` | array | 是 | 最多 200 项 |
 | `members[].principal_type` | string | 是 | `user` / `group` |
-| `members[].principal_id` | string | 是 | 用户 ID 或空间组 ID |
+| `members[].principal_id` | string | 是 | 用户 ID 或工作区组 ID |
 | `members[].role` | string | 是 | `reader` / `writer` / `admin` |
 
-响应：200，返回更新后的成员列表（同上）。用户不是本工作区活跃成员、空间组不存在、改动后空间没有管理员，都返回 400。
+响应：200，返回更新后的成员列表（同上）。用户不是本工作区活跃成员、工作区组不存在、改动后空间没有管理员，都返回 400。
 
 ```bash
 curl -X PUT $BASE/api/v1/docs/spaces/<sid>/members -H "Authorization: Bearer $TOKEN" \
@@ -408,10 +408,10 @@ curl -X PUT $BASE/api/v1/docs/pages/<pid>/access -H "Authorization: Bearer $TOKE
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `principal_type` | string | `user` / `group` |
-| `principal_id` | string | 用户 ID 或空间组 ID |
+| `principal_id` | string | 用户 ID 或工作区组 ID |
 | `role` | string | `reader` / `writer` / `admin` |
 
-响应：200，返回权限面板对象。页面未受限（需先 `PUT /access`）、名单超过 100 项、角色非法、用户不是活跃成员都返回 400；空间组不存在 404。
+响应：200，返回权限面板对象。页面未受限（需先 `PUT /access`）、名单超过 100 项、角色非法、用户不是活跃成员都返回 400；工作区组不存在 404。
 
 ### DELETE /api/v1/docs/pages/:pid/grants/:ptype/:principal
 
@@ -773,19 +773,19 @@ curl -X POST $BASE/api/v1/docs/public/<key>/unlock -H 'Content-Type: application
 curl -X POST "$BASE/api/v1/docs/maintenance/expired-trash?dry_run=true" -H "Authorization: Bearer $TOKEN"
 ```
 
-## 空间组（/api/v1/groups）
+## 工作区组（/api/v1/groups）
 
-空间级能力，不属于在线文档模块：路由在 `internal/router/routes_groups.go`，**始终注册**，`YUHENG_DOCS_ENABLED=false` 时也在；Handler `internal/handler/tenant_group.go`，服务 `internal/application/service/tenant_group.go`。在线文档是它的第一个使用者（空间成员与页面授权可以授给 `group:<id>`），概念见[租户、用户与认证授权](../03-features/01-tenant-auth.md) §8。每个工作区有一个默认组 `everyone`，所有成员隐式属于它：默认组不能改名、删除，也不能增删成员。API key 需要 `manage_members`（与 `/tenants/:id/members` 相同）或 full-access。空间组对象为 `{id,tenant_id,name,description,is_default,source,external_id,creator_id,created_at,updated_at,member_count}`；API key 创建的组 `creator_id` 为空（合成用户不是账号）。
+工作区级能力，不属于在线文档模块：路由在 `internal/router/routes_groups.go`，**始终注册**，`YUHENG_DOCS_ENABLED=false` 时也在；Handler `internal/handler/tenant_group.go`，服务 `internal/application/service/tenant_group.go`。在线文档是它的第一个使用者（空间成员与页面授权可以授给 `group:<id>`），概念见[工作区、用户与认证授权](../03-features/01-tenant-auth.md) §8。每个工作区有一个默认组 `everyone`，所有成员隐式属于它：默认组不能改名、删除，也不能增删成员。API key 需要 `manage_members`（与 `/tenants/:id/members` 相同）或 full-access。工作区组对象为 `{id,tenant_id,name,description,is_default,source,external_id,creator_id,created_at,updated_at,member_count}`；API key 创建的组 `creator_id` 为空（合成用户不是账号）。
 
 | 方法与路径 | 权限 | 请求 | 说明 |
 | --- | --- | --- | --- |
 | `GET /api/v1/groups` | Viewer+ | — | 默认组在前，附成员数 |
 | `POST /api/v1/groups` | Admin+ | `{"name","description","member_ids"}`，`name` 必填 | 201；组名在工作区内不区分大小写唯一，重名 409；默认组的名字保留（400）；`member_ids` 最多 200，必须是活跃成员 |
-| `GET /api/v1/groups/:gid` | Viewer+ | — | 单个空间组 |
+| `GET /api/v1/groups/:gid` | Viewer+ | — | 单个工作区组 |
 | `PATCH /api/v1/groups/:gid` | Admin+ | `{"name","description"}`，均可选 | 重名 409 |
 | `DELETE /api/v1/groups/:gid` | Admin+ | — | 204；在线文档里授予该组的空间成员身份与页面授权在同一事务里清理 |
 | `GET /api/v1/groups/:gid/members` | Viewer+ | 查询参数 `q`（用户名/邮箱）、`page`（默认 1）、`page_size`（默认 20，最大 100） | `{members,total,page,page_size}` |
-| `PUT /api/v1/groups/:gid/members` | Admin+ | `{"user_ids":[...]}`（必填，最多 200） | 追加成员，已在组内的跳过；返回空间组对象 |
+| `PUT /api/v1/groups/:gid/members` | Admin+ | `{"user_ids":[...]}`（必填，最多 200） | 追加成员，已在组内的跳过；返回工作区组对象 |
 | `DELETE /api/v1/groups/:gid/members/:uid` | Admin+ | — | 204；不在组内 404 |
 
 审计动作：`rbac.group_created` / `rbac.group_updated` / `rbac.group_deleted` / `rbac.group_member_added`（每个被加的人一行）/ `rbac.group_member_removed`，与成员事件一起出现在空间审计流里。每次变更后在线文档的事件流收到 `docs.group.changed`。

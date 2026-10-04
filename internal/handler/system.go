@@ -1866,7 +1866,7 @@ func (h *SystemHandler) ResetSystemSetting(c *gin.Context) {
 
 // GetPlatformParserEngineConfig godoc
 // @Summary      获取平台级解析引擎配置
-// @Description  返回系统管理员配置的平台默认解析引擎参数。优先级：部署 ENV < 平台默认 < 空间覆盖。
+// @Description  返回系统管理员配置的平台默认解析引擎参数。优先级：部署 ENV < 平台默认 < 工作区覆盖。
 // @Description  凭据字段以掩码返回。仅系统管理员可访问。
 // @Tags         System Admin
 // @Produce      json
@@ -1892,7 +1892,7 @@ func (h *SystemHandler) GetPlatformParserEngineConfig(c *gin.Context) {
 
 // UpdatePlatformParserEngineConfig godoc
 // @Summary      更新平台级解析引擎配置
-// @Description  保存平台默认解析引擎参数，对所有空间生效（空间可再自行覆盖，除非已开启集中管控）。
+// @Description  保存平台默认解析引擎参数，对所有工作区生效（工作区可再自行覆盖，除非已开启集中管控）。
 // @Description  凭据字段传回掩码占位符表示"不修改"。仅系统管理员可访问。
 // @Tags         System Admin
 // @Accept       json

@@ -70,7 +70,7 @@ npm run preview  # 预览构建产物
 
 | 文档 | 内容 |
 | --- | --- |
-| [租户、用户与认证授权](03-features/01-tenant-auth.md) | 空间模型（用户是全局身份、一个企业一个空间）、注册与 bootstrap、JWT / API Key / OIDC、登录限流与锁定、RBAC、空间组、CORS |
+| [工作区、用户与认证授权](03-features/01-tenant-auth.md) | 工作区模型（用户是全局身份、一个企业一个工作区）、注册与 bootstrap、JWT / API Key / OIDC、登录限流与锁定、RBAC、工作区组、CORS |
 | [知识库与知识管理](03-features/02-knowledge-base.md) | 知识库配置、文件夹与标签、分块编辑与版本、文档负责人与复核周期、预览安全、复制与移动、活动流、配额 |
 | [文档解析服务 docreader](03-features/03-document-parsing.md) | gRPC 接口、解析引擎（builtin / MinerU / PaddleOCR-VL 等）、支持格式（含视频）、部署与扩容 |
 | [分块机制](03-features/04-chunking.md) | 自适应分块、父子分块、重叠与边界、调试端点 |
@@ -87,7 +87,7 @@ npm run preview  # 预览构建产物
 | [FAQ 能力](03-features/17-faq.md) | FAQ 条目、导入导出与去重、检索命中方式 |
 | [会话与对话体验](03-features/18-chat-experience.md) | 进度与引用、导出对话、临时附件、历史搜索、回答反馈 |
 | [存储后端](03-features/19-storage-backends.md) | local 与 S3 兼容存储、默认 RustFS、按库绑定、连通性测试 |
-| [平台管理与系统管理员](03-features/20-platform-admin.md) | 首个管理员、控制台分区、用户与空间（建空间、建账号、任意空间的成员）、运行时系统设置、集中管控 |
+| [平台管理与系统管理员](03-features/20-platform-admin.md) | 首个管理员、控制台分区、用户与工作区（建工作区、建账号、任意工作区的成员）、运行时系统设置、集中管控 |
 | [图片与文件的对外访问](03-features/21-file-access.md) | 四种 URL 形式、各客户端怎么取、排查表 |
 | [知识健康](03-features/22-knowledge-health.md) | 重复与内容有出入、定期复核、回答反馈、负责人与派发、我的待办、取代与确认 |
 

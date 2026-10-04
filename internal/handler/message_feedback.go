@@ -45,7 +45,7 @@ func (h *MessageFeedbackHandler) ListFeedback(c *gin.Context) {
 // SetFeedback godoc
 // @Summary      评价一条回答
 // @Description  rating=up（有帮助）/ down（没帮助）/ 空（撤回）。“没帮助”会以“回答被反馈有误”出现在回答所引用文档的知识健康里，
-// @Description  交给文档负责人，知识库成员可见：显示意见和回答开头，share_question=true 时附上提问。只对本空间的文档生效。需要登录用户
+// @Description  交给文档负责人，知识库成员可见：显示意见和回答开头，share_question=true 时附上提问。只对本工作区的文档生效。需要登录用户
 // @Tags         会话
 // @Accept       json
 // @Produce      json

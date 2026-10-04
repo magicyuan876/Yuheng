@@ -245,7 +245,7 @@ const PostgresRetrieverEngineType RetrieverEngineType = "postgres"
 1. 在 `internal/types/retriever.go` 增加 `RetrieverEngineType` 常量；
 2. 新建包实现 `RetrieveEngineRepository` 接口，并用 `retriever.NewKVHybridRetrieveEngine(repo, 引擎类型)` 包装；
 3. 写一个 `EngineDescriptor`，把它提供进 dig 值组 `retriever.EngineGroup`（`"retrieve_engines"`）。描述符在 `NewEngineCatalog` 构建目录时被收集；描述符不合格（缺类型、缺驱动名、可注册却没有连接测试等）会在注册时报错。目录必须在扩展钩子（`internal/extension`）执行之后才能构建，所以由扩展提供的引擎也会进入目录；
-4. 若引擎允许工作空间自行注册（`Registrable: true`），需提供 `ConnectionFields` / `IndexFields`、`DialAddresses` 与 `TestConnection`；它才会出现在 `GET /vector-stores/types` 与设置页。社区版没有可注册的引擎，该列表为空；
+4. 若引擎允许工作区自行注册（`Registrable: true`），需提供 `ConnectionFields` / `IndexFields`、`DialAddresses` 与 `TestConnection`；它才会出现在 `GET /vector-stores/types` 与设置页。社区版没有可注册的引擎，该列表为空；
 5. 若引擎需要独立部署，在 `docker-compose.dev.yml` 加一个带 profile 的服务，并在 `.env.example` 补连接变量。
 6. 可选：实现 `interfaces.SimilarChunkFinder`（比较已存储的向量，见第 9 节），知识健康的重复检测才能在使用该引擎的知识库上运行。仓储实现它即可，`KVHybridRetrieveEngine` 会把能力透传出去；不实现的引擎在健康概览里显示为「不支持」。
 
@@ -729,7 +729,7 @@ type SimilarChunkFinder interface {
 - 返回 `ErrUnsupported`（可包装）表示「不适用」：不算失败、不重试，它以前的问题保持原样；
 - 返回其它错误表示失败：其它检测器的结果照常记录，任务按队列策略重试，失败的检测器以前的问题保持原样；
 - `dismissed` 的问题在 `EvidenceHash` 不变时保持忽略，变了就重新打开。所以 `EvidenceHash` 应当只取决于证据的**内容**（重复检测对匹配段落的文字取哈希，重新解析不会改变它），不要放分块 ID、时间或分数；
-- 每次运行都按 `Assign` 重新派发，找人时跳过已离开空间或被停用的人；被人手动指派过的问题保持原处理人；
+- 每次运行都按 `Assign` 重新派发，找人时跳过已离开工作区或被停用的人；被人手动指派过的问题保持原处理人；
 - 问题记录不会比文档活得久：文档软删除、硬删除或移到其它知识库时，数据库触发器删除相关记录，所有读取也只返回两侧文档都还在的记录。检测器不需要自己清理。
 
 `Details.Extra` 放检测器自己的字段（键名建议带检测器前缀），核心原样存储、原样返回给 API。

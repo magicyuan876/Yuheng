@@ -181,8 +181,8 @@ var registry = map[string]settingSpec{
 		EnvName:  "YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB",
 		Default:  int64(0),
 		Category: "tenant",
-		Description: "新建空间时默认分配的存储配额（GB），包含向量、原文、文本、索引等。" +
-			"仅在创建时读取，修改后只对之后新建的空间生效，不会回写已存在的空间。" +
+		Description: "新建工作区时默认分配的存储配额（GB），包含向量、原文、文本、索引等。" +
+			"仅在创建时读取，修改后只对之后新建的工作区生效，不会回写已存在的工作区。" +
 			"0 表示不限制（默认）。",
 	},
 	// tenant.auto_accept_invitation: invite = auto-join switch (default false).
@@ -191,7 +191,7 @@ var registry = map[string]settingSpec{
 		EnvName:  "YUHENG_TENANT_AUTO_ACCEPT_INVITATION",
 		Default:  false,
 		Category: "tenant",
-		Description: "全局开关：开启后，空间管理员通过邮箱邀请已注册用户加入空间时，" +
+		Description: "全局开关：开启后，工作区管理员通过邮箱邀请已注册用户加入工作区时，" +
 			"被邀请人将被立即自动加入（直接写入成员关系），无需在收件箱手动接受，也不再生成待接受的邀请记录。" +
 			"关闭时保持原有「发出邀请 → 被邀请人收件箱确认」流程。每次邀请时实时读取，修改后立即生效。默认 false。",
 	},
@@ -310,7 +310,7 @@ var registry = map[string]settingSpec{
 		// fields properly and can test connectivity. See EditedElsewhere.
 		EditedElsewhere: true,
 		Description: "平台级解析引擎默认配置（MinerU / PaddleOCR-VL / OpenDataLoader / 天枢 等端点与参数）。" +
-			"优先级：部署 ENV < 此处平台默认 < 空间自有覆盖。集中管控开启时空间覆盖入口对非系统管理员隐藏，" +
+			"优先级：部署 ENV < 此处平台默认 < 工作区自有覆盖。集中管控开启时工作区覆盖入口对非系统管理员隐藏，" +
 			"此处即全局生效配置。凭据以加密形式存储，读取时对非系统管理员掩码。修改后立即生效。",
 		IsSecret: true,
 	},
@@ -320,8 +320,8 @@ var registry = map[string]settingSpec{
 		Default:  false,
 		Category: "governance",
 		Description: "集中管控基础设施。开启后，模型、MCP、网络搜索、向量库、存储、沙箱、解析引擎、Ollama 等" +
-			"配置收归系统管理员，空间管理员仅保留只读（建知识库、建智能体时仍可正常选用平台资源），" +
-			"设置页中对应入口对非系统管理员隐藏。发布集成（IM / Embed / API Key）不受影响，仍归空间管理。" +
+			"配置收归系统管理员，工作区管理员仅保留只读（建知识库、建智能体时仍可正常选用平台资源），" +
+			"设置页中对应入口对非系统管理员隐藏。发布集成（IM / Embed / API Key）不受影响，仍归工作区管理。" +
 			"修改后立即生效，无需重启。",
 	},
 }

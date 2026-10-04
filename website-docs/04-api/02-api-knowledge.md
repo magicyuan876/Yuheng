@@ -2,7 +2,7 @@
 
 路由注册：`internal/router/routes_knowledge.go` 的 `RegisterKnowledgeBaseRoutes`、`RegisterKnowledgeRoutes`、`RegisterKnowledgeFindingRoutes`、`RegisterKnowledgeStewardshipRoutes`。Handler：`internal/handler/knowledgebase.go`、`internal/handler/knowledge.go`、`internal/handler/knowledge_finding.go`、`internal/handler/knowledge_stewardship.go`。
 
-权限速记：知识库只能从拥有它的空间访问——KB 访问守卫对别的空间的知识库与不存在的 ID 一样返回 404。读路由为 Viewer+；写路由为“KB 创建者 OR Admin+”。下文的「KB read」/「KB write」是沿用的速记，都指路由挂了 KB 访问守卫（`KBAccess`，知识库须属于本空间）；读写的区别只在角色与所有权守卫上。API key：读需 `retrieve`，内容写需 `ingest`，KB 生命周期需 `manage_kbs`（均可被 full-access 覆盖），并受 KB 白名单约束。
+权限速记：知识库只能从拥有它的工作区访问——KB 访问守卫对别的工作区的知识库与不存在的 ID 一样返回 404。读路由为 Viewer+；写路由为“KB 创建者 OR Admin+”。下文的「KB read」/「KB write」是沿用的速记，都指路由挂了 KB 访问守卫（`KBAccess`，知识库须属于本工作区）；读写的区别只在角色与所有权守卫上。API key：读需 `retrieve`，内容写需 `ingest`，KB 生命周期需 `manage_kbs`（均可被 full-access 覆盖），并受 KB 白名单约束。
 
 分块、标签与分块预览接口（`/chunks`、`/knowledge-bases/:id/tags`、`/chunker/preview`）在[分块与标签](./02-api-chunks.md)；知识库活动流 `GET /knowledge-bases/:id/activity` 在[租户与成员](./02-api-tenant.md)。
 
@@ -23,7 +23,7 @@
 | `summary_model_id` | string | 否 | 摘要模型 ID |
 | `chunking_config` | object | 否 | 分块配置（chunk_size/overlap/separators/strategy…） |
 | `image_processing_config` / `vlm_config` / `asr_config` | object | 否 | 图像处理、VLM、语音识别配置 |
-| `storage_backend_id` | string | 否 | 新文件写入的存储后端；缺省绑定空间默认。响应里另有 `storage_backend`（`{id,name,provider,source,is_builtin}`） |
+| `storage_backend_id` | string | 否 | 新文件写入的存储后端；缺省绑定工作区默认。响应里另有 `storage_backend`（`{id,name,provider,source,is_builtin}`） |
 | `vector_store_id` | string | 否 | 检索引擎实例绑定，仅创建时可设（非法返回 code 2200，不可用返回 2201） |
 | `faq_config` / `wiki_config` / `extract_config` / `indexing_strategy` | object | 否 | 类型相关配置 |
 | `question_generation_config` / `auto_tag_config` | object | 否 | 问题生成、自动打标配置 |
@@ -57,11 +57,11 @@ curl -X POST $BASE/api/v1/knowledge-bases -H "Authorization: Bearer $TOKEN" \
 
 ### GET /api/v1/knowledge-bases
 
-用途：当前空间的知识库列表（不分页）。权限：Viewer+；API key `retrieve`/full；KB 白名单受限的 key 只看到白名单内的 KB。
+用途：当前工作区的知识库列表（不分页）。权限：Viewer+；API key `retrieve`/full；KB 白名单受限的 key 只看到白名单内的 KB。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `creator` | string | 否 | `mine`（我创建的）/ `others`（同空间其他成员创建的）；不传返回全部 |
+| `creator` | string | 否 | `mine`（我创建的）/ `others`（同工作区其他成员创建的）；不传返回全部 |
 
 响应：200 `{"success":true,"data":[KnowledgeBase]}`，每项附 `knowledge_count`、`chunk_count`、`processing_count`、`creator_name`、`is_pinned`/`pinned_at` 等统计与状态字段。
 
@@ -71,7 +71,7 @@ curl $BASE/api/v1/knowledge-bases -H "X-API-Key: $API_KEY"
 
 ### GET /api/v1/knowledge-bases/:id
 
-用途：知识库详情。权限：Viewer+；别的空间的知识库返回 404。
+用途：知识库详情。权限：Viewer+；别的工作区的知识库返回 404。
 
 响应：200 `{"success":true,"data":{KnowledgeBase}}`
 
@@ -158,7 +158,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/kb-1/hybrid-search -H "X-API-Key: $API
 
 用途：拷贝整个知识库（配置 + 全部知识内容，异步任务）。任务入 asynq `low` 队列，最多重试 3 次、超时 2 小时，立即返回 `task_id` 供轮询。权限：Contributor+；API key `manage_kbs`/full（源/目标 KB 白名单在 handler 校验）。
 
-源 KB 与目标 KB 都必须属于调用者所在空间；属于其他空间与不存在一样返回 404（`Source knowledge base not found` / `Target knowledge base not found`），和其他知识库路由的规则一致。指定 `target_id` 时会同步预检，失败直接返回 400、不入队：
+源 KB 与目标 KB 都必须属于调用者所在工作区；属于其他工作区与不存在一样返回 404（`Source knowledge base not found` / `Target knowledge base not found`），和其他知识库路由的规则一致。指定 `target_id` 时会同步预检，失败直接返回 400、不入队：
 
 - 两边的 Embedding 模型不同：`source and target knowledge bases use different embedding models; ...`
 - 两边绑定的向量存储不同：`source and target knowledge bases are bound to different vector stores; ...`
@@ -170,7 +170,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/kb-1/hybrid-search -H "X-API-Key: $API
 | --- | --- | --- | --- |
 | `source_id` | string | 是（`binding:"required"`） | 源 KB |
 | `target_id` | string | 否 | 目标 KB（为空则自动创建） |
-| `task_id` | string | 否 | 自定义任务 ID；不传由服务端按空间、源 ID 与时间戳生成 |
+| `task_id` | string | 否 | 自定义任务 ID；不传由服务端按工作区、源 ID 与时间戳生成 |
 
 响应：200 `{"success":true,"data":{"task_id","source_id","target_id","message"}}`
 
@@ -181,7 +181,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/copy -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/knowledge-bases/:id/duplicate
 
-用途：同步创建 KB 副本，只复制设置（分块、模型、索引策略、FAQ/Wiki 配置等），不复制知识条目、分块、FAQ 条目、Wiki 页面、索引、数据源绑定与置顶状态。权限：Contributor+，源 KB read；API key `manage_kbs`/full。源 KB 必须属于调用者所在空间；属于其他空间与不存在一样返回 404 `Source knowledge base not found`。无请求体。
+用途：同步创建 KB 副本，只复制设置（分块、模型、索引策略、FAQ/Wiki 配置等），不复制知识条目、分块、FAQ 条目、Wiki 页面、索引、数据源绑定与置顶状态。权限：Contributor+，源 KB read；API key `manage_kbs`/full。源 KB 必须属于调用者所在工作区；属于其他工作区与不存在一样返回 404 `Source knowledge base not found`。无请求体。
 
 与 `/copy` 的区别：`/duplicate` 同步、只有设置、总是新建；`/copy` 异步、带全部内容、可写入已有目标库。
 
@@ -195,7 +195,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/kb-1/duplicate -H "Authorization: Bear
 
 ### GET /api/v1/knowledge-bases/copy/progress/:task_id
 
-用途：查询拷贝进度（任务按空间隔离）。权限：Viewer+；API key `retrieve`/`manage_kbs`/full。
+用途：查询拷贝进度（任务按工作区隔离）。权限：Viewer+；API key `retrieve`/`manage_kbs`/full。
 
 响应：200 `{"success":true,"data":{task_id,source_id,target_id,status,progress,total,processed,message,error,created_at,updated_at}}`。`status` 为 `pending`/`processing`/`completed`/`failed`，`progress` 为 0-100，`total`/`processed` 是知识条数，时间为 Unix 秒。
 
@@ -205,7 +205,7 @@ curl $BASE/api/v1/knowledge-bases/copy/progress/task-1 -H "Authorization: Bearer
 
 ### GET /api/v1/knowledge-bases/:id/move-targets
 
-用途：列出本空间内可作为移动目标的 KB：与源 KB `type` 相同、`embedding_model_id` 相同、非临时库，且不含源 KB 自身。权限：Viewer+，KB read。
+用途：列出本工作区内可作为移动目标的 KB：与源 KB `type` 相同、`embedding_model_id` 相同、非临时库，且不含源 KB 自身。权限：Viewer+，KB read。
 
 响应：200 `{"success":true,"data":[KnowledgeBase]}`
 
@@ -215,11 +215,11 @@ curl $BASE/api/v1/knowledge-bases/kb-1/move-targets -H "Authorization: Bearer $T
 
 ### GET /api/v1/knowledge-bases/:id/files
 
-用途：KB 范围文件代理，渲染知识库内容（分块、Wiki 页面）里嵌入的图片；只读本空间 `exports/` 区域的资源，不给原始上传文件。权限：Viewer+，KB 须属于本空间；KB 受限 key 拒绝，全空间 `retrieve`/full key 放行。注册于 `serveKBScopedFiles`（`internal/router/files.go`），与其它文件访问方式的对比见[文件服务](./02-api-files.md)。
+用途：KB 范围文件代理，渲染知识库内容（分块、Wiki 页面）里嵌入的图片；只读本工作区 `exports/` 区域的资源，不给原始上传文件。权限：Viewer+，KB 须属于本工作区；KB 受限 key 拒绝，全工作区 `retrieve`/full key 放行。注册于 `serveKBScopedFiles`（`internal/router/files.go`），与其它文件访问方式的对比见[文件服务](./02-api-files.md)。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `file_path` | string | 是 | `resource://<handle>` 引用；须属于本空间、位于其 `exports/` 区域 |
+| `file_path` | string | 是 | `resource://<handle>` 引用；须属于本工作区、位于其 `exports/` 区域 |
 
 响应：200 文件流（`Content-Type` 按资源记录推断；`Cache-Control: private`）。
 
@@ -353,7 +353,7 @@ curl -X PUT $BASE/api/v1/knowledge-bases/kb-1/knowledge/folders -H "Authorizatio
 
 用途：清空 KB 全部内容（破坏性）。权限：Admin+，KB write；API key 仅 full-access。
 
-只删除知识，知识库本身保留；非属主空间返回 403 `Only knowledge base owner can clear contents`。
+只删除知识，知识库本身保留；非属主工作区返回 403 `Only knowledge base owner can clear contents`。
 
 响应：200 `{"success":true,"message":"Knowledge base contents clear task submitted","data":{"deleted_count":N}}`；知识库本来就空时返回 `{"success":true,"message":"Knowledge base is already empty","data":{"deleted_count":0}}`。
 
@@ -509,7 +509,7 @@ curl -X PUT $BASE/api/v1/knowledge/image/k-1/c-1 -H "Authorization: Bearer $TOKE
 
 ### GET /api/v1/knowledge/search
 
-用途：按文件名跨 KB 搜索知识（会话里 @文件 的选择器），范围是本空间的 KB；KB 白名单受限的 API key 只搜白名单内的 KB。权限：Viewer+；API key `retrieve`/full。
+用途：按文件名跨 KB 搜索知识（会话里 @文件 的选择器），范围是本工作区的 KB；KB 白名单受限的 API key 只搜白名单内的 KB。权限：Viewer+；API key `retrieve`/full。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
@@ -696,7 +696,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/kb-1/findings/scan -H "Authorization: 
 
 ### GET /api/v1/findings/assigned 与 GET /api/v1/findings/assigned/count
 
-用途：当前空间里派给我的问题（跨知识库，每项附 `knowledge_base_name`）及未处理数量。权限：Viewer+。API key 可调用（`retrieve`/full），但 key 不是具体用户，结果为空。
+用途：当前工作区里派给我的问题（跨知识库，每项附 `knowledge_base_name`）及未处理数量。权限：Viewer+。API key 可调用（`retrieve`/full），但 key 不是具体用户，结果为空。
 
 `/findings/assigned` 查询参数：`status`（同列表，默认 `open`）、`page`、`page_size`；响应 `{"success":true,"data":{"items","total","page","page_size"}}`。`/count` 响应 `{"success":true,"data":{"open_total":N}}`。
 

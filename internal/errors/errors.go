@@ -168,7 +168,7 @@ func NewValidationError(message string) *AppError {
 func NewTenantNotFoundError() *AppError {
 	return &AppError{
 		Code:     ErrTenantNotFound,
-		Message:  "空间不存在",
+		Message:  "工作区不存在",
 		HTTPCode: http.StatusNotFound,
 	}
 }
@@ -177,7 +177,7 @@ func NewTenantNotFoundError() *AppError {
 func NewTenantAlreadyExistsError() *AppError {
 	return &AppError{
 		Code:     ErrTenantAlreadyExists,
-		Message:  "空间已存在",
+		Message:  "工作区已存在",
 		HTTPCode: http.StatusConflict,
 	}
 }
@@ -186,7 +186,7 @@ func NewTenantAlreadyExistsError() *AppError {
 func NewTenantInactiveError() *AppError {
 	return &AppError{
 		Code:     ErrTenantInactive,
-		Message:  "空间已停用",
+		Message:  "工作区已停用",
 		HTTPCode: http.StatusForbidden,
 	}
 }

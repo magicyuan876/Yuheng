@@ -25,7 +25,7 @@
 - 点「没帮助」会先弹出「哪里不对？」，可以写一段意见（最多 1000 字，可选），并可以勾选「附上我的问题，帮助负责人判断」（默认不勾选）。发送后提示「已反馈，谢谢」。
 - 弹窗里写明了谁能看到什么：意见和回答开头会出现在**被引用文档的知识健康**里，交给文档负责人处理，知识库成员也能看到；只有勾选后才附上提问者的问题。
 - 「没帮助」是知识健康里「有争议」发现的证据来源：自文档上次被确认以来，引用它的回答收到的「没帮助」会被累计成一条发现交给文档负责人。具体规则见[知识健康](22-knowledge-health.md)。
-- 反馈只在本空间内生效：回答引用了其他空间共享来的知识库时，这里的问题不会出现在对方的知识健康里。
+- 反馈只在本工作区内生效：回答引用了其他工作区共享来的知识库时，这里的问题不会出现在对方的知识健康里。
 
 接口（均在 `/api/v1/sessions` 下，Viewer+；API Key 需 `chat` 能力或全量权限）：
 
@@ -67,7 +67,7 @@
 规则在 `internal/application/service/session.go`：
 
 - 会话列表的 `source` 过滤器为空或 `web` 时，只返回调用者自己的会话；
-- 过滤 `api` 属于**空间级视角**，要求 Admin+，否则返回 403（`listing channel sessions requires tenant admin or owner role`）。通过校验后会去掉按用户的收窄，管理员因此能观察到这些原本互相隔离的会话；
+- 过滤 `api` 属于**工作区级视角**，要求 Admin+，否则返回 403（`listing channel sessions requires tenant admin or owner role`）。通过校验后会去掉按用户的收窄，管理员因此能观察到这些原本互相隔离的会话；
 - 侧栏里的 API 分组也是管理员专属，且会先探测数量，有会话才显示，避免给普通用户留一个永远空着的入口；
 - 即使是管理员，打开渠道会话也只是**只读观察**；API Key 产生的会话在写接口上始终按归属收窄。
 
@@ -83,7 +83,7 @@
 | GET | `/api/v1/messages/chat-history-stats` | 同上 |
 | GET | `/api/v1/messages/:session_id/load` | Viewer+；API Key 需 `chat` 能力（只能读自己会话） |
 
-`message_history` 是一个独立能力，用意是让做数据分析的集成能搜历史元数据，而不必给它一把 full-access Key。消息索引的开关与所用的 Embedding 模型在「设置 → 消息管理」（`chathistory` 分区，保存需空间 Admin；已有消息被索引后 Embedding 模型不可再改）。
+`message_history` 是一个独立能力，用意是让做数据分析的集成能搜历史元数据，而不必给它一把 full-access Key。消息索引的开关与所用的 Embedding 模型在「设置 → 消息管理」（`chathistory` 分区，保存需工作区 Admin；已有消息被索引后 Embedding 模型不可再改）。
 
 ## 5. 相关章节
 

@@ -7,7 +7,7 @@ Yuheng 不绑定任何一家模型厂商：对话、向量化、重排、图片�
 - **向量模型选定后别再换**。它决定索引里向量的含义与维度，换了之后老数据检索不到，必须重建索引；
 - **保存前点一下测试**。连不通的模型保存后只会在提问时报错，排查更费劲。
 
-谁能管模型：添加、修改、删除、调试模型需要空间 Admin 或 Owner；系统设置 `governance.centralized_infra` 打开后，只有系统管理员能写，空间成员只能选用。查看与选用模型对所有成员开放。系统管理员还可以把一个模型设为**平台共享**（在代码里即把它标记为 `is_builtin`），所有空间都能看到并使用它，但看不到它的凭据。
+谁能管模型：添加、修改、删除、调试模型需要工作区 Admin 或 Owner；系统设置 `governance.centralized_infra` 打开后，只有系统管理员能写，工作区成员只能选用。查看与选用模型对所有成员开放。系统管理员还可以把一个模型设为**平台共享**（在代码里即把它标记为 `is_builtin`），所有工作区都能看到并使用它，但看不到它的凭据。
 
 下面梳理模型类型、Provider 抽象、配置字段、内置模型、并发限流、连通性测试与用量统计。
 
@@ -173,13 +173,13 @@ return wrapChatConcurrency(c, config.MaxConcurrency, err)
 | `POST /models` / `PUT /models/:id` / `DELETE /models/:id` | 创建 / 修改 / 删除 | PlatformManaged |
 | `PUT /models/:id/credentials`、`DELETE /models/:id/credentials/:field` | 凭证子资源；`PUT /models/:id` 请求体中的 `api_key` 会被强制忽略并告警 | PlatformManaged |
 | `POST /models/:id/debug` | 模型调试（见下文），会发起真实上游调用并产生费用 | PlatformManaged |
-| `PUT /models/:id/sharing` | 设为 / 取消平台共享；取消时若还有任何空间的知识库在用该模型则拒绝 | 仅系统管理员（服务层强制） |
+| `PUT /models/:id/sharing` | 设为 / 取消平台共享；取消时若还有任何工作区的知识库在用该模型则拒绝 | 仅系统管理员（服务层强制） |
 
-PlatformManaged 守卫：`governance.centralized_infra` 关闭（默认）时为空间 Admin+（系统管理员也可），打开后仅系统管理员。内置模型（`is_builtin`）的凭据只有系统管理员能改。API Key 调用这些接口需要 `manage_models` 能力或完全访问。
+PlatformManaged 守卫：`governance.centralized_infra` 关闭（默认）时为工作区 Admin+（系统管理员也可），打开后仅系统管理员。内置模型（`is_builtin`）的凭据只有系统管理员能改。API Key 调用这些接口需要 `manage_models` 能力或完全访问。
 
 ## 内置模型
 
-内置模型是对部署里**所有空间**可见、可选用的模型，用来给每个空间提供统一的默认模型服务。空间成员（包括空间 Admin / Owner）只能看到模型名、类型这些能力信息，看不到 Base URL 和凭据，也不能修改；只有系统管理员能编辑它的配置和凭据。数据上它就是 `models` 表里 `is_builtin=true` 的行，默认挂在租户 `10000`（`DefaultBuiltinModelTenantID`）下。
+内置模型是对部署里**所有工作区**可见、可选用的模型，用来给每个工作区提供统一的默认模型服务。工作区成员（包括工作区 Admin / Owner）只能看到模型名、类型这些能力信息，看不到 Base URL 和凭据，也不能修改；只有系统管理员能编辑它的配置和凭据。数据上它就是 `models` 表里 `is_builtin=true` 的行，默认挂在租户 `10000`（`DefaultBuiltinModelTenantID`）下。
 
 有三种方式产生内置模型：
 
@@ -191,7 +191,7 @@ PlatformManaged 守卫：`governance.centralized_infra` 关闭（默认）时为
 
 几条护栏：
 
-- **取消共享或删除前检查引用**：只要还有任何空间的知识库绑定该模型，操作被拒绝并给出引用数。`knowledge_bases.embedding_model_id` 这类列没有外键，强行撤回会让那些空间的检索悄悄失效。
+- **取消共享或删除前检查引用**：只要还有任何工作区的知识库绑定该模型，操作被拒绝并给出引用数。`knowledge_bases.embedding_model_id` 这类列没有外键，强行撤回会让那些工作区的检索悄悄失效。
 - **YAML 托管的行不能在界面删除**：删了下次启动会被写回，接口直接返回错误，要去 YAML 里删。
 - **界面保存即接管**：系统管理员在界面上保存过某个 YAML 托管的模型（改参数或凭据）后，该行 `managed_by` 被清空，之后启动不再用 YAML 覆盖它，界面上的修改重启后仍然有效。想交还给 YAML 管理，需要在数据库里把 `managed_by` 改回 `yaml`。
 - 凭据按 `SYSTEM_AES_KEY` 加密存储；界面对非系统管理员隐藏 API Key 与 Base URL，但数据库里仍有原始（加密后的）数据，数据库访问权限要妥善控制。

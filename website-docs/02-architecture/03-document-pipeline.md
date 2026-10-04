@@ -217,8 +217,8 @@ type FileService interface {
 
 `interfaces.FileStore`（`internal/application/service/storage_store.go`）是应用层唯一的存储入口：
 
-- **写**：`Writer(backendID)`、`ForKnowledgeBase(kb)`、`ForTenantDefault(tenantID)` 返回一个写向指定后端的 `FileService`。它保存文件后登记一条资源记录（后端 ID + 原生位置），对外只返回 `resource://<handle>`；知识库的文件写向知识库绑定的后端，聊天图片、会话附件、临时文档写向空间默认后端。
-- **读与删**：`Open`、`URL`、`Delete`、`LocalPath` 只接受 `resource://` 引用，按引用对应的资源记录找到后端和位置，与调用者的空间、知识库当前的绑定都无关——所以换绑定不会让已有文件失联。驱动按（后端 ID，`updated_at`）缓存，后端配置一变就重建。部署存储 `env` 的密钥在建驱动时从环境变量读取。
+- **写**：`Writer(backendID)`、`ForKnowledgeBase(kb)`、`ForTenantDefault(tenantID)` 返回一个写向指定后端的 `FileService`。它保存文件后登记一条资源记录（后端 ID + 原生位置），对外只返回 `resource://<handle>`；知识库的文件写向知识库绑定的后端，聊天图片、会话附件、临时文档写向工作区默认后端。
+- **读与删**：`Open`、`URL`、`Delete`、`LocalPath` 只接受 `resource://` 引用，按引用对应的资源记录找到后端和位置，与调用者的工作区、知识库当前的绑定都无关——所以换绑定不会让已有文件失联。驱动按（后端 ID，`updated_at`）缓存，后端配置一变就重建。部署存储 `env` 的密钥在建驱动时从环境变量读取。
 - **外链**：`URL` 在设置了 `APP_EXTERNAL_URL` 时签发 `/r/{token}` 能力短链（`resource.go` 的 `CreateAccessGrant`），否则由 S3 兼容后端预签名；本机目录后端没有外链。
 - **docreader 共享卷**：`LocalPath` 把本机目录后端上的引用映射成 docreader 容器里的路径（`DOCREADER_SHARED_DATA_DIR` 下，含实例的 `path_prefix`），大视频按路径交接而不经 gRPC 传输。
 

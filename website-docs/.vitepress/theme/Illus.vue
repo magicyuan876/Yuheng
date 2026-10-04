@@ -299,7 +299,7 @@ const s = {
     <path v-bind="s" d="M14 14.5H9.5M11.1 13l-1.6 1.5" />
   </svg>
 
-  <!-- 多空间隔离与审计：盾 -->
+  <!-- 多工作区隔离与审计：盾 -->
   <svg v-else-if="name === 'govern'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
     <path v-bind="s" d="M12 2.8l7.5 3v6.4c0 4-3.2 7.4-7.5 9-4.3-1.6-7.5-5-7.5-9V5.8z" />
     <path

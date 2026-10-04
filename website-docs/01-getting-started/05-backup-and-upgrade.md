@@ -8,7 +8,7 @@
 
 | 状态 | 位置 | 说明 |
 | --- | --- | --- |
-| 业务数据库 | 卷 `postgres-data`（服务 `postgres`） | 租户、用户、知识库、文档元数据、切片与向量、会话消息、在线文档正文等**几乎所有结构化数据**；迁移版本记录表 `schema_migrations` 也在这里 |
+| 业务数据库 | 卷 `postgres-data`（服务 `postgres`） | 工作区、用户、知识库、文档元数据、切片与向量、会话消息、在线文档正文等**几乎所有结构化数据**；迁移版本记录表 `schema_migrations` 也在这里 |
 | 上传的原始文件和解析出的图片 | 默认（`STORAGE_TYPE=s3`）在卷 `rustfs_data`（服务 `rustfs`）；`STORAGE_TYPE=local` 时在卷 `data-files`（挂在 `/data/files`）；接外部 S3 时在你的对象存储里 | 数据库只存指向它们的路径，**只备份数据库不够** |
 | 在线文档的协同状态 | 同样在 `postgres`（`docs_pages.ydoc`） | 协同服务 `collab` 自己不落盘、不持有数据，无需单独备份 |
 | Redis | 卷 `redis-data`（服务 `redis`，AOF 持久化） | 异步任务队列和缓存。丢失后排队中和处理中的任务会消失，卡在「处理中」的文档由巡检回收，需要时重新解析；不是必须备份的数据 |
@@ -53,7 +53,7 @@ docker compose start app collab frontend
 
 ### 热备份（不停机）
 
-`pg_dump` 本身给出的是一致的数据库快照，可以直接在服务运行时执行第 2 步。之后再拷贝对象存储：这样备份里的文件是数据库快照之后的状态，**只会多出文件，不会缺文件**（快照时刻引用的文件之后被删除的情况除外）。恢复后多出来的文件只是占用空间。
+`pg_dump` 本身给出的是一致的数据库快照，可以直接在服务运行时执行第 2 步。之后再拷贝对象存储：这样备份里的文件是数据库快照之后的状态，**只会多出文件，不会缺文件**（快照时刻引用的文件之后被删除的情况除外）。恢复后多出来的文件只是占用工作区。
 
 ## 恢复
 
@@ -140,12 +140,12 @@ Next steps: run ./scripts/migrate.sh version ...
 | 000089 | 表 `custom_agents`、`agent_shares`、`tenant_disabled_shared_agents`、`mcp_tool_approvals`、`memory_*`（6 张）、`tenant_skills`、`tenant_skill_snapshots`、`im_channels`、`im_channel_sessions`、`embed_channels`；`sessions.agent_id`、`messages.agent_id` / `agent_tenant_id` / `agent_duration_ms`、`message_suggestion_sets.agent_id` / `agent_tenant_id`；并把 `sessions.agent_config` 改名为 `last_request_state`、`messages.agent_steps` 改名为 `turn_steps` | 自定义智能体、长期记忆、技能、IM 渠道绑定、嵌入渠道**全部丢失且不迁移**。其 `.down.sql` 只重建空表骨架，数据回不来；从 000089 往下回滚的路径也已不完整 |
 | 000121 | 列 `knowledge_bases.cos_config` | 先把存储 provider 拷进 `storage_provider_config`；列里遗留的腾讯云 COS 凭据被删除（不再有代码读取） |
 | 000123 | 列 `docs_pages.status`（`draft` / `published`） | 被 `exclude_from_knowledge` 取代：原来的草稿页变为「排除出知识库」，已发布页不变。旧版本无 `status` 语义 |
-| 000134 | 列 `storage_backends.legacy_alias`；每个空间的环境存储副本与别名记录（`legacy_alias` 或 `source = env` 的行） | 换成一条全平台共享的部署存储记录 `env`；原来指向副本的空间默认、知识库、文档空间绑定与资源记录都改指 `env`。空间注册的别名配置（来自旧的空间存储配置）随之删除。本版本面向重建部署，没有为旧数据保留兼容 |
-| 000135 | 列 `tenants.storage_engine_config` | 空间级的存储配置（含明文 S3 密钥）删除，存储只按存储后端实例配置 |
+| 000134 | 列 `storage_backends.legacy_alias`；每个工作区的环境存储副本与别名记录（`legacy_alias` 或 `source = env` 的行） | 换成一条全平台共享的部署存储记录 `env`；原来指向副本的工作区默认、知识库、文档空间绑定与资源记录都改指 `env`。工作区注册的别名配置（来自旧的工作区存储配置）随之删除。本版本面向重建部署，没有为旧数据保留兼容 |
+| 000135 | 列 `tenants.storage_engine_config` | 工作区级的存储配置（含明文 S3 密钥）删除，存储只按存储后端实例配置 |
 | 000136 | 列 `knowledge_bases.storage_provider_config` | 知识库只按 `storage_backend_id` 绑定存储后端 |
 | 000137 | 列 `resources.provider`；索引 `idx_resources_tenant_location` | 文件位置只记后端 ID 与后端内位置，位置按后端唯一；旧版本写入的位置哈希不再参与去重 |
-| 000138 | 表 `organizations`、`organization_tenant_members`、`organization_join_requests`、`kb_shares`，以及 000045 改名后一直没删的 `organization_members_pre_plan3` | 组织、组织成员、加入申请与跨空间知识库共享**全部丢失且不迁移**：一个知识库只能从拥有它的空间访问。`.down.sql` 按原 DDL 重建空表（含索引名），数据回不来 |
-| 000139 | 列 `users.tenant_id`（及其索引与外键）；`system_settings` 中的 `auth.default_tenant_mode`、`tenant.self_service_creation_enabled`、`tenant.max_owned_per_user` 三行 | 用户不再有「主空间」：成员关系只看 `tenant_members`，当前空间只看 `preferences.last_active_tenant_id`。只有 `users.tenant_id` 而没有成员关系行的用户在升级后不属于任何空间，需要系统管理员在「用户与空间」里加回去。`.down.sql` 重建可空列，不回填 |
+| 000138 | 表 `organizations`、`organization_tenant_members`、`organization_join_requests`、`kb_shares`，以及 000045 改名后一直没删的 `organization_members_pre_plan3` | 组织、组织成员、加入申请与跨工作区知识库共享**全部丢失且不迁移**：一个知识库只能从拥有它的工作区访问。`.down.sql` 按原 DDL 重建空表（含索引名），数据回不来 |
+| 000139 | 列 `users.tenant_id`（及其索引与外键）；`system_settings` 中的 `auth.default_tenant_mode`、`tenant.self_service_creation_enabled`、`tenant.max_owned_per_user` 三行 | 用户不再有「主工作区」：成员关系只看 `tenant_members`，当前工作区只看 `preferences.last_active_tenant_id`。只有 `users.tenant_id` 而没有成员关系行的用户在升级后不属于任何工作区，需要系统管理员在「用户与工作区」里加回去。`.down.sql` 重建可空列，不回填 |
 
 另外：000044 的 `.down.sql` 会 `DROP TABLE audit_logs`，为防止误用，它要求会话里显式设置 `yuheng.allow_destructive_migration = 'true'` 才会执行。
 

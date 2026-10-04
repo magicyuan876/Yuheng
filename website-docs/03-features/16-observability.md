@@ -5,7 +5,7 @@
 | 想知道什么 | 去哪看 |
 | --- | --- |
 | 某次问答检索了什么、调了几次模型、花了多少 token | 接入 Langfuse 后在 Langfuse 里看完整调用链 |
-| 谁改了知识库 / 成员 / 系统设置 | 知识库设置的「活动记录」；空间级事件在「设置 → 成员管理」页的审计日志；平台级事件在「设置 → 系统管理 → 审计日志」（系统管理员） |
+| 谁改了知识库 / 成员 / 系统设置 | 知识库设置的「活动记录」；工作区级事件在「设置 → 成员管理」页的审计日志；平台级事件在「设置 → 系统管理 → 审计日志」（系统管理员） |
 | 后台解析、摘要、Wiki 任务是否堆积或失败 | 「设置 → 系统管理 → 任务队列」（系统管理员） |
 | 服务是否存活 / 是否可以接流量 | `GET /health`（存活）、`GET /ready`（就绪） |
 | 一次请求在各服务的日志里怎么串起来 | 按响应头里的 `X-Request-ID` 检索日志 |
@@ -252,7 +252,7 @@ flowchart LR
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `id` | uint64 自增 | 主键 + 分页游标（`WHERE id < after_id ORDER BY id DESC`） |
-| `tenant_id` | uint64 | 空间；`0` = 系统级（system-scope）事件 |
+| `tenant_id` | uint64 | 工作区；`0` = 系统级（system-scope）事件 |
 | `actor_user_id` / `actor_role` | varchar | 操作者与其当时角色（系统触发时为空） |
 | `action` | varchar(64) | 点分命名 `<area>.<event>`（见 4.2） |
 | `scope_type` / `scope_id` | varchar | 资源作用域（如 `knowledge_base` + kbID，驱动 KB 活动页） |
@@ -266,11 +266,11 @@ flowchart LR
 
 | 分组 | 动作 |
 | --- | --- |
-| RBAC / 成员 / 空间组 | `rbac.member_added`、`rbac.member_removed`、`rbac.member_role_changed`、`rbac.member_left`、`rbac.access_denied`、`rbac.invitation_sent`、`rbac.invitation_accepted`、`rbac.invitation_declined`、`rbac.invitation_revoked`、`rbac.invitation_expired`、`rbac.group_created`、`rbac.group_updated`、`rbac.group_deleted`、`rbac.group_member_added`、`rbac.group_member_removed`。系统管理员在自己不在的空间里改成员时 `actor_role` 记为 `system_admin` |
+| RBAC / 成员 / 工作区组 | `rbac.member_added`、`rbac.member_removed`、`rbac.member_role_changed`、`rbac.member_left`、`rbac.access_denied`、`rbac.invitation_sent`、`rbac.invitation_accepted`、`rbac.invitation_declined`、`rbac.invitation_revoked`、`rbac.invitation_expired`、`rbac.group_created`、`rbac.group_updated`、`rbac.group_deleted`、`rbac.group_member_added`、`rbac.group_member_removed`。系统管理员在自己不在的工作区里改成员时 `actor_role` 记为 `system_admin` |
 | 向量库 | `vector_store.created`、`vector_store.updated`、`vector_store.deleted` |
 | 系统管理（tenant_id=0） | `system.setting_changed`、`system.admin_promoted`、`system.admin_revoked`、`system.user_password_reset`、`system.user_created`、`system.api_key_created`、`system.api_key_revoked`、`system.tenant_created`（`details` 含 `name`、`owner_user_id`、`owner_email`）、`system.tenant_deleted` |
 | 运行时队列操作（tenant_id=0） | `system.queue_task_retried`、`system.queue_task_deleted`、`system.queue_task_run_now`、`system.queue_task_cancelled`、`system.queue_archived_purged` |
-| 知识库 | `kb.created`、`kb.updated`、`kb.deleted`、`kb.duplicated`、`kb.clone_started`、`kb.clone_completed`、`kb.clone_failed`（历史行里还可能有已删除的跨空间共享动作 `kb.share_*`，界面按原字符串显示） |
+| 知识库 | `kb.created`、`kb.updated`、`kb.deleted`、`kb.duplicated`、`kb.clone_started`、`kb.clone_completed`、`kb.clone_failed`（历史行里还可能有已删除的跨工作区共享动作 `kb.share_*`，界面按原字符串显示） |
 | 知识 | `knowledge.created`、`knowledge.updated`、`knowledge.deleted`、`knowledge.batch_deleted`、`knowledge.reparse_started`、`knowledge.parse_canceled`、`knowledge.move_started`、`knowledge.move_completed`、`knowledge.move_failed`、`knowledge.owner_changed`、`knowledge.reviewed` |
 | 标签 / 数据源 | `tag.created`、`tag.updated`、`tag.deleted`、`datasource.created`、`datasource.updated`、`datasource.deleted`、`datasource.sync_started`、`datasource.sync_completed`、`datasource.sync_failed`、`datasource.paused`、`datasource.resumed` |
 | Wiki / FAQ | `wiki.content_changed`、`faq.import_started`、`faq.import_completed`、`faq.import_failed` |
@@ -286,8 +286,8 @@ flowchart LR
 
 | 路由 | 权限 | 说明 |
 | --- | --- | --- |
-| `GET /api/v1/tenants/:id/audit-log` | PathTenantMatch + Admin | 空间审计流；只返回 `scope_type=''` 的空间级行（`UnscopedOnly`） |
-| `GET /api/v1/knowledge-bases/:id/activity` | KB 创建者或空间 Admin；知识库须属于本空间 | `scope_type=knowledge_base` + `scope_id=kbID` 的 KB 活动投影 |
+| `GET /api/v1/tenants/:id/audit-log` | PathTenantMatch + Admin | 工作区审计流；只返回 `scope_type=''` 的工作区级行（`UnscopedOnly`） |
+| `GET /api/v1/knowledge-bases/:id/activity` | KB 创建者或工作区 Admin；知识库须属于本工作区 | `scope_type=knowledge_base` + `scope_id=kbID` 的 KB 活动投影 |
 | `GET /api/v1/system/admin/audit-log` | SystemAdmin（或带 `system_audit_read` 能力的平台 API Key） | `tenant_id=0` 的平台级事件（settings / promote / queue 操作等） |
 
 统一查询参数：`after_id`（游标，返回 id 更小的行）、`limit`（1–100，默认 50，硬上限 `auditLogListLimitMax=100`）、`action` / `outcome` / `actor` 精确过滤。响应含 `next_cursor`（页内最小 id，0 表示到底）。
@@ -352,7 +352,7 @@ token 级别的模型用量则由 Langfuse Generation 的 `usage_details`（`Tok
 | --- | --- |
 | 某次请求全链路发生了什么 | 用响应头 `X-Request-ID` grep 应用日志；开启 `LLM_DEBUG_LOG` 后看 `llm_debug/<request_id>.log` |
 | 一次聊天/解析的 LLM 调用树与 token 消耗 | Langfuse UI（trace 名 `POST /api/v1/knowledge-chat` 或 `asynq.document:process`） |
-| 谁在什么时候改了什么 | 空间审计 `/tenants/:id/audit-log`；KB 活动 `/knowledge-bases/:id/activity`；平台审计 `/system/admin/audit-log` |
+| 谁在什么时候改了什么 | 工作区审计 `/tenants/:id/audit-log`；KB 活动 `/knowledge-bases/:id/activity`；平台审计 `/system/admin/audit-log` |
 | 为什么某文档一直失败 | `task_dead_letters` 表（scope=knowledge/knowledge_base）+ 运行时面板 archived 任务的 `last_error` |
 | 服务是否存活 / 就绪 | `GET /health`（200 `{"status":"ok"}`）；`GET /ready`（503 时看 `checks` 里哪一项失败） |
 | 配置是否按预期加载 | 启动日志 `[startup-env]` 横幅（`internal/runtime/startup.go`，敏感值只显示长度） |

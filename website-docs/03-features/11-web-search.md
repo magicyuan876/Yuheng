@@ -4,11 +4,11 @@
 
 ## 怎么用
 
-1. **配置搜索引擎**：在「设置 → 网络搜索」里点「添加搜索引擎」，选择引擎类型，填写名称、API 密钥（或 SearXNG 的实例地址）、可选的 HTTP 代理，可以先「测试连接」，再「设为默认」。一个工作空间可以有多个配置，问答时使用**默认**的那个；工作空间自己没有默认配置时，回退到系统管理员共享给全平台的默认配置。
-2. **在问答请求里打开联网搜索**：Web 对话框的输入栏有一个地球图标的开关，只在当前空间能解析到默认搜索引擎（自己的默认配置，或平台共享的默认配置）时出现；打开后每次提问都带 `web_search_enabled: true`。开关状态随其他输入栏选项一起记住，打开旧会话时恢复为该会话上次提问时的状态。程序调用则在请求体里带这个字段：REST API（`POST /knowledge-chat/:session_id`）、Go SDK（`WebSearchEnabled`）或 MCP 工具 `chat` 的 `web_search_enabled` 参数；`yuheng` CLI 目前不发送它。
+1. **配置搜索引擎**：在「设置 → 网络搜索」里点「添加搜索引擎」，选择引擎类型，填写名称、API 密钥（或 SearXNG 的实例地址）、可选的 HTTP 代理，可以先「测试连接」，再「设为默认」。一个工作区可以有多个配置，问答时使用**默认**的那个；工作区自己没有默认配置时，回退到系统管理员共享给全平台的默认配置。
+2. **在问答请求里打开联网搜索**：Web 对话框的输入栏有一个地球图标的开关，只在当前工作区能解析到默认搜索引擎（自己的默认配置，或平台共享的默认配置）时出现；打开后每次提问都带 `web_search_enabled: true`。开关状态随其他输入栏选项一起记住，打开旧会话时恢复为该会话上次提问时的状态。程序调用则在请求体里带这个字段：REST API（`POST /knowledge-chat/:session_id`）、Go SDK（`WebSearchEnabled`）或 MCP 工具 `chat` 的 `web_search_enabled` 参数；`yuheng` CLI 目前不发送它。
 3. 不想申请 API Key 时，可以用 compose 自带的 SearXNG（见下文），实例地址填 `http://searxng:8080`。
 
-配置接口在 `/web-search-providers` 下，写操作需要空间 Admin（开启集中管理基础设施时只有系统管理员可以写），API Key 调用需要 `manage_web_search` 能力或全量权限。
+配置接口在 `/web-search-providers` 下，写操作需要工作区 Admin（开启集中管理基础设施时只有系统管理员可以写），API Key 调用需要 `manage_web_search` 能力或全量权限。
 
 ## 接口抽象
 
@@ -75,7 +75,7 @@ registry.Register("firecrawl", infra_web_search.NewFirecrawlProvider)
 
 ## 搜索引擎配置（Provider 实体）
 
-每个工作空间可以创建多个搜索引擎配置实例（如 "Production Bing"、"Test Google"），存储为 `web_search_providers` 表的 `WebSearchProviderEntity`（`internal/types/web_search_provider.go`）。`is_default` 标记工作空间的默认配置；`is_builtin` 标记系统管理员共享给所有工作空间的平台级配置（`PUT /web-search-providers/:id/sharing`，只有系统管理员可调用）。参数结构 `WebSearchProviderParameters`：
+每个工作区可以创建多个搜索引擎配置实例（如 "Production Bing"、"Test Google"），存储为 `web_search_providers` 表的 `WebSearchProviderEntity`（`internal/types/web_search_provider.go`）。`is_default` 标记工作区的默认配置；`is_builtin` 标记系统管理员共享给所有工作区的平台级配置（`PUT /web-search-providers/:id/sharing`，只有系统管理员可调用）。参数结构 `WebSearchProviderParameters`：
 
 | 名称 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -87,7 +87,7 @@ registry.Register("firecrawl", infra_web_search.NewFirecrawlProvider)
 
 CRUD 路由（`RegisterWebSearchProviderRoutes`，`internal/router/routes_infra.go`）：`/web-search-providers` 下的 `GET /types`（引擎类型元数据）、增删改查、`POST /test`（用未保存的凭据测试连接）、`POST /:id/test`（用已保存的凭据测试）、`PUT /:id/credentials` 与 `DELETE /:id/credentials/:field`、`PUT /:id/sharing`；读操作 Viewer+，写操作走 `PlatformManaged` 守卫（集中管理关闭时 Admin+，开启后仅系统管理员）。另有 `GET /web-search/providers` 返回可用引擎类型目录。
 
-工作空间级的 `WebSearchConfig`（租户字段）另外提供 `max_results`（默认 10）、`include_date` 与 `blacklist`（按规则过滤结果 URL）。
+工作区级的 `WebSearchConfig`（租户字段）另外提供 `max_results`（默认 10）、`include_date` 与 `blacklist`（按规则过滤结果 URL）。
 
 ## 出站请求的 SSRF 防护
 
@@ -119,7 +119,7 @@ flowchart TD
 
 要点（均见 `search.go` 与 `session_knowledge_qa.go` 的解析函数）：
 
-- **provider 取默认配置**：`resolveWebSearchProviderID` 先选本工作空间 `is_default=true` 的配置，没有则选平台共享（`is_builtin`）且为默认的配置；都没有时记一条 pipeline 警告后跳过联网搜索，不影响知识库检索。`max_results` 取工作空间 `WebSearchConfig` 的值（默认 10），结果再按 `blacklist` 过滤。
+- **provider 取默认配置**：`resolveWebSearchProviderID` 先选本工作区 `is_default=true` 的配置，没有则选平台共享（`is_builtin`）且为默认的配置；都没有时记一条 pipeline 警告后跳过联网搜索，不影响知识库检索。`max_results` 取工作区 `WebSearchConfig` 的值（默认 10），结果再按 `blacklist` 过滤。
 - 结果 URL 作为结果 ID，下游 `PluginWebFetch` 可按 ID 取回完整页面正文。
 - `CompressWithRAG`（搜索结果写入会话级临时 KB 再向量压缩）在当前管线中未启用，保留在 `WebSearchService` 接口上供后续使用。
 
@@ -189,8 +189,8 @@ SearXNG 是自托管的元搜索引擎（聚合上游多个引擎），Yuheng �
 | `internal/application/service/web_search.go` | 搜索服务、黑名单过滤 |
 | `internal/application/service/chat_pipeline/search.go`、`web_fetch.go` | 问答流水线中的联网搜索与抓取阶段 |
 | `internal/application/service/session_knowledge_qa.go` | `resolveWebSearchProviderID` 等请求级解析 |
-| `internal/application/repository/web_search_provider.go` | 默认配置查找（工作空间优先，平台共享兜底） |
-| `internal/types/web_search_provider.go`、`internal/types/web_search.go` | 配置实体、参数与工作空间级配置 |
+| `internal/application/repository/web_search_provider.go` | 默认配置查找（工作区优先，平台共享兜底） |
+| `internal/types/web_search_provider.go`、`internal/types/web_search.go` | 配置实体、参数与工作区级配置 |
 | `internal/router/routes_infra.go` | `RegisterWebSearchRoutes`、`RegisterWebSearchProviderRoutes` |
 | `frontend/src/views/settings/WebSearchSettings.vue` | 「设置 → 网络搜索」页 |
 | `docker/searxng/settings.yml`、`docker-compose.yml` 的 `searxng` / `searxng-init` 服务 | 自托管 SearXNG |

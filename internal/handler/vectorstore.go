@@ -475,15 +475,15 @@ func (h *VectorStoreHandler) TestStoreRaw(c *gin.Context) {
 
 // UpdateStoreSharing godoc
 // @Summary      设置向量库平台共享
-// @Description  将向量库设为平台共享（所有空间可见可选用，连接配置对非系统管理员隐藏）或取消共享。
-// @Description  仅系统管理员可调用。取消共享时，若owner 之外的空间仍有知识库绑定该向量库，请求会被拒绝。
+// @Description  将向量库设为平台共享（所有工作区可见可选用，连接配置对非系统管理员隐藏）或取消共享。
+// @Description  仅系统管理员可调用。取消共享时，若owner 之外的工作区仍有知识库绑定该向量库，请求会被拒绝。
 // @Tags         VectorStore
 // @Accept       json
 // @Produce      json
 // @Param        id       path      string                 true  "向量库 ID"
 // @Param        request  body      SetSharingRequest      true  "共享状态"
 // @Success      200      {object}  map[string]interface{} "更新后的向量库"
-// @Failure      400      {object}  errors.AppError        "仍被其他空间引用"
+// @Failure      400      {object}  errors.AppError        "仍被其他工作区引用"
 // @Failure      403      {object}  errors.AppError        "非系统管理员"
 // @Security     Bearer
 // @Router       /vector-stores/{id}/sharing [put]

@@ -30,7 +30,7 @@ curl -X POST $BASE/api/v1/sessions -H "X-API-Key: $API_KEY" \
 | --- | --- | --- | --- |
 | `page` / `page_size` | int | 否 | 分页，默认 1 / 20，`page_size` 上限 1000 |
 | `keyword` | string | 否 | 标题模糊搜索（`ILIKE %keyword%`） |
-| `source` | string | 否 | 来源过滤：留空或 `web` 为调用者自己在 Web 控制台的会话；`api` 列出本空间所有经 API key 创建的会话（需 Admin+） |
+| `source` | string | 否 | 来源过滤：留空或 `web` 为调用者自己在 Web 控制台的会话；`api` 列出本工作区所有经 API key 创建的会话（需 Admin+） |
 
 响应：200 `{"success":true,"data":[SessionListItem],"total","page","page_size"}`。列表项总是带置顶状态（`is_pinned`、`pinned_at`）。
 
@@ -71,7 +71,7 @@ curl -X DELETE $BASE/api/v1/sessions/s-1 -H "Authorization: Bearer $TOKEN"
 
 ### DELETE /api/v1/sessions/batch
 
-用途：批量删除会话。请求体：`{"ids":["s-1"],"delete_all":false}`（二选一：`ids` 或 `delete_all:true`）。`delete_all:true` 删除调用者在当前空间的全部会话，并忽略 `ids`。
+用途：批量删除会话。请求体：`{"ids":["s-1"],"delete_all":false}`（二选一：`ids` 或 `delete_all:true`）。`delete_all:true` 删除调用者在当前工作区的全部会话，并忽略 `ids`。
 
 响应：200 `{"success":true,"message":"Sessions deleted successfully"}`；`delete_all` 时 `message` 为 `All sessions deleted successfully`。
 
@@ -107,13 +107,13 @@ curl -X POST $BASE/api/v1/sessions/s-1/generate_title -H "Authorization: Bearer 
 
 ### POST /api/v1/sessions/:session_id/stop
 
-用途：停止正在生成的回答：服务端向该消息的流写入一个 `stop` 事件，由正在输出的 SSE 连接感知后取消生成。只允许会话所有者本人停止，空间管理员能查看 API key 会话，但不能中断它。Handler: `internal/handler/session/stream.go`
+用途：停止正在生成的回答：服务端向该消息的流写入一个 `stop` 事件，由正在输出的 SSE 连接感知后取消生成。只允许会话所有者本人停止，工作区管理员能查看 API key 会话，但不能中断它。Handler: `internal/handler/session/stream.go`
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `message_id` | string | 是（`binding:"required"`） | 助手消息 ID |
 
-响应：200 `{"success":true,"message":"Generation stopped"}`；消息已经生成完毕时为 200 `{"success":true,"message":"Message already completed"}`。消息不属于该会话或会话不在当前空间返回 403，消息或会话不存在返回 404。
+响应：200 `{"success":true,"message":"Generation stopped"}`；消息已经生成完毕时为 200 `{"success":true,"message":"Message already completed"}`。消息不属于该会话或会话不在当前工作区返回 403，消息或会话不存在返回 404。
 
 ```bash
 curl -X POST $BASE/api/v1/sessions/s-1/stop -H "Authorization: Bearer $TOKEN" \
@@ -203,7 +203,7 @@ curl -X DELETE $BASE/api/v1/sessions/s-1/attachments/a-1 -H "Authorization: Bear
 
 Handler: `internal/handler/message_suggestion.go`
 
-主回答结束后，服务端在后台生成追问建议，不阻塞 SSE 的 `complete` 事件。建议集按空间、助手消息、位置、配置快照与语言持久化并去重。用户点击某条建议时，客户端先上报 `click` 事件，再在下一次 `knowledge-chat` 请求里带上 `suggestion_attribution:{suggestion_set_id,question_id}`，服务端会校验归属。
+主回答结束后，服务端在后台生成追问建议，不阻塞 SSE 的 `complete` 事件。建议集按工作区、助手消息、位置、配置快照与语言持久化并去重。用户点击某条建议时，客户端先上报 `click` 事件，再在下一次 `knowledge-chat` 请求里带上 `suggestion_attribution:{suggestion_set_id,question_id}`，服务端会校验归属。
 
 ### GET /api/v1/sessions/:id/messages/:message_id/suggestions
 
@@ -247,7 +247,7 @@ curl -X POST $BASE/api/v1/sessions/s-1/suggestion-events -H "Authorization: Bear
 
 Handler: `internal/handler/message_feedback.go`，服务 `internal/application/service/message_feedback.go`。反馈属于会话所有者：路由层 Viewer+，服务层校验会话归调用者所有，并要求调用者是登录用户（API key 没有“某个人”的身份，调用返回 403）。
 
-“没帮助”的反馈会作为“回答被反馈有误”（`disputed`）出现在该回答所引用文档的知识健康里，交给文档负责人处理，详见 [知识健康](../03-features/22-knowledge-health.md)。只对本空间的文档生效。
+“没帮助”的反馈会作为“回答被反馈有误”（`disputed`）出现在该回答所引用文档的知识健康里，交给文档负责人处理，详见 [知识健康](../03-features/22-knowledge-health.md)。只对本工作区的文档生效。
 
 ### GET /api/v1/sessions/:id/feedback
 

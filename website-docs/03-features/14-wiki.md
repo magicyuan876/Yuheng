@@ -147,7 +147,7 @@ flowchart TD
 | GET | `/lint` | 质量检查结果 |
 | GET | `/revisions/*slug` | 版本历史列表；带 `?version=N` 取该版本全文 |
 
-`KBAccess` 要求知识库属于调用者的空间（别的空间的知识库返回 404）。
+`KBAccess` 要求知识库属于调用者的工作区（别的工作区的知识库返回 404）。
 
 ### 写接口（OwnedWikiKBOrAdmin + KBAccess）
 

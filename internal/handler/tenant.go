@@ -274,16 +274,16 @@ func (h *TenantHandler) emitTenantAudit(
 }
 
 // CreateTenant godoc
-// @Summary      创建空间
-// @Description  创建新的空间。仅系统管理员、跨空间超管与平台 API Key 可调用。
-// @Description  每个空间在创建时就必须有 Owner：owner_email 指定一位已注册用户，
+// @Summary      创建工作区
+// @Description  创建新的工作区。仅系统管理员、跨工作区超管与平台 API Key 可调用。
+// @Description  每个工作区在创建时就必须有 Owner：owner_email 指定一位已注册用户，
 // @Description  省略时调用者本人成为 Owner；平台 API Key 没有"本人"，必须指定 owner_email。
-// @Description  不会随空间发放 API Key，需要时通过 API Key 管理接口显式创建。
-// @Tags         空间管理
+// @Description  不会随工作区发放 API Key，需要时通过 API Key 管理接口显式创建。
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Param        request  body      handler.createTenantRequest  true  "空间信息（可含 owner_email）"
-// @Success      201      {object}  map[string]interface{}  "创建的空间"
+// @Param        request  body      handler.createTenantRequest  true  "工作区信息（可含 owner_email）"
+// @Success      201      {object}  map[string]interface{}  "创建的工作区"
 // @Failure      400      {object}  errors.AppError         "请求参数错误 / 平台 Key 未指定 owner_email（code 2006）"
 // @Failure      403      {object}  errors.AppError         "不是系统管理员"
 // @Failure      404      {object}  errors.AppError         "owner_email 对应的用户不存在"
@@ -404,15 +404,15 @@ func (h *TenantHandler) CreateTenant(c *gin.Context) {
 }
 
 // GetTenant godoc
-// @Summary      获取空间详情
-// @Description  根据ID获取空间详情
-// @Tags         空间管理
+// @Summary      获取工作区详情
+// @Description  根据ID获取工作区详情
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Param        id   path      int  true  "空间ID"
-// @Success      200  {object}  map[string]interface{}  "空间详情"
+// @Param        id   path      int  true  "工作区ID"
+// @Success      200  {object}  map[string]interface{}  "工作区详情"
 // @Failure      400  {object}  errors.AppError         "请求参数错误"
-// @Failure      404  {object}  errors.AppError         "空间不存在"
+// @Failure      404  {object}  errors.AppError         "工作区不存在"
 // @Security     Bearer
 // @Security     ApiKeyAuth
 // @Router       /tenants/{id} [get]
@@ -445,14 +445,14 @@ func (h *TenantHandler) GetTenant(c *gin.Context) {
 }
 
 // UpdateTenant godoc
-// @Summary      更新空间
-// @Description  更新空间信息
-// @Tags         空间管理
+// @Summary      更新工作区
+// @Description  更新工作区信息
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Param        id       path      int           true  "空间ID"
-// @Param        request  body      types.Tenant  true  "空间信息"
-// @Success      200      {object}  map[string]interface{}  "更新后的空间"
+// @Param        id       path      int           true  "工作区ID"
+// @Param        request  body      types.Tenant  true  "工作区信息"
+// @Success      200      {object}  map[string]interface{}  "更新后的工作区"
 // @Failure      400      {object}  errors.AppError         "请求参数错误"
 // @Security     Bearer
 // @Router       /tenants/{id} [put]
@@ -781,12 +781,12 @@ func apiPrincipalConfigForResponse(cfg *types.APIPrincipalConfig) apiPrincipalCo
 }
 
 // GetAPIPrincipalConfig godoc
-// @Summary      获取空间 API Key 用户身份配置
+// @Summary      获取工作区 API Key 用户身份配置
 // @Description  返回 X-API-Key 请求如何映射为终端 Principal 的配置（Owner）
-// @Tags         空间管理
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Param        id   path      int  true  "空间ID"
+// @Param        id   path      int  true  "工作区ID"
 // @Success      200  {object}  map[string]interface{}  "API principal 配置"
 // @Failure      400  {object}  errors.AppError         "请求参数错误"
 // @Failure      403  {object}  errors.AppError         "权限不足"
@@ -815,12 +815,12 @@ func (h *TenantHandler) GetAPIPrincipalConfig(c *gin.Context) {
 }
 
 // UpdateAPIPrincipalConfig godoc
-// @Summary      更新空间 API Key 用户身份配置
+// @Summary      更新工作区 API Key 用户身份配置
 // @Description  配置 X-API-Key 请求如何映射为终端 Principal（Owner）
-// @Tags         空间管理
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Param        id       path      int                           true  "空间ID"
+// @Param        id       path      int                           true  "工作区ID"
 // @Param        request  body      handler.apiPrincipalConfigRequest  true  "API principal 配置"
 // @Success      200      {object}  map[string]interface{}        "更新后的配置"
 // @Failure      400      {object}  errors.AppError               "请求参数错误"
@@ -904,11 +904,11 @@ func (h *TenantHandler) UpdateAPIPrincipalConfig(c *gin.Context) {
 
 // CreateAPIPrincipalTestToken godoc
 // @Summary      生成 API Playground 测试 JWT
-// @Description  使用空间已保存的 HMAC 密钥签发短期外部用户 JWT（Owner）
-// @Tags         空间管理
+// @Description  使用工作区已保存的 HMAC 密钥签发短期外部用户 JWT（Owner）
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Param        id       path      int                                  true  "空间ID"
+// @Param        id       path      int                                  true  "工作区ID"
 // @Param        request  body      handler.apiPrincipalTestTokenRequest true  "测试 Token 参数"
 // @Success      200      {object}  map[string]interface{}               "短期 JWT"
 // @Failure      400      {object}  errors.AppError                      "请求参数错误"
@@ -1007,16 +1007,16 @@ func validateAPIPrincipalExternalUserID(id string) error {
 }
 
 // DeleteTenant godoc
-// @Summary      删除空间
-// @Description  删除空间。两种情况下拒绝：空间里还有调用者以外的成员（code 2007），
-// @Description  或这是部署中最后一个空间（code 2008）。先把其他成员移出，再删除。
-// @Tags         空间管理
+// @Summary      删除工作区
+// @Description  删除工作区。两种情况下拒绝：工作区里还有调用者以外的成员（code 2007），
+// @Description  或这是部署中最后一个工作区（code 2008）。先把其他成员移出，再删除。
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Param        id   path      int  true  "空间ID"
+// @Param        id   path      int  true  "工作区ID"
 // @Success      200  {object}  map[string]interface{}  "删除成功"
 // @Failure      400  {object}  errors.AppError         "请求参数错误"
-// @Failure      409  {object}  errors.AppError         "空间仍有其他成员 / 最后一个空间"
+// @Failure      409  {object}  errors.AppError         "工作区仍有其他成员 / 最后一个工作区"
 // @Security     Bearer
 // @Router       /tenants/{id} [delete]
 func (h *TenantHandler) DeleteTenant(c *gin.Context) {
@@ -1089,12 +1089,12 @@ func (h *TenantHandler) DeleteTenant(c *gin.Context) {
 }
 
 // ListTenants godoc
-// @Summary      获取空间列表
-// @Description  获取当前用户可访问的空间列表
-// @Tags         空间管理
+// @Summary      获取工作区列表
+// @Description  获取当前用户可访问的工作区列表
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  map[string]interface{}  "空间列表"
+// @Success      200  {object}  map[string]interface{}  "工作区列表"
 // @Failure      500  {object}  errors.AppError         "服务器错误"
 // @Security     Bearer
 // @Router       /tenants [get]
@@ -1139,12 +1139,12 @@ func (h *TenantHandler) attachMemberCounts(ctx context.Context, items []*dto.Ten
 }
 
 // ListAllTenants godoc
-// @Summary      获取所有空间列表
-// @Description  获取部署中的所有空间，附带每个空间的成员数（系统管理员 / 跨空间超管 / 平台 API Key）
-// @Tags         空间管理
+// @Summary      获取所有工作区列表
+// @Description  获取部署中的所有工作区，附带每个工作区的成员数（系统管理员 / 跨工作区超管 / 平台 API Key）
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  map[string]interface{}  "所有空间列表"
+// @Success      200  {object}  map[string]interface{}  "所有工作区列表"
 // @Failure      403  {object}  errors.AppError         "权限不足"
 // @Security     Bearer
 // @Security     ApiKeyAuth
@@ -1180,13 +1180,13 @@ func (h *TenantHandler) ListAllTenants(c *gin.Context) {
 }
 
 // SearchTenants godoc
-// @Summary      搜索空间
-// @Description  分页搜索空间，附带成员数（系统管理员 / 跨空间超管 / 平台 API Key）
-// @Tags         空间管理
+// @Summary      搜索工作区
+// @Description  分页搜索工作区，附带成员数（系统管理员 / 跨工作区超管 / 平台 API Key）
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
 // @Param        keyword    query     string  false  "搜索关键词"
-// @Param        tenant_id  query     int     false  "空间ID筛选"
+// @Param        tenant_id  query     int     false  "工作区ID筛选"
 // @Param        page       query     int     false  "页码"  default(1)
 // @Param        page_size  query     int     false  "每页数量"  default(20)
 // @Success      200        {object}  map[string]interface{}  "搜索结果"
@@ -1255,10 +1255,10 @@ func (h *TenantHandler) SearchTenants(c *gin.Context) {
 }
 
 // GetTenantKV godoc
-// @Summary      获取空间KV配置
-// @Description  获取空间级别的KV配置（支持web-search-config、prompt-templates、parser-engine-config、
+// @Summary      获取工作区KV配置
+// @Description  获取工作区级别的KV配置（支持web-search-config、prompt-templates、parser-engine-config、
 // @Description  chat-history-config、retrieval-config）
-// @Tags         空间管理
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
 // @Param        key  path      string  true  "配置键名"
@@ -1303,9 +1303,9 @@ func (h *TenantHandler) GetTenantKV(c *gin.Context) {
 }
 
 // UpdateTenantKV godoc
-// @Summary      更新空间KV配置
-// @Description  更新空间级别的KV配置（支持web-search-config、parser-engine-config、chat-history-config、retrieval-config）
-// @Tags         空间管理
+// @Summary      更新工作区KV配置
+// @Description  更新工作区级别的KV配置（支持web-search-config、parser-engine-config、chat-history-config、retrieval-config）
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
 // @Param        key      path      string  true  "配置键名"
@@ -1428,9 +1428,9 @@ func (h *TenantHandler) updateTenantWebSearchConfigInternal(c *gin.Context) {
 }
 
 // GetTenantWebSearchConfig godoc
-// @Summary      获取空间网络搜索配置
-// @Description  获取空间的网络搜索配置
-// @Tags         空间管理
+// @Summary      获取工作区网络搜索配置
+// @Description  获取工作区的网络搜索配置
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}  "网络搜索配置"
@@ -1516,7 +1516,7 @@ func (h *TenantHandler) updateTenantParserEngineConfigInternal(c *gin.Context) {
 // GetPromptTemplates godoc
 // @Summary      获取提示词模板
 // @Description  获取系统配置的提示词模板列表
-// @Tags         空间管理
+// @Tags         工作区管理
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}  "提示词模板配置"

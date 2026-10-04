@@ -89,7 +89,7 @@ const features = [
   {
     icon: 'docs',
     title: '在线协同文档',
-    desc: '空间与页面树、多人实时协同、评论与通知、修订历史、draw.io 与 Mermaid。空间绑定知识库后，页面自动同步为知识；受限页面绝不进入知识库，不参与检索的页面可一键排除。',
+    desc: '文档空间与页面树、多人实时协同、评论与通知、修订历史、draw.io 与 Mermaid。文档空间绑定知识库后，页面自动同步为知识；受限页面绝不进入知识库，不参与检索的页面可一键排除。',
     href: '/03-features/07-docs',
     tag: '知识生产',
   },
@@ -130,8 +130,8 @@ const features = [
   },
   {
     icon: 'govern',
-    title: '多空间隔离与审计',
-    desc: '工作空间级数据隔离与四级角色矩阵，API Key 可按能力与知识库范围收窄。操作行为写入审计日志，后台任务提供队列面板，问答链路支持 Langfuse 追踪。',
+    title: '多工作区隔离与审计',
+    desc: '工作区级数据隔离与四级角色矩阵，API Key 可按能力与知识库范围收窄。操作行为写入审计日志，后台任务提供队列面板，问答链路支持 Langfuse 追踪。',
     href: '/03-features/20-platform-admin',
     tag: '企业部署',
   },
@@ -198,7 +198,7 @@ const map = [
     title: '功能模块',
     brief: '二十项能力的用法、配置项、行为约定与实现路径。',
     items: [
-      { text: '租户、用户与认证授权', link: '/03-features/01-tenant-auth' },
+      { text: '工作区、用户与认证授权', link: '/03-features/01-tenant-auth' },
       { text: '知识库与知识管理', link: '/03-features/02-knowledge-base' },
       { text: '文档解析服务 docreader', link: '/03-features/03-document-parsing' },
       { text: '分块机制', link: '/03-features/04-chunking' },

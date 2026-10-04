@@ -130,15 +130,15 @@ services:
       # 前端外部 origin，用于邀请链接等绝对 URL（留空走 host-relative）
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-}
 
-      # 认证 / 空间 / RBAC / 审计
+      # 认证 / 工作区 / RBAC / 审计
       # 禁止新用户注册（生产建议 true）
       # 留空 = auto：只在还没有任何用户时开放注册（第一个账号成为管理员），之后关闭。
       - DISABLE_REGISTRATION=${DISABLE_REGISTRATION:-}
-      # 启用跨空间访问（需配合用户的 CanAccessAllTenants 权限；默认 false
+      # 启用跨工作区访问（需配合用户的 CanAccessAllTenants 权限；默认 false
       - YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS=${YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS:-false}
-      # 新建空间默认存储配额（GB）。0 = 不限制（默认）
+      # 新建工作区默认存储配额（GB）。0 = 不限制（默认）
       - YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB=${YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB:-0}
-      # 空间邀请链接 TTL（Go duration，默认 168h=7 天）
+      # 工作区邀请链接 TTL（Go duration，默认 168h=7 天）
       - YUHENG_INVITATION_TTL=${YUHENG_INVITATION_TTL:-168h}
       # 审计日志保留天数（0 禁用清理，默认 90）
       - YUHENG_AUDIT_RETENTION_DAYS=${YUHENG_AUDIT_RETENTION_DAYS:-90}
@@ -282,7 +282,7 @@ services:
       - YUHENG_CHAT_ATTACHMENT_OCR_CONCURRENCY=${YUHENG_CHAT_ATTACHMENT_OCR_CONCURRENCY:-8}
       - YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES=${YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES:-8}
       # Tenant / RBAC（详见 website-docs/03-features/01-tenant-auth.md §6 与 .env.example 注释）
-      # - YUHENG_TENANT_ENABLE_RBAC: 是否启用空间角色强制鉴权（true / false），默认 true
+      # - YUHENG_TENANT_ENABLE_RBAC: 是否启用工作区角色强制鉴权（true / false），默认 true
       - YUHENG_TENANT_ENABLE_RBAC=${YUHENG_TENANT_ENABLE_RBAC:-}
       - YUHENG_ASYNQ_CORE_CONCURRENCY=${YUHENG_ASYNQ_CORE_CONCURRENCY:-8}
       - YUHENG_ASYNQ_POSTPROCESS_CONCURRENCY=${YUHENG_ASYNQ_POSTPROCESS_CONCURRENCY:-2}

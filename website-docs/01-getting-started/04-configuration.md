@@ -9,7 +9,7 @@ Yuheng 的配置由四层组成，**优先级从低到高**：
 | 环境变量 | `.env` / 容器 environment | 部署级覆盖，改完需重启 |
 | 运行时系统设置 | 数据库 `system_settings` 表，界面在「设置 → 系统设置」（系统管理员） | 一部分开关可以在线改，**盖过环境变量**，绝大多数立即生效 |
 
-最后一层容易被忽略，却是排查「改了 env 没生效」的第一现场：注册模式、空间策略与配额、上传大小上限、SSRF 白名单、邀请自动加入、各 worker pool 并发、模型并发上限这些键一旦在界面上改过，数据库里就留下一行记录，此后环境变量不再起作用；把该项重置（`DELETE /api/v1/system/admin/settings/:key`）才会回落到环境变量或内置默认值。完整键表与语义见[租户、用户与认证授权](../03-features/01-tenant-auth.md)的「运行时可改的系统设置」。
+最后一层容易被忽略，却是排查「改了 env 没生效」的第一现场：注册模式、工作区策略与配额、上传大小上限、SSRF 白名单、邀请自动加入、各 worker pool 并发、模型并发上限这些键一旦在界面上改过，数据库里就留下一行记录，此后环境变量不再起作用；把该项重置（`DELETE /api/v1/system/admin/settings/:key`）才会回落到环境变量或内置默认值。完整键表与语义见[工作区、用户与认证授权](../03-features/01-tenant-auth.md)的「运行时可改的系统设置」。
 
 `.env.example` 按用途分组注释了每一个可配置的环境变量，是最完整的清单；下文先对照 `internal/config/config.go` 中的结构体解读 `config.yaml`，再按主题汇总重要的环境变量。
 
@@ -102,8 +102,8 @@ flowchart LR
 
 | 名称 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `enable_cross_tenant_access` | bool | false | 允许具备 `CanAccessAllTenants` 的用户跨空间访问（内网可开） |
-| `enable_rbac` | *bool | true | 空间角色强制鉴权；显式 `false` 进入仅记录不拦截的灰度模式（env `YUHENG_TENANT_ENABLE_RBAC`） |
+| `enable_cross_tenant_access` | bool | false | 允许具备 `CanAccessAllTenants` 的用户跨工作区访问（内网可开） |
+| `enable_rbac` | *bool | true | 工作区角色强制鉴权；显式 `false` 进入仅记录不拦截的灰度模式（env `YUHENG_TENANT_ENABLE_RBAC`） |
 | `default_session_name` / `default_session_title` / `default_session_description` | string | 空 | 新会话默认文案 |
 
 ### 结构体支持但默认文件未写出的段
@@ -112,7 +112,7 @@ flowchart LR
 
 | 段 | 结构体 | 关键字段与默认值 |
 | --- | --- | --- |
-| `auth` | `AuthConfig` | `registration_mode`：`auto`（默认：仅在还没有任何用户时开放，首个注册者创建默认空间并成为系统管理员）/ `self_serve` / `invite_only`（`DISABLE_REGISTRATION=true` 时强制；`false` 强制 `self_serve`）。注册只创建账号，不创建空间，没有别的注册策略可配 |
+| `auth` | `AuthConfig` | `registration_mode`：`auto`（默认：仅在还没有任何用户时开放，首个注册者创建默认工作区并成为系统管理员）/ `self_serve` / `invite_only`（`DISABLE_REGISTRATION=true` 时强制；`false` 强制 `self_serve`）。注册只创建账号，不创建工作区，没有别的注册策略可配 |
 | `audit` | `AuditConfig` | `retention_days`：审计日志保留天数，段落省略时默认 90；0 禁用清理；<0 校验报错（env `YUHENG_AUDIT_RETENTION_DAYS`） |
 | `oidc_auth` | `OIDCAuthConfig` | `enable`、`issuer_url`、`discovery_url`（缺省由 issuer 拼 `/.well-known/openid-configuration`）、`client_id`、`client_secret`、`authorization_endpoint`、`token_endpoint`、`user_info_endpoint`、`scopes`（默认 `openid profile email`）、`user_info_mapping.username`（默认 `name`）/`email`（默认 `email`）；全部可用 `OIDC_AUTH_*` 环境变量覆盖 |
 | `docreader` | `DocReaderConfig` | `addr`（gRPC 地址如 `docreader:50051` 或 HTTP base URL）、`transport`：`grpc`（默认）/ `http`；通常用 env `DOCREADER_ADDR` / `DOCREADER_TRANSPORT` |
@@ -196,7 +196,7 @@ flowchart LR
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
 | `STORAGE_TYPE` | s3（compose 与 `.env.example`；变量完全未设置时代码回退为 local，例如源码运行） | 部署存储的类型：`local` / `s3`（任何 S3 兼容服务）。不受支持或被 `STORAGE_ALLOW_LIST` 排除时服务拒绝启动 |
-| `STORAGE_ALLOW_LIST` | 空 | 允许的存储类型白名单（逗号分隔），同时约束部署存储与空间注册的实例 |
+| `STORAGE_ALLOW_LIST` | 空 | 允许的存储类型白名单（逗号分隔），同时约束部署存储与工作区注册的实例 |
 | `LOCAL_STORAGE_BASE_DIR` | /data/files | 本地存储根目录；每个本机目录实例是它下面的 `path_prefix` 子目录 |
 | `LOCAL_STORAGE_PATH_PREFIX` | 空 | 部署存储为 `local` 时在根目录下使用的子目录 |
 | `S3_ENDPOINT` | http://rustfs:9000（compose） | S3 兼容服务地址；可带 `http://` / `https://`；空表示 AWS S3 |
@@ -232,15 +232,15 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | --- | --- | --- |
 | `JWT_SECRET` | 空 | JWT 签名密钥，**必填，至少 32 个字符**（`openssl rand -hex 32`）。多副本必须一致 |
 | `SYSTEM_AES_KEY` | 空 | 数据库中敏感字段加密的 AES-256 主密钥，**必填，正好 32 字节**（`openssl rand -hex 16`）；丢失则已加密的数据（API Key、模型密钥、数据源凭据等）不可恢复。取代已废弃的 `TENANT_AES_KEY` / `CRYPTO_MASTER_KEY` / `CRYPTO_SALT` |
-| `DISABLE_REGISTRATION` | 未设置 | 未设置：`auto`（只在还没有用户时开放注册，首个注册者创建默认空间并成为系统管理员）；`true`：强制 `invite_only`；`false`：强制 `self_serve`。注册只建账号；空间只能由系统管理员创建 |
-| `YUHENG_TENANT_ENABLE_RBAC` | （默认 true） | 空间角色强制鉴权开关 |
-| `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS` | false | 跨空间访问 |
-| `YUHENG_TENANT_AUTO_ACCEPT_INVITATION` | false | 邀请已注册用户时直接加入空间，不需要对方接受 |
-| `YUHENG_GOVERNANCE_CENTRALIZED_INFRA` | false | 集中管控：模型、网络搜索、存储、解析引擎、Ollama 等基础设施配置收归系统管理员，空间管理员只读但照常可选用。也可在系统设置里开关，数据库里的值优先 |
-| `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB` | 0 | 新空间默认存储配额（GB），0 = 不限；只在创建空间时读取，也可在系统设置里改 |
+| `DISABLE_REGISTRATION` | 未设置 | 未设置：`auto`（只在还没有用户时开放注册，首个注册者创建默认工作区并成为系统管理员）；`true`：强制 `invite_only`；`false`：强制 `self_serve`。注册只建账号；工作区只能由系统管理员创建 |
+| `YUHENG_TENANT_ENABLE_RBAC` | （默认 true） | 工作区角色强制鉴权开关 |
+| `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS` | false | 跨工作区访问 |
+| `YUHENG_TENANT_AUTO_ACCEPT_INVITATION` | false | 邀请已注册用户时直接加入工作区，不需要对方接受 |
+| `YUHENG_GOVERNANCE_CENTRALIZED_INFRA` | false | 集中管控：模型、网络搜索、存储、解析引擎、Ollama 等基础设施配置收归系统管理员，工作区管理员只读但照常可选用。也可在系统设置里开关，数据库里的值优先 |
+| `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB` | 0 | 新工作区默认存储配额（GB），0 = 不限；只在创建工作区时读取，也可在系统设置里改 |
 | `YUHENG_INVITATION_TTL` | 168h | 邀请链接有效期 |
 | `YUHENG_AUDIT_RETENTION_DAYS` | 90 | 审计日志保留天数 |
-| `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL` | 空 | 引导第一个系统管理员。**不会创建用户**：该邮箱需先自行注册，下次启动时若部署内还没有任何系统管理员，才把它提升；已有管理员后本变量不再生效。详见[租户、用户与认证授权](../03-features/01-tenant-auth.md) |
+| `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL` | 空 | 引导第一个系统管理员。**不会创建用户**：该邮箱需先自行注册，下次启动时若部署内还没有任何系统管理员，才把它提升；已有管理员后本变量不再生效。详见[工作区、用户与认证授权](../03-features/01-tenant-auth.md) |
 | `OIDC_AUTH_ENABLE` 及 `OIDC_AUTH_*` / `OIDC_USER_INFO_MAPPING_*` | false / 空 | OIDC 单点登录全套配置 |
 | `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` | 空 / `searxng,rustfs` | 出站请求 SSRF 白名单（域名、通配域名、IP 或 CIDR，逗号分隔）。两者合并生效；自定义 `SSRF_WHITELIST_EXTRA` 会覆盖 compose 默认值，要把 `searxng,rustfs` 一起写上 |
 | `IMAGE_HOST_KEEP_URL` | 空 | 保留原始 URL 的图片域名白名单 |
@@ -315,7 +315,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `YUHENG_API_KEY` | 空 | mcp-server 调 Yuheng REST 用的 API Key，由空间 Owner 在「设置 → 空间 → API Key」创建（或调 `POST /api/v1/tenants/:id/api-keys`） |
+| `YUHENG_API_KEY` | 空 | mcp-server 调 Yuheng REST 用的 API Key，由工作区 Owner 在「设置 → 工作区 → API Key」创建（或调 `POST /api/v1/tenants/:id/api-keys`） |
 | `MCP_SERVER_AUTH_TOKEN` | 空 | **HTTP/SSE 传输必填**，缺失时进程直接拒绝启动；客户端以 `Authorization: Bearer` 携带 |
 | `YUHENG_CHAT_TIMEOUT` | 300 | 调 Yuheng REST 的读超时（秒） |
 | `YUHENG_VERIFY_SSL` | true | 是否校验后端 TLS 证书，自签证书可设 false |

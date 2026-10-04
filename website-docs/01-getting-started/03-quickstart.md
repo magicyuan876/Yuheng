@@ -14,27 +14,27 @@
 
 首次访问会落到登录页，注册是同一页上的一个页签，只在注册开放时才显示（前端读 `/auth/config` 决定）。系统没有内置默认账号：
 
-- **全新部署里，你注册的第一个账号会成为整个部署的系统管理员**，并创建部署的默认工作空间（注册页此时多一个「空间名称」字段，默认「默认空间」；你是这个空间的 Owner）。之后公开注册自动关闭，其他人通过邀请加入，或由你在「设置 → 用户与空间」里创建账号并直接加入空间；
+- **全新部署里，你注册的第一个账号会成为整个部署的系统管理员**，并创建部署的默认工作区（注册页此时多一个「工作区名称」字段，默认「默认工作区」；你是这个工作区的 Owner）。之后公开注册自动关闭，其他人通过邀请加入，或由你在「设置 → 用户与工作区」里创建账号并直接加入工作区；
 - 想让注册一直开放，设 `DISABLE_REGISTRATION=false`；想从一开始就关闭（账号由别的办法创建），设 `DISABLE_REGISTRATION=true`；不设置就是默认的 `auto`：只在还没有任何用户时开放。系统管理员也可以登录后在「设置 → 系统设置」里改注册模式（键 `auth.registration_mode`，立即生效，不用重启；数据库里的值优先于环境变量）。
 
 几点值得先知道：
 
 - 用户名 2–50 个字符；密码在注册页要求 8–32 位且含字母和数字（直接调 `POST /auth/register` 接口时后端只校验 ≥6 位，建议仍按 8 位以上来）；
 - 邀请成员：登录后在「设置 → 成员管理」发邀请（站内邀请，或生成邀请链接）；被邀请的人走邀请注册，不受上面的注册开关影响；
-- 注册只创建账号，不创建空间：第一个账号之后再注册的人（例如 `DISABLE_REGISTRATION=false` 时）登录后会看到「你的账号还没有加入任何空间」，需要被空间管理员邀请或由系统管理员加入空间才能继续。一个企业通常只需要这一个默认空间，空间内知识库任意多；真要再建空间，只有系统管理员可以。
+- 注册只创建账号，不创建工作区：第一个账号之后再注册的人（例如 `DISABLE_REGISTRATION=false` 时）登录后会看到「你的账号还没有加入任何工作区」，需要被工作区管理员邀请或由系统管理员加入工作区才能继续。一个企业通常只需要这一个默认工作区，工作区内知识库任意多；真要再建工作区，只有系统管理员可以。
 
-::: tip 空间 Owner ≠ 系统管理员
+::: tip 工作区 Owner ≠ 系统管理员
 这两个是不同维度的身份，很容易混：
 
-- **空间 Owner**：某一个工作空间内的最高权限，管这个空间的成员、模型、知识库。
-- **系统管理员（System Admin）**：平台级身份，管的是整个部署——全局系统设置、任务队列、平台 API Key、跨空间审计日志、重置用户密码。它不属于任何空间。
+- **工作区 Owner**：某一个工作区内的最高权限，管这个工作区的成员、模型、知识库。
+- **系统管理员（System Admin）**：平台级身份，管的是整个部署——全局系统设置、任务队列、平台 API Key、跨工作区审计日志、重置用户密码。它不属于任何工作区。
 
-第一个注册的账号两个身份兼有。之后新增系统管理员在「设置 → 用户与空间」里操作。如果部署里已经有用户却没有系统管理员（比如从旧版本升级而来），可以给 app 服务设 `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL=<已注册账号的邮箱>` 并重启，启动时会把该用户提升为系统管理员；已经存在系统管理员时这个变量不再生效。详见[租户、用户与认证授权](../03-features/01-tenant-auth.md)。
+第一个注册的账号两个身份兼有。之后新增系统管理员在「设置 → 用户与工作区」里操作。如果部署里已经有用户却没有系统管理员（比如从旧版本升级而来），可以给 app 服务设 `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL=<已注册账号的邮箱>` 并重启，启动时会把该用户提升为系统管理员；已经存在系统管理员时这个变量不再生效。详见[工作区、用户与认证授权](../03-features/01-tenant-auth.md)。
 :::
 
 ## 3. 配置模型并创建知识库
 
-问答能用之前，必须先有模型：**至少一个对话模型（LLM）和一个向量模型（Embedding）**。模型在工作空间层面配置，知识库再从中选用。
+问答能用之前，必须先有模型：**至少一个对话模型（LLM）和一个向量模型（Embedding）**。模型在工作区层面配置，知识库再从中选用。
 
 1. 打开「设置 → 模型管理」，点「添加模型」。选模型类型（对话 / Embedding / ReRank / 视觉 / 语音）与来源（远程 API 或本地 Ollama），填模型名称、Base URL 和 API Key，用「测试连接」确认连得通再保存；
 2. 回到「知识库」页点「新建知识库」，填名称，选类型：「文档」（`document`，普通文档库）或「问答」（`faq`，问答对库）；
@@ -83,7 +83,7 @@ BASE=http://localhost:8080/api/v1
 curl -s -X POST $BASE/auth/register -H "Content-Type: application/json" \
   -d '{"username":"admin","email":"admin@example.com","password":"pass123456"}'
 
-# 2) 登录，取 JWT 与当前工作空间 ID
+# 2) 登录，取 JWT 与当前工作区 ID
 LOGIN=$(curl -s -X POST $BASE/auth/login -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"pass123456"}')
 TOKEN=$(echo "$LOGIN" | jq -r '.token')
@@ -130,8 +130,8 @@ curl -s -X POST $BASE/knowledge-search -H "$AUTH" -H "Content-Type: application/
 | 方式 | 请求头 | 适用 |
 | --- | --- | --- |
 | JWT | `Authorization: Bearer <token>` | 浏览器 / 交互式调用，登录接口签发 |
-| API Key | `X-API-Key: <key>` | 服务端集成与智能体；由空间 Owner 在「设置 → 空间 → API Key」创建（或调 `POST /api/v1/tenants/:id/api-keys`），支持细粒度能力（`retrieve`/`chat`/`ingest`/`manage_kbs` 等）、知识库白名单与过期时间 |
-| 指定空间 | `X-Tenant-ID: <id>` | 多空间用户切换当前工作空间 |
+| API Key | `X-API-Key: <key>` | 服务端集成与智能体；由工作区 Owner 在「设置 → 工作区 → API Key」创建（或调 `POST /api/v1/tenants/:id/api-keys`），支持细粒度能力（`retrieve`/`chat`/`ingest`/`manage_kbs` 等）、知识库白名单与过期时间 |
+| 指定工作区 | `X-Tenant-ID: <id>` | 多工作区用户切换当前工作区 |
 
 服务端集成建议用 API Key 而不是 JWT：
 
@@ -171,7 +171,7 @@ sequenceDiagram
     participant LLM as "LLM (Ollama / 远程 API)"
     U->>FE: 注册 / 登录
     FE->>APP: POST /api/v1/auth/register → login
-    APP-->>FE: JWT + 自动创建的工作空间
+    APP-->>FE: JWT + 自动创建的工作区
     U->>APP: POST /api/v1/knowledge-bases (创建知识库)
     U->>APP: PUT /api/v1/initialization/config/:kbId (配置模型)
     APP->>LLM: 连通性测试 (remote/check, embedding/test)

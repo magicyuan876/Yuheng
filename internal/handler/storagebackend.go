@@ -293,15 +293,15 @@ func (h *StorageBackendHandler) Types(c *gin.Context) {
 
 // UpdateSharing godoc
 // @Summary      设置存储实例平台共享
-// @Description  将存储实例设为平台共享（所有空间可见可选用，端点与凭据对非系统管理员隐藏）或取消共享。
-// @Description  仅系统管理员可调用。取消共享时，若 owner 之外的空间仍有默认存储、知识库或活跃资源绑定，请求会被拒绝。
+// @Description  将存储实例设为平台共享（所有工作区可见可选用，端点与凭据对非系统管理员隐藏）或取消共享。
+// @Description  仅系统管理员可调用。取消共享时，若 owner 之外的工作区仍有默认存储、知识库或活跃资源绑定，请求会被拒绝。
 // @Tags         StorageBackend
 // @Accept       json
 // @Produce      json
 // @Param        id       path      string                 true  "存储实例 ID"
 // @Param        request  body      SetSharingRequest      true  "共享状态"
 // @Success      200      {object}  map[string]interface{} "更新后的存储实例"
-// @Failure      400      {object}  apperrors.AppError     "仍被其他空间引用"
+// @Failure      400      {object}  apperrors.AppError     "仍被其他工作区引用"
 // @Failure      403      {object}  apperrors.AppError     "非系统管理员"
 // @Security     Bearer
 // @Router       /storage-backends/{id}/sharing [put]

@@ -73,9 +73,9 @@ func failGroup(c *gin.Context, err error) {
 }
 
 // List godoc
-// @Summary      列出空间组
+// @Summary      列出工作区组
 // @Description  默认组（全体成员）在前；每个组附成员数
-// @Tags         空间组
+// @Tags         工作区组
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}
 // @Security     Bearer
@@ -94,12 +94,12 @@ func (h *TenantGroupHandler) List(c *gin.Context) {
 }
 
 // Create godoc
-// @Summary      创建空间组
-// @Description  组名在空间内唯一（不区分大小写）；可同时指定初始成员
-// @Tags         空间组
+// @Summary      创建工作区组
+// @Description  组名在工作区内唯一（不区分大小写）；可同时指定初始成员
+// @Tags         工作区组
 // @Accept       json
 // @Produce      json
-// @Param        request  body  CreateTenantGroupRequest  true  "空间组"
+// @Param        request  body  CreateTenantGroupRequest  true  "工作区组"
 // @Success      201  {object}  map[string]interface{}
 // @Security     Bearer
 // @Router       /groups [post]
@@ -124,10 +124,10 @@ func (h *TenantGroupHandler) Create(c *gin.Context) {
 }
 
 // Get godoc
-// @Summary      获取空间组
-// @Tags         空间组
+// @Summary      获取工作区组
+// @Tags         工作区组
 // @Produce      json
-// @Param        gid  path  string  true  "空间组 ID"
+// @Param        gid  path  string  true  "工作区组 ID"
 // @Success      200  {object}  map[string]interface{}
 // @Security     Bearer
 // @Router       /groups/{gid} [get]
@@ -145,12 +145,12 @@ func (h *TenantGroupHandler) Get(c *gin.Context) {
 }
 
 // Update godoc
-// @Summary      更新空间组
+// @Summary      更新工作区组
 // @Description  默认组不可改名
-// @Tags         空间组
+// @Tags         工作区组
 // @Accept       json
 // @Produce      json
-// @Param        gid      path  string                    true  "空间组 ID"
+// @Param        gid      path  string                    true  "工作区组 ID"
 // @Param        request  body  UpdateTenantGroupRequest  true  "变更字段"
 // @Success      200  {object}  map[string]interface{}
 // @Security     Bearer
@@ -176,10 +176,10 @@ func (h *TenantGroupHandler) Update(c *gin.Context) {
 }
 
 // Delete godoc
-// @Summary      删除空间组
+// @Summary      删除工作区组
 // @Description  同时移除该组在所有模块中持有的授权（如文档空间与页面）；默认组不可删除
-// @Tags         空间组
-// @Param        gid  path  string  true  "空间组 ID"
+// @Tags         工作区组
+// @Param        gid  path  string  true  "工作区组 ID"
 // @Success      204
 // @Security     Bearer
 // @Router       /groups/{gid} [delete]
@@ -196,10 +196,10 @@ func (h *TenantGroupHandler) Delete(c *gin.Context) {
 }
 
 // ListMembers godoc
-// @Summary      分页列出空间组成员
-// @Tags         空间组
+// @Summary      分页列出工作区组成员
+// @Tags         工作区组
 // @Produce      json
-// @Param        gid        path   string  true   "空间组 ID"
+// @Param        gid        path   string  true   "工作区组 ID"
 // @Param        q          query  string  false  "按用户名/邮箱筛选"
 // @Param        page       query  int     false  "页码（从 1 起）"  default(1)
 // @Param        page_size  query  int     false  "每页数量（最大 100）"  default(20)
@@ -224,12 +224,12 @@ func (h *TenantGroupHandler) ListMembers(c *gin.Context) {
 }
 
 // AddMembers godoc
-// @Summary      向空间组添加成员
+// @Summary      向工作区组添加成员
 // @Description  已在组内的用户被跳过；默认组的成员关系是隐式的，不接受添加
-// @Tags         空间组
+// @Tags         工作区组
 // @Accept       json
 // @Produce      json
-// @Param        gid      path  string                        true  "空间组 ID"
+// @Param        gid      path  string                        true  "工作区组 ID"
 // @Param        request  body  AddTenantGroupMembersRequest  true  "用户 ID 列表"
 // @Success      200  {object}  map[string]interface{}
 // @Security     Bearer
@@ -260,9 +260,9 @@ func (h *TenantGroupHandler) AddMembers(c *gin.Context) {
 }
 
 // RemoveMember godoc
-// @Summary      从空间组移除成员
-// @Tags         空间组
-// @Param        gid  path  string  true  "空间组 ID"
+// @Summary      从工作区组移除成员
+// @Tags         工作区组
+// @Param        gid  path  string  true  "工作区组 ID"
 // @Param        uid  path  string  true  "用户 ID"
 // @Success      204
 // @Security     Bearer

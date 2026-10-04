@@ -75,8 +75,8 @@ func applyBuiltinIntent(ctx context.Context, requested *bool, current bool) bool
 
 // UpdateModelSharing godoc
 // @Summary      设置模型平台共享
-// @Description  将模型设为平台共享（所有空间可见可用，凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。
-// @Description  取消共享时，若仍有任意空间的知识库绑定该模型，请求会被拒绝。
+// @Description  将模型设为平台共享（所有工作区可见可用，凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。
+// @Description  取消共享时，若仍有任意工作区的知识库绑定该模型，请求会被拒绝。
 // @Tags         模型管理
 // @Accept       json
 // @Produce      json
@@ -246,7 +246,7 @@ func (h *ModelHandler) GetModel(c *gin.Context) {
 
 // ListModels godoc
 // @Summary      获取模型列表
-// @Description  获取当前空间的所有模型
+// @Description  获取当前工作区的所有模型
 // @Tags         模型管理
 // @Accept       json
 // @Produce      json

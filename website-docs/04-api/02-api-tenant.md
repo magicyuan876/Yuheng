@@ -1,27 +1,27 @@
-# API 参考：租户（空间）与成员
+# API 参考：租户（工作区）与成员
 
 路由注册：`internal/router/routes_auth_tenant.go` 的 `RegisterTenantRoutes`（KB 活动流在 `internal/router/routes_knowledge.go` 的 `RegisterKnowledgeBaseActivityRoutes`）。Handler：`internal/handler/tenant.go`、`internal/handler/tenant_member.go`、`internal/handler/tenant_invitation.go`、`internal/handler/tenant_invite_link.go`、`internal/handler/audit_log.go`。
 
-所有 `/tenants/:id/*` 路由在组级挂载 `PathTenantMatch()`（`internal/middleware/access.go`）：URL 中的 `:id` 必须等于当前活跃空间（跨空间超管例外），防止越权操作他人空间。目录接口（`/tenants/all`、`/tenants/search`、`POST /tenants`）挂的是 `TenantCatalog()`：系统管理员、跨空间超管与平台 key 才能调。空间组接口 `/groups/**` 见[在线文档 API](./02-api-docs.md#空间组apiv1groups)——它们是空间级能力，与在线文档模块无关，只是文档沿用了原来的位置。
+所有 `/tenants/:id/*` 路由在组级挂载 `PathTenantMatch()`（`internal/middleware/access.go`）：URL 中的 `:id` 必须等于当前活跃工作区（跨工作区超管例外），防止越权操作他人工作区。目录接口（`/tenants/all`、`/tenants/search`、`POST /tenants`）挂的是 `TenantCatalog()`：系统管理员、跨工作区超管与平台 key 才能调。工作区组接口 `/groups/**` 见[在线文档 API](./02-api-docs.md#工作区组apiv1groups)——它们是工作区级能力，与在线文档模块无关，只是文档沿用了原来的位置。
 
-## 空间生命周期
+## 工作区生命周期
 
 ### POST /api/v1/tenants
 
-用途：创建空间。这是**目录操作**：权限 `TenantCatalog()`——系统管理员、生效中的跨空间超管（`CanAccessAllTenants` 且集群开启 `EnableCrossTenantAccess`），或带 `system_tenants_manage` 的平台 API key；普通用户返回 403 `Only system administrators can manage workspaces`。调用者还没有任何空间也能调（在无空间白名单里）。Handler: `internal/handler/tenant.go`
+用途：创建工作区。这是**目录操作**：权限 `TenantCatalog()`——系统管理员、生效中的跨工作区超管（`CanAccessAllTenants` 且集群开启 `EnableCrossTenantAccess`），或带 `system_tenants_manage` 的平台 API key；普通用户返回 403 `Only system administrators can manage workspaces`。调用者还没有任何工作区也能调（在无工作区白名单里）。Handler: `internal/handler/tenant.go`
 
 请求体是完整的 `types.Tenant` 加一个 `owner_email`：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `name` | string | 是 | 空间名称（去首尾空白后不能为空） |
+| `name` | string | 是 | 工作区名称（去首尾空白后不能为空） |
 | `description` | string | 否 | 描述 |
-| `owner_email` | string | 平台 key 必填（`binding:"omitempty,email"`） | 空间的第一位 Owner，须是已注册用户。省略时调用者本人成为 Owner；平台 key 不是人，必须指定（否则 400，code 2006）；邮箱没注册返回 404 |
+| `owner_email` | string | 平台 key 必填（`binding:"omitempty,email"`） | 工作区的第一位 Owner，须是已注册用户。省略时调用者本人成为 Owner；平台 key 不是人，必须指定（否则 400，code 2006）；邮箱没注册返回 404 |
 | `storage_quota`、`status`、`retriever_engines` 等 | — | 否 | 其余 `Tenant` 字段照常接受；`storage_quota` 缺省取系统设置 `tenant.default_storage_quota_gb`（默认 0 = 不限）。客户端传的 `id` 被忽略 |
 
-Owner 成员关系在同一请求里写入；写入失败会把刚建的空间删掉，不会留下没有成员、谁也进不去的空间。若 Owner 之前没有任何空间，这个空间会被记为其当前空间。成功后写平台级审计 `system.tenant_created`。
+Owner 成员关系在同一请求里写入；写入失败会把刚建的工作区删掉，不会留下没有成员、谁也进不去的工作区。若 Owner 之前没有任何工作区，这个工作区会被记为其当前工作区。成功后写平台级审计 `system.tenant_created`。
 
-响应：201 `{"success":true,"data":{Tenant}}`。创建空间不会发放 API key，需要时创建后再调 `POST /tenants/:id/api-keys`。
+响应：201 `{"success":true,"data":{Tenant}}`。创建工作区不会发放 API key，需要时创建后再调 `POST /tenants/:id/api-keys`。
 
 ```bash
 curl -X POST $BASE/api/v1/tenants -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -30,7 +30,7 @@ curl -X POST $BASE/api/v1/tenants -H "Authorization: Bearer $ADMIN_TOKEN" \
 
 ### GET /api/v1/tenants
 
-用途：列出我可访问的空间。权限：已登录；API key 需 `manage_tenant_settings` 或 full-access。Handler: `internal/handler/tenant.go`
+用途：列出我可访问的工作区。权限：已登录；API key 需 `manage_tenant_settings` 或 full-access。Handler: `internal/handler/tenant.go`
 
 响应：200 `{"success":true,"data":{"items":[TenantResponse]}}`
 
@@ -40,7 +40,7 @@ curl $BASE/api/v1/tenants -H "Authorization: Bearer $TOKEN"
 
 ### GET /api/v1/tenants/all
 
-用途：列出部署里的全部空间（「用户与空间」页的空间目录）。权限：`TenantCatalog()`（系统管理员、跨空间超管）；平台 key 需 `system_tenants_read|manage`。Handler: `internal/handler/tenant.go`
+用途：列出部署里的全部工作区（「用户与工作区」页的工作区目录）。权限：`TenantCatalog()`（系统管理员、跨工作区超管）；平台 key 需 `system_tenants_read|manage`。Handler: `internal/handler/tenant.go`
 
 响应：200 `{"success":true,"data":{"items":[TenantResponse]}}`，每项带 `member_count`（活跃成员数，一次批量统计；统计失败时省略该字段而不是让整个列表失败）。
 
@@ -50,12 +50,12 @@ curl $BASE/api/v1/tenants/all -H "Authorization: Bearer $TOKEN"
 
 ### GET /api/v1/tenants/search
 
-用途：按关键字搜索空间。权限：同上。Handler: `internal/handler/tenant.go`
+用途：按关键字搜索工作区。权限：同上。Handler: `internal/handler/tenant.go`
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `keyword` | string | 否 | 关键字 |
-| `tenant_id` | string | 否 | 精确空间 ID |
+| `tenant_id` | string | 否 | 精确工作区 ID |
 | `page` / `page_size` | int | 否 | 分页（默认 1/20，上限 100） |
 
 响应：200 `{"success":true,"data":{"items":[...],"total","page","page_size"}}`，每项同样带 `member_count`。
@@ -66,7 +66,7 @@ curl "$BASE/api/v1/tenants/search?keyword=demo&page=1" -H "Authorization: Bearer
 
 ### GET /api/v1/tenants/:id
 
-用途：空间详情。权限：Viewer+；平台 key 需 `system_tenants_read|manage`。Handler: `internal/handler/tenant.go`
+用途：工作区详情。权限：Viewer+；平台 key 需 `system_tenants_read|manage`。Handler: `internal/handler/tenant.go`
 
 响应：200 `{"success":true,"data":{TenantResponse}}`
 
@@ -76,7 +76,7 @@ curl $BASE/api/v1/tenants/1 -H "Authorization: Bearer $TOKEN"
 
 ### PUT /api/v1/tenants/:id
 
-用途：更新空间配置。权限：Owner；平台 key 需 `system_tenants_manage`。Handler: `internal/handler/tenant.go`
+用途：更新工作区配置。权限：Owner；平台 key 需 `system_tenants_manage`。Handler: `internal/handler/tenant.go`
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
@@ -92,14 +92,14 @@ curl -X PUT $BASE/api/v1/tenants/1 -H "Authorization: Bearer $TOKEN" \
 
 ### DELETE /api/v1/tenants/:id
 
-用途：删除空间，连同它的知识库、会话、成员关系。权限：Owner；平台 key 需 `system_tenants_manage`。Handler: `internal/handler/tenant.go`
+用途：删除工作区，连同它的知识库、会话、成员关系。权限：Owner；平台 key 需 `system_tenants_manage`。Handler: `internal/handler/tenant.go`
 
 两种情况下拒绝，都是 409：
 
 | code | 情况 | 怎么办 |
 | --- | --- | --- |
-| 2007 | 空间里还有调用者以外的活跃成员（消息里带人数）——删除会让他们悄悄失去访问 | 先把其他成员移出或转走 |
-| 2008 | 这是部署里最后一个空间——没有空间就没有地方放用户，而 bootstrap 只跑一次 | 先建另一个空间 |
+| 2007 | 工作区里还有调用者以外的活跃成员（消息里带人数）——删除会让他们悄悄失去访问 | 先把其他成员移出或转走 |
+| 2008 | 这是部署里最后一个工作区——没有工作区就没有地方放用户，而 bootstrap 只跑一次 | 先建另一个工作区 |
 
 成功后写平台级审计 `system.tenant_deleted`。
 
@@ -109,14 +109,14 @@ curl -X PUT $BASE/api/v1/tenants/1 -H "Authorization: Bearer $TOKEN" \
 curl -X DELETE $BASE/api/v1/tenants/1 -H "Authorization: Bearer $TOKEN"
 ```
 
-## 空间 KV 配置
+## 工作区 KV 配置
 
-`:key` 为配置键而非空间 ID（空间取自认证上下文，URL 里不接受 tenant_id），可选值如下，其他键返回 400 `unsupported key`：
+`:key` 为配置键而非工作区 ID（工作区取自认证上下文，URL 里不接受 tenant_id），可选值如下，其他键返回 400 `unsupported key`：
 
 | key | 内容 | 读写要求 |
 | --- | --- | --- |
 | `web-search-config` | 网页搜索配置 | 读写都要 Admin+（API key 需 full-access 或 `manage_tenant_settings`），否则 403；开启集中管控后只有系统管理员能写 |
-| `parser-engine-config` | 空间级解析引擎覆盖 | 同上 |
+| `parser-engine-config` | 工作区级解析引擎覆盖 | 同上 |
 | `chat-history-config` | 聊天历史索引配置 | 读 Viewer+，写 Admin+ |
 | `retrieval-config` | 全局检索配置 | 读 Viewer+，写 Admin+ |
 | `prompt-templates` | 系统提示词模板，按请求语言本地化 | 只读，不支持 PUT |
@@ -129,7 +129,7 @@ curl -X DELETE $BASE/api/v1/tenants/1 -H "Authorization: Bearer $TOKEN"
 
 ### GET /api/v1/tenants/kv/:key
 
-用途：读取空间级 KV 配置。权限：Viewer+；API key 需 `manage_tenant_settings` 或 full-access。Handler: `internal/handler/tenant.go`
+用途：读取工作区级 KV 配置。权限：Viewer+；API key 需 `manage_tenant_settings` 或 full-access。Handler: `internal/handler/tenant.go`
 
 响应：200 `{"success":true,"data":{...对应配置对象...}}`
 
@@ -139,7 +139,7 @@ curl $BASE/api/v1/tenants/kv/retrieval-config -H "Authorization: Bearer $TOKEN"
 
 ### PUT /api/v1/tenants/kv/:key
 
-用途：更新空间级 KV 配置。权限：Admin+；API key 需 `manage_tenant_settings` 或 full-access。请求体：与 `:key` 对应的配置 JSON 对象。Handler: `internal/handler/tenant.go`
+用途：更新工作区级 KV 配置。权限：Admin+；API key 需 `manage_tenant_settings` 或 full-access。请求体：与 `:key` 对应的配置 JSON 对象。Handler: `internal/handler/tenant.go`
 
 响应：200 `{"success":true,"message":"Configuration updated"}`
 
@@ -152,7 +152,7 @@ curl -X PUT $BASE/api/v1/tenants/kv/web-search-config -H "Authorization: Bearer 
 
 ### GET /api/v1/tenants/:id/api-keys
 
-用途：列出空间 API key（掩码显示）。权限：Owner，仅 JWT（API key 默认拒绝）。Handler: `internal/handler/tenant.go`
+用途：列出工作区 API key（掩码显示）。权限：Owner，仅 JWT（API key 默认拒绝）。Handler: `internal/handler/tenant.go`
 
 响应：200 `{"success":true,"data":[{id,scope_type,name,api_key(掩码),full_access,knowledge_base_ids,capabilities,last_used_at,expires_at,created_at}]}`
 
@@ -162,13 +162,13 @@ curl $BASE/api/v1/tenants/1/api-keys -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/tenants/:id/api-keys
 
-用途：创建空间 API key（明文仅返回一次）。权限：Owner，仅 JWT。Handler: `internal/handler/tenant.go`
+用途：创建工作区 API key（明文仅返回一次）。权限：Owner，仅 JWT。Handler: `internal/handler/tenant.go`
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `name` | string | 是 | key 名称，不能为空白 |
-| `full_access` | bool | 否 | 空间全权 key（默认 false） |
-| `knowledge_base_ids` | []string | 否 | KB 白名单（scoped key）；每个 ID 必须存在且属于本空间，空列表表示不限 KB |
+| `full_access` | bool | 否 | 工作区全权 key（默认 false） |
+| `knowledge_base_ids` | []string | 否 | KB 白名单（scoped key）；每个 ID 必须存在且属于本工作区，空列表表示不限 KB |
 | `capabilities` | []string | scoped key 必填 | capability 列表（见[总览](./01-api-overview.md)）；`full_access=false` 时至少一个，出现未知值返回 1010 |
 | `expires_at_unix` | *int64 | 否 | 过期时间（Unix 秒） |
 
@@ -184,7 +184,7 @@ curl -X POST $BASE/api/v1/tenants/1/api-keys -H "Authorization: Bearer $TOKEN" \
 
 用途：修改已创建 key 的名称、全权开关、KB 白名单、capability 与过期时间，key 本身不变。权限：Owner，仅 JWT。请求体字段与创建接口相同，校验规则也相同（整体替换，不是局部合并）。
 
-响应：200 `{"success":true,"data":{tenantAPIKeyResponse}}`。key 不存在（或不属于该空间）返回 404；请求不合法返回 400，例如给空间 Key 申请 `system_*` 能力（这类能力只属于平台 Key）。
+响应：200 `{"success":true,"data":{tenantAPIKeyResponse}}`。key 不存在（或不属于该工作区）返回 404；请求不合法返回 400，例如给工作区 Key 申请 `system_*` 能力（这类能力只属于平台 Key）。
 
 ```bash
 curl -X PUT $BASE/api/v1/tenants/1/api-keys/5 -H "Authorization: Bearer $TOKEN" \
@@ -219,7 +219,7 @@ curl $BASE/api/v1/tenants/1/api-principal-config -H "Authorization: Bearer $TOKE
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `mode` | string | 是 | `tenant` / `direct_header` / `signed_token`，其他值返回 1010 |
-| `require_direct_header` | bool | 否 | `direct_header` 模式下缺 Header 时是否返回 401（否则回落为空间级主体） |
+| `require_direct_header` | bool | 否 | `direct_header` 模式下缺 Header 时是否返回 401（否则回落为工作区级主体） |
 | `hmac_secret` | *string | 否 | signed_token 模式密钥（传 `***` 保留原值） |
 
 切到 `signed_token` 时必须已有或本次提供 `hmac_secret`，否则返回 1010。各模式的安全假设见[总览](./01-api-overview.md)的「外部用户主体」：`direct_header` 的用户 ID 可被任何持有 key 的调用方伪造，面向终端用户的集成应使用 `signed_token`。
@@ -277,7 +277,7 @@ curl $BASE/api/v1/tenants/1/members -H "Authorization: Bearer $TOKEN"
 | `email` | string | 是（`binding:"required,email"`） | 成员邮箱（须已注册，否则 404） |
 | `role` | string | 是（`binding:"required"`） | `owner/admin/contributor/viewer` |
 
-响应：201 `{"success":true,"data":{成员对象}}`；已是成员返回 409。被加入的人之前没有任何空间时，这个空间会被记为其当前空间。
+响应：201 `{"success":true,"data":{成员对象}}`；已是成员返回 409。被加入的人之前没有任何工作区时，这个工作区会被记为其当前工作区。
 
 ```bash
 curl -X POST $BASE/api/v1/tenants/1/members -H "Authorization: Bearer $TOKEN" \
@@ -307,16 +307,16 @@ curl -X DELETE $BASE/api/v1/tenants/1/members/u-123 -H "Authorization: Bearer $T
 
 ### 系统管理员的成员接口（/system/admin/tenants/:id/members）
 
-同一组 handler 再挂一份在 `/system/admin/tenants/:id` 下（`RegisterSystemAdminRoutes`），守卫换成 `SystemAdmin()`，**不**要求调用者是该空间成员，也不要求 URL 里的空间等于当前空间——系统管理员用它给自己不在的空间加第一批人，或把一个还没有任何空间的账号加进来。平台 key：读需 `system_tenants_read|manage`，写需 `system_tenants_manage`。
+同一组 handler 再挂一份在 `/system/admin/tenants/:id` 下（`RegisterSystemAdminRoutes`），守卫换成 `SystemAdmin()`，**不**要求调用者是该工作区成员，也不要求 URL 里的工作区等于当前工作区——系统管理员用它给自己不在的工作区加第一批人，或把一个还没有任何工作区的账号加进来。平台 key：读需 `system_tenants_read|manage`，写需 `system_tenants_manage`。
 
-| 方法与路径 | 对应的空间接口 | 差别 |
+| 方法与路径 | 对应的工作区接口 | 差别 |
 | --- | --- | --- |
 | `GET /system/admin/tenants/:id/members` | `GET /tenants/:id/members` | 同 |
 | `POST /system/admin/tenants/:id/members` | `POST /tenants/:id/members` | 同（`{email, role}`） |
 | `PATCH /system/admin/tenants/:id/members/:user_id` | `PUT /tenants/:id/members/:user_id` | 方法是 PATCH：请求体只有 `role` 一个字段 |
 | `DELETE /system/admin/tenants/:id/members/:user_id` | `DELETE /tenants/:id/members/:user_id` | 同 |
 
-服务层规则不变（最后一位 Owner 不能被降级或移出；空间不存在返回 404）。审计仍写空间级的 `rbac.member_*`，但 `actor_role` 记为 `system_admin`，而不是调用者在自己当前空间里的角色。
+服务层规则不变（最后一位 Owner 不能被降级或移出；工作区不存在返回 404）。审计仍写工作区级的 `rbac.member_*`，但 `actor_role` 记为 `system_admin`，而不是调用者在自己当前工作区里的角色。
 
 ```bash
 curl -X POST $BASE/api/v1/system/admin/tenants/10001/members -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -325,7 +325,7 @@ curl -X POST $BASE/api/v1/system/admin/tenants/10001/members -H "Authorization: 
 
 ### POST /api/v1/tenants/:id/leave
 
-用途：退出空间（任何成员可自行退出；服务层拒绝导致空间无 Owner 的退出）。权限：Viewer+，仅 JWT。
+用途：退出工作区（任何成员可自行退出；服务层拒绝导致工作区无 Owner 的退出）。权限：Viewer+，仅 JWT。
 
 响应：200 `{"success":true}`
 
@@ -333,13 +333,13 @@ curl -X POST $BASE/api/v1/system/admin/tenants/10001/members -H "Authorization: 
 curl -X POST $BASE/api/v1/tenants/1/leave -H "Authorization: Bearer $TOKEN"
 ```
 
-## 空间邀请（/tenants/:id/invitations 与 invite-links）
+## 工作区邀请（/tenants/:id/invitations 与 invite-links）
 
 Handler: `internal/handler/tenant_invitation.go`、`internal/handler/tenant_invite_link.go`。API key 需 `manage_members` 或 full-access。
 
 ### GET /api/v1/tenants/:id/invitations
 
-用途：空间邀请列表。权限：Viewer+。
+用途：工作区邀请列表。权限：Viewer+。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
@@ -364,7 +364,7 @@ curl $BASE/api/v1/tenants/1/invitations -H "Authorization: Bearer $TOKEN"
 
 响应：201 `{"success":true,"data":{TenantInvitationResponse}}`；已有待处理邀请或对方已是成员返回 409。
 
-系统设置 `tenant.auto_accept_invitation`（环境变量 `YUHENG_TENANT_AUTO_ACCEPT_INVITATION`，默认 false）打开时跳过确认：直接写入成员关系并清理对方已有的 pending 邀请，响应的 `data` 是成员对象（含 `user_id`、`status:"active"`），不再是邀请对象。受邀人之前没有任何空间时，这个空间会被记为其当前空间（`preferences.last_active_tenant_id`）。客户端可以从 `GET /auth/me` 的 `capabilities.auto_accept_invitation` 得知当前行为。
+系统设置 `tenant.auto_accept_invitation`（环境变量 `YUHENG_TENANT_AUTO_ACCEPT_INVITATION`，默认 false）打开时跳过确认：直接写入成员关系并清理对方已有的 pending 邀请，响应的 `data` 是成员对象（含 `user_id`、`status:"active"`），不再是邀请对象。受邀人之前没有任何工作区时，这个工作区会被记为其当前工作区（`preferences.last_active_tenant_id`）。客户端可以从 `GET /auth/me` 的 `capabilities.auto_accept_invitation` 得知当前行为。
 
 ```bash
 curl -X POST $BASE/api/v1/tenants/1/invitations -H "Authorization: Bearer $TOKEN" \
@@ -403,7 +403,7 @@ Handler: `internal/handler/audit_log.go`。游标分页。
 
 ### GET /api/v1/tenants/:id/audit-log
 
-用途：空间审计日志（含被拒绝操作记录）。权限：Admin+，仅 JWT。
+用途：工作区审计日志（含被拒绝操作记录）。权限：Admin+，仅 JWT。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |

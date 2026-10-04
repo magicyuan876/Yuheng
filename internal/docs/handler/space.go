@@ -93,7 +93,7 @@ type BindKnowledgeBaseRequest struct {
 
 // List godoc
 // @Summary      列出可见的文档空间
-// @Description  返回当前用户可读的空间（成员空间、开放空间；租户管理员见全部）及其在每个空间中的角色
+// @Description  返回当前用户可读的空间（成员空间、开放空间；工作区管理员见全部）及其在每个空间中的角色
 // @Tags         在线文档
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}
@@ -259,7 +259,7 @@ func (h *SpaceHandler) Delete(c *gin.Context) {
 
 // Restore godoc
 // @Summary      从回收站恢复文档空间
-// @Description  仅租户管理员可恢复
+// @Description  仅工作区管理员可恢复
 // @Tags         在线文档
 // @Produce      json
 // @Param        sid  path  string  true  "空间 ID"
@@ -380,7 +380,7 @@ func (h *SpaceHandler) RemoveMember(c *gin.Context) {
 
 // BindKnowledgeBase godoc
 // @Summary      绑定/解绑知识库与存储后端
-// @Description  字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在租户
+// @Description  字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在工作区
 // @Tags         在线文档
 // @Accept       json
 // @Produce      json

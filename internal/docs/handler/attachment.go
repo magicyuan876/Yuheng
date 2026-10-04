@@ -29,7 +29,7 @@ func (h *AttachmentHandler) ready(c *gin.Context) bool {
 
 // Upload godoc
 // @Summary      上传附件
-// @Description  向空间上传一个文件（multipart，字段名 file）；可选 page_id 直接绑定到页面。按内容嗅探类型、SVG 去脚本、按 sha256 去重并计入租户配额
+// @Description  向空间上传一个文件（multipart，字段名 file）；可选 page_id 直接绑定到页面。按内容嗅探类型、SVG 去脚本、按 sha256 去重并计入工作区配额
 // @Tags         在线文档
 // @Accept       multipart/form-data
 // @Produce      json

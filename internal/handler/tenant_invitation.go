@@ -206,11 +206,11 @@ func (h *TenantInvitationHandler) hydrateTenants(c *gin.Context, invs []*types.T
 }
 
 // ListTenantInvitations godoc
-// @Summary      列出空间邀请
-// @Description  按空间列出待接受 / 历史邀请。query include_terminal=true 时附带 accepted/declined/revoked/expired。
-// @Tags         空间邀请
+// @Summary      列出工作区邀请
+// @Description  按工作区列出待接受 / 历史邀请。query include_terminal=true 时附带 accepted/declined/revoked/expired。
+// @Tags         工作区邀请
 // @Produce      json
-// @Param        id                path   string  true   "空间 ID"
+// @Param        id                path   string  true   "工作区 ID"
 // @Param        include_terminal  query  bool    false  "是否包含终止态行（默认 false）"
 // @Param        page              query  int     false  "页码（从 1 起）"  default(1)
 // @Param        page_size         query  int     false  "每页数量"  default(20)
@@ -263,12 +263,12 @@ func (h *TenantInvitationHandler) ListTenantInvitations(c *gin.Context) {
 }
 
 // CreateInvitation godoc
-// @Summary      发出空间邀请
-// @Description  Owner 通过邮箱邀请已注册用户加入空间。开启 tenant.auto_accept_invitation 后被邀请人立即自动加入（响应为成员结构），否则需在 /me/invitations 接受后成为成员。
-// @Tags         空间邀请
+// @Summary      发出工作区邀请
+// @Description  Owner 通过邮箱邀请已注册用户加入工作区。开启 tenant.auto_accept_invitation 后被邀请人立即自动加入（响应为成员结构），否则需在 /me/invitations 接受后成为成员。
+// @Tags         工作区邀请
 // @Accept       json
 // @Produce      json
-// @Param        id       path  string                   true  "空间 ID"
+// @Param        id       path  string                   true  "工作区 ID"
 // @Param        request  body  createInvitationRequest  true  "邀请请求"
 // @Success      201  {object}  map[string]interface{}
 // @Security     Bearer
@@ -387,9 +387,9 @@ func (h *TenantInvitationHandler) autoAcceptInvitationAndRespond(
 // RevokeInvitation godoc
 // @Summary      撤销待接受邀请
 // @Description  Owner 取消一条还在 pending 的邀请；已 accepted/declined/revoked/expired 的行不可再撤销。
-// @Tags         空间邀请
+// @Tags         工作区邀请
 // @Produce      json
-// @Param        id      path  string  true  "空间 ID"
+// @Param        id      path  string  true  "工作区 ID"
 // @Param        inv_id  path  string  true  "邀请 ID"
 // @Success      200  {object}  map[string]interface{}
 // @Security     Bearer
@@ -574,8 +574,8 @@ type acceptInvitationByTokenRequest struct {
 }
 
 // AcceptMyInvitationByToken godoc
-// @Summary      通过共享链接加入空间
-// @Description  已登录用户用共享邀请链接 token 加入空间，不创建新账号；对已是成员的用户幂等。
+// @Summary      通过共享链接加入工作区
+// @Description  已登录用户用共享邀请链接 token 加入工作区，不创建新账号；对已是成员的用户幂等。
 // @Tags         我的邀请
 // @Accept       json
 // @Produce      json

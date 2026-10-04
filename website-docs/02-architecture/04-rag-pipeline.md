@@ -341,7 +341,7 @@ flowchart TD
 
 ### 5.3 回答反馈与知识健康
 
-会话所有者可以对 assistant 消息标记「有帮助 / 没帮助」（`PUT /api/v1/sessions/:id/messages/:message_id/feedback`，需登录用户），记录在 `message_feedback` 表（每人每条消息一行，`rating` 为 `up` / `down`，可附意见与 `share_question`）。提交或撤回「没帮助」后，`MessageFeedbackService` 取出该回答 `knowledge_references` 中**本空间**的文档，为每篇排一次知识健康检测；`DisputeDetector` 统计自该文档最近一次被确认或修改以来、引用它的回答收到的「没帮助」，有则生成 `disputed` 问题交给文档负责人。负责人确认文档仍然有效或修改文档后，计数重新开始，问题在下一次检测时关闭。跨空间共享来的知识库不接收这里的反馈；会话被删除后其中的反馈不再计入。详见 [知识健康](../03-features/22-knowledge-health.md)。
+会话所有者可以对 assistant 消息标记「有帮助 / 没帮助」（`PUT /api/v1/sessions/:id/messages/:message_id/feedback`，需登录用户），记录在 `message_feedback` 表（每人每条消息一行，`rating` 为 `up` / `down`，可附意见与 `share_question`）。提交或撤回「没帮助」后，`MessageFeedbackService` 取出该回答 `knowledge_references` 中**本工作区**的文档，为每篇排一次知识健康检测；`DisputeDetector` 统计自该文档最近一次被确认或修改以来、引用它的回答收到的「没帮助」，有则生成 `disputed` 问题交给文档负责人。负责人确认文档仍然有效或修改文档后，计数重新开始，问题在下一次检测时关闭。跨工作区共享来的知识库不接收这里的反馈；会话被删除后其中的反馈不再计入。详见 [知识健康](../03-features/22-knowledge-health.md)。
 
 ## 6. 流式输出机制
 
@@ -464,7 +464,7 @@ sequenceDiagram
 
 `internal/application/service/knowledgebase_search.go` 是所有检索的汇聚点（chat pipeline 与搜索 API 共用）：
 
-1. **授权与校验**：批量加载 KB，逐库校验属于请求的租户（别的空间的知识库按不存在处理）；`validateSameEmbeddingModel` 拒绝跨 embedding 空间的多库检索（wiki/graph 无向量库有豁免）。
+1. **授权与校验**：批量加载 KB，逐库校验属于请求的租户（别的工作区的知识库按不存在处理）；`validateSameEmbeddingModel` 拒绝跨 embedding 工作区的多库检索（wiki/graph 无向量库有豁免）。
 2. **入参归一化 + 过召回**：`MatchCount <= 0`（调用方未传时 JSON 反序列化即为 0）先经 `normalizedMatchCount` 归一化为 `types.DefaultRetrievalTopK`（50），使过召回下限、FAQ 迭代触发条件、末尾截断三处读到同一个值——否则截断会把结果集切成 `[:0]`，负数还会越界 panic；随后 `matchCount = max(MatchCount*5, 50) * len(KBs)`，上限 `maxRetrievalPoolSize`（500）。
 3. **查询向量只算一次**，随 `params.QueryEmbedding` 传播到所有 store 组。
 4. **storeGroup 分组**（`knowledgebase_search_storegroup.go`）：按 `VectorStoreID` 分组（所有 KB 都属于请求的租户）；每组经 `retriever.CreateRetrieveEngineForKB` 解析出 `CompositeRetrieveEngine`。`buildRetrievalParams` 按组内每个 KB 的类型路由：FAQ 库走 FAQ 向量索引（`KnowledgeType=faq`，无关键词索引），文档库走默认向量索引 + 关键词索引。

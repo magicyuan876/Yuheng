@@ -138,7 +138,7 @@ const docTemplate = `{
         },
         "/auth/invitations/lookup": {
             "post": {
-                "description": "根据邀请链接中的 token 返回邀请上下文（空间名 / 角色 / 过期时间），\n供注册页展示。无认证；token 无效或被撤销返回 410。\n使用 POST + body 而非 GET + path，避免 token 落入访问日志 / 浏览器历史 / tracing。",
+                "description": "根据邀请链接中的 token 返回邀请上下文（工作区名 / 角色 / 过期时间），\n供注册页展示。无认证；token 无效或被撤销返回 410。\n使用 POST + body 而非 GET + path，避免 token 落入访问日志 / 浏览器历史 / tracing。",
                 "consumes": [
                     "application/json"
                 ],
@@ -507,7 +507,7 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
-                "description": "注册新用户账号。注册只创建账号，不创建空间；用户通过邀请或由系统管理员加入空间。\n例外是部署的首个账号（/auth/config 的 first_user 为 true）：它同时创建部署的默认空间并成为其 Owner，\n可通过 workspace_name 指定空间名称（为空则为 \"Default Workspace\"）。",
+                "description": "注册新用户账号。注册只创建账号，不创建工作区；用户通过邀请或由系统管理员加入工作区。\n例外是部署的首个账号（/auth/config 的 first_user 为 true）：它同时创建部署的默认工作区并成为其 Owner，\n可通过 workspace_name 指定工作区名称（为空则为 \"Default Workspace\"）。",
                 "consumes": [
                     "application/json"
                 ],
@@ -553,7 +553,7 @@ const docTemplate = `{
         },
         "/auth/register-by-invite": {
             "post": {
-                "description": "通过 Owner 生成的共享邀请链接 token 完成注册，绕过 invite_only 模式拦截。\n注册者自填邮箱（与 token 不绑定）；注册成功后自动加入对应空间。",
+                "description": "通过 Owner 生成的共享邀请链接 token 完成注册，绕过 invite_only 模式拦截。\n注册者自填邮箱（与 token 不绑定）；注册成功后自动加入对应工作区。",
                 "consumes": [
                     "application/json"
                 ],
@@ -610,7 +610,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "为当前用户在目标空间重新签发访问令牌；要求该用户在目标空间存在 active 成员关系（跨空间超管除外）",
+                "description": "为当前用户在目标工作区重新签发访问令牌；要求该用户在目标工作区存在 active 成员关系（跨工作区超管除外）",
                 "consumes": [
                     "application/json"
                 ],
@@ -620,7 +620,7 @@ const docTemplate = `{
                 "tags": [
                     "认证"
                 ],
-                "summary": "切换激活空间",
+                "summary": "切换激活工作区",
                 "parameters": [
                     {
                         "description": "切换请求",
@@ -654,7 +654,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "无该空间成员关系",
+                        "description": "无该工作区成员关系",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -4561,7 +4561,7 @@ const docTemplate = `{
         },
         "/docs/public-spaces/{sid}": {
             "get": {
-                "description": "返回空间信息与顶层页面。空间必须是 public，且部署开启了公开分享\n用空间 ID 而不是 slug 寻址：slug 只在租户内唯一，而访客没有租户",
+                "description": "返回空间信息与顶层页面。空间必须是 public，且部署开启了公开分享\n用空间 ID 而不是 slug 寻址：slug 只在工作区内唯一，而访客没有工作区",
                 "produces": [
                     "application/json"
                 ],
@@ -4848,7 +4848,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "返回当前用户可读的空间（成员空间、开放空间；租户管理员见全部）及其在每个空间中的角色",
+                "description": "返回当前用户可读的空间（成员空间、开放空间；工作区管理员见全部）及其在每个空间中的角色",
                 "produces": [
                     "application/json"
                 ],
@@ -5050,7 +5050,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "向空间上传一个文件（multipart，字段名 file）；可选 page_id 直接绑定到页面。按内容嗅探类型、SVG 去脚本、按 sha256 去重并计入租户配额",
+                "description": "向空间上传一个文件（multipart，字段名 file）；可选 page_id 直接绑定到页面。按内容嗅探类型、SVG 去脚本、按 sha256 去重并计入工作区配额",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -5233,7 +5233,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在租户",
+                "description": "字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在工作区",
                 "consumes": [
                     "application/json"
                 ],
@@ -5716,7 +5716,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "仅租户管理员可恢复",
+                "description": "仅工作区管理员可恢复",
                 "produces": [
                     "application/json"
                 ],
@@ -6273,7 +6273,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "当前空间里派给我处理的知识健康问题，跨知识库，附知识库名称。status 默认 open，all 列出全部",
+                "description": "当前工作区里派给我处理的知识健康问题，跨知识库，附知识库名称。status 默认 open，all 列出全部",
                 "produces": [
                     "application/json"
                 ],
@@ -6325,7 +6325,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "当前空间里派给我、尚未处理的知识健康问题数量，用于导航角标",
+                "description": "当前工作区里派给我、尚未处理的知识健康问题数量，用于导航角标",
                 "produces": [
                     "application/json"
                 ],
@@ -6356,9 +6356,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间组"
+                    "工作区组"
                 ],
-                "summary": "列出空间组",
+                "summary": "列出工作区组",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -6375,7 +6375,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "组名在空间内唯一（不区分大小写）；可同时指定初始成员",
+                "description": "组名在工作区内唯一（不区分大小写）；可同时指定初始成员",
                 "consumes": [
                     "application/json"
                 ],
@@ -6383,12 +6383,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间组"
+                    "工作区组"
                 ],
-                "summary": "创建空间组",
+                "summary": "创建工作区组",
                 "parameters": [
                     {
-                        "description": "空间组",
+                        "description": "工作区组",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -6419,13 +6419,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间组"
+                    "工作区组"
                 ],
-                "summary": "获取空间组",
+                "summary": "获取工作区组",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间组 ID",
+                        "description": "工作区组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6447,15 +6447,15 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "同时移除该组在所有模块中持有的授权（如文档空间与页面）；默认组不可删除",
+                "description": "同时移除该组在所有模块中持有的授权（如文档工作区与页面）；默认组不可删除",
                 "tags": [
-                    "空间组"
+                    "工作区组"
                 ],
-                "summary": "删除空间组",
+                "summary": "删除工作区组",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间组 ID",
+                        "description": "工作区组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6481,13 +6481,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间组"
+                    "工作区组"
                 ],
-                "summary": "更新空间组",
+                "summary": "更新工作区组",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间组 ID",
+                        "description": "工作区组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6524,13 +6524,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间组"
+                    "工作区组"
                 ],
-                "summary": "分页列出空间组成员",
+                "summary": "分页列出工作区组成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间组 ID",
+                        "description": "工作区组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6580,13 +6580,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间组"
+                    "工作区组"
                 ],
-                "summary": "向空间组添加成员",
+                "summary": "向工作区组添加成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间组 ID",
+                        "description": "工作区组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -6620,13 +6620,13 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "空间组"
+                    "工作区组"
                 ],
-                "summary": "从空间组移除成员",
+                "summary": "从工作区组移除成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间组 ID",
+                        "description": "工作区组 ID",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -7406,7 +7406,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "获取当前空间的所有知识库",
+                "description": "获取当前工作区的所有知识库",
                 "consumes": [
                     "application/json"
                 ],
@@ -7736,7 +7736,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "返回知识库的重要变更与后台任务入口。仅知识库创建者或所属空间管理员可读。",
+                "description": "返回知识库的重要变更与后台任务入口。仅知识库创建者或所属工作区管理员可读。",
                 "produces": [
                     "application/json"
                 ],
@@ -8661,7 +8661,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "为知识库中所有已完成索引的文档安排一次健康检测（分批错开执行，已在排队的不重复安排），返回新安排的数量。仅知识库所属空间可发起",
+                "description": "为知识库中所有已完成索引的文档安排一次健康检测（分批错开执行，已在排队的不重复安排），返回新安排的数量。仅知识库所属工作区可发起",
                 "produces": [
                     "application/json"
                 ],
@@ -8827,7 +8827,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "把问题交给指定成员处理（之后的自动检测不再改派）；assignee_id 为空表示交还自动派发，并立即重新派发。处理人须能编辑该知识库，涉及在线文档的问题也可以是空间的在职成员。操作记入知识库动态",
+                "description": "把问题交给指定成员处理（之后的自动检测不再改派）；assignee_id 为空表示交还自动派发，并立即重新派发。处理人须能编辑该知识库，涉及在线文档的问题也可以是文档空间的在职成员。操作记入知识库动态",
                 "consumes": [
                     "application/json"
                 ],
@@ -12190,7 +12190,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "已登录用户用共享邀请链接 token 加入空间，不创建新账号；对已是成员的用户幂等。",
+                "description": "已登录用户用共享邀请链接 token 加入工作区，不创建新账号；对已是成员的用户幂等。",
                 "consumes": [
                     "application/json"
                 ],
@@ -12200,7 +12200,7 @@ const docTemplate = `{
                 "tags": [
                     "我的邀请"
                 ],
-                "summary": "通过共享链接加入空间",
+                "summary": "通过共享链接加入工作区",
                 "parameters": [
                     {
                         "description": "邀请 token",
@@ -12541,7 +12541,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "获取当前空间的所有模型",
+                "description": "获取当前工作区的所有模型",
                 "consumes": [
                     "application/json"
                 ],
@@ -12812,7 +12812,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "将模型设为平台共享（所有空间可见可用，凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。\n取消共享时，若仍有任意空间的知识库绑定该模型，请求会被拒绝。",
+                "description": "将模型设为平台共享（所有工作区可见可用，凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。\n取消共享时，若仍有任意工作区的知识库绑定该模型，请求会被拒绝。",
                 "consumes": [
                     "application/json"
                 ],
@@ -12880,7 +12880,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "获取当前空间的会话列表，支持分页、关键字搜索、按来源筛选",
+                "description": "获取当前工作区的会话列表，支持分页、关键字搜索、按来源筛选",
                 "consumes": [
                     "application/json"
                 ],
@@ -12991,7 +12991,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "根据ID列表批量删除对话会话，或设置 delete_all=true 删除当前空间的所有会话",
+                "description": "根据ID列表批量删除对话会话，或设置 delete_all=true 删除当前工作区的所有会话",
                 "consumes": [
                     "application/json"
                 ],
@@ -13342,7 +13342,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "rating=up（有帮助）/ down（没帮助）/ 空（撤回）。“没帮助”会以“回答被反馈有误”出现在回答所引用文档的知识健康里，\n交给文档负责人，知识库成员可见：显示意见和回答开头，share_question=true 时附上提问。只对本空间的文档生效。需要登录用户",
+                "description": "rating=up（有帮助）/ down（没帮助）/ 空（撤回）。“没帮助”会以“回答被反馈有误”出现在回答所引用文档的知识健康里，\n交给文档负责人，知识库成员可见：显示意见和回答开头，share_question=true 时附上提问。只对本工作区的文档生效。需要登录用户",
                 "consumes": [
                     "application/json"
                 ],
@@ -14173,7 +14173,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "将存储实例设为平台共享（所有空间可见可选用，端点与凭据对非系统管理员隐藏）或取消共享。\n仅系统管理员可调用。取消共享时，若 owner 之外的空间仍有默认存储、知识库或活跃资源绑定，请求会被拒绝。",
+                "description": "将存储实例设为平台共享（所有工作区可见可选用，端点与凭据对非系统管理员隐藏）或取消共享。\n仅系统管理员可调用。取消共享时，若 owner 之外的工作区仍有默认存储、知识库或活跃资源绑定，请求会被拒绝。",
                 "consumes": [
                     "application/json"
                 ],
@@ -14211,7 +14211,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "仍被其他空间引用",
+                        "description": "仍被其他工作区引用",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -14491,7 +14491,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "返回系统管理员配置的平台默认解析引擎参数。优先级：部署 ENV \u003c 平台默认 \u003c 空间覆盖。\n凭据字段以掩码返回。仅系统管理员可访问。",
+                "description": "返回系统管理员配置的平台默认解析引擎参数。优先级：部署 ENV \u003c 平台默认 \u003c 工作区覆盖。\n凭据字段以掩码返回。仅系统管理员可访问。",
                 "produces": [
                     "application/json"
                 ],
@@ -14515,7 +14515,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "保存平台默认解析引擎参数，对所有空间生效（空间可再自行覆盖，除非已开启集中管控）。\n凭据字段传回掩码占位符表示\"不修改\"。仅系统管理员可访问。",
+                "description": "保存平台默认解析引擎参数，对所有工作区生效（工作区可再自行覆盖，除非已开启集中管控）。\n凭据字段传回掩码占位符表示\"不修改\"。仅系统管理员可访问。",
                 "consumes": [
                     "application/json"
                 ],
@@ -14989,18 +14989,18 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "分页返回空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。\n/tenants/{id}/members 供空间成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意空间。",
+                "description": "分页返回工作区内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。\n/tenants/{id}/members 供工作区成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意工作区。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "列出空间成员",
+                "summary": "列出工作区成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -15049,13 +15049,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "直接添加空间成员（直加路径）",
+                "summary": "直接添加工作区成员（直加路径）",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -15079,7 +15079,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "用户未注册 / 空间不存在",
+                        "description": "用户未注册 / 工作区不存在",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -15100,18 +15100,18 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "将某位成员从空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。\nOwner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。",
+                "description": "将某位成员从工作区中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。\nOwner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "移除空间成员",
+                "summary": "移除工作区成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -15146,7 +15146,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "修改某位成员在空间内的角色；不能将最后一位 Owner 降级。\nOwner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。",
+                "description": "修改某位成员在工作区内的角色；不能将最后一位 Owner 降级。\nOwner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。",
                 "consumes": [
                     "application/json"
                 ],
@@ -15154,13 +15154,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "修改空间成员角色",
+                "summary": "修改工作区成员角色",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -15508,7 +15508,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "获取当前用户可访问的空间列表",
+                "description": "获取当前用户可访问的工作区列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -15516,12 +15516,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "获取空间列表",
+                "summary": "获取工作区列表",
                 "responses": {
                     "200": {
-                        "description": "空间列表",
+                        "description": "工作区列表",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -15544,7 +15544,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "创建新的空间。仅系统管理员、跨空间超管与平台 API Key 可调用。\n每个空间在创建时就必须有 Owner：owner_email 指定一位已注册用户，\n省略时调用者本人成为 Owner；平台 API Key 没有\"本人\"，必须指定 owner_email。\n不会随空间发放 API Key，需要时通过 API Key 管理接口显式创建。",
+                "description": "创建新的工作区。仅系统管理员、跨工作区超管与平台 API Key 可调用。\n每个工作区在创建时就必须有 Owner：owner_email 指定一位已注册用户，\n省略时调用者本人成为 Owner；平台 API Key 没有\"本人\"，必须指定 owner_email。\n不会随工作区发放 API Key，需要时通过 API Key 管理接口显式创建。",
                 "consumes": [
                     "application/json"
                 ],
@@ -15552,12 +15552,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "创建空间",
+                "summary": "创建工作区",
                 "parameters": [
                     {
-                        "description": "空间信息（可含 owner_email）",
+                        "description": "工作区信息（可含 owner_email）",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -15568,7 +15568,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "创建的空间",
+                        "description": "创建的工作区",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -15605,7 +15605,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "获取部署中的所有空间，附带每个空间的成员数（系统管理员 / 跨空间超管 / 平台 API Key）",
+                "description": "获取部署中的所有工作区，附带每个工作区的成员数（系统管理员 / 跨工作区超管 / 平台 API Key）",
                 "consumes": [
                     "application/json"
                 ],
@@ -15613,12 +15613,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "获取所有空间列表",
+                "summary": "获取所有工作区列表",
                 "responses": {
                     "200": {
-                        "description": "所有空间列表",
+                        "description": "所有工作区列表",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -15651,7 +15651,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
                 "summary": "获取提示词模板",
                 "responses": {
@@ -15681,7 +15681,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "获取空间的网络搜索配置",
+                "description": "获取工作区的网络搜索配置",
                 "consumes": [
                     "application/json"
                 ],
@@ -15689,9 +15689,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "获取空间网络搜索配置",
+                "summary": "获取工作区网络搜索配置",
                 "responses": {
                     "200": {
                         "description": "网络搜索配置",
@@ -15719,7 +15719,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "获取空间级别的KV配置（支持web-search-config、prompt-templates、parser-engine-config、\nchat-history-config、retrieval-config）",
+                "description": "获取工作区级别的KV配置（支持web-search-config、prompt-templates、parser-engine-config、\nchat-history-config、retrieval-config）",
                 "consumes": [
                     "application/json"
                 ],
@@ -15727,9 +15727,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "获取空间KV配置",
+                "summary": "获取工作区KV配置",
                 "parameters": [
                     {
                         "type": "string",
@@ -15764,7 +15764,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "更新空间级别的KV配置（支持web-search-config、parser-engine-config、chat-history-config、retrieval-config）",
+                "description": "更新工作区级别的KV配置（支持web-search-config、parser-engine-config、chat-history-config、retrieval-config）",
                 "consumes": [
                     "application/json"
                 ],
@@ -15772,9 +15772,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "更新空间KV配置",
+                "summary": "更新工作区KV配置",
                 "parameters": [
                     {
                         "type": "string",
@@ -15820,7 +15820,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "分页搜索空间，附带成员数（系统管理员 / 跨空间超管 / 平台 API Key）",
+                "description": "分页搜索工作区，附带成员数（系统管理员 / 跨工作区超管 / 平台 API Key）",
                 "consumes": [
                     "application/json"
                 ],
@@ -15828,9 +15828,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "搜索空间",
+                "summary": "搜索工作区",
                 "parameters": [
                     {
                         "type": "string",
@@ -15840,7 +15840,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "空间ID筛选",
+                        "description": "工作区ID筛选",
                         "name": "tenant_id",
                         "in": "query"
                     },
@@ -15886,7 +15886,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "根据ID获取空间详情",
+                "description": "根据ID获取工作区详情",
                 "consumes": [
                     "application/json"
                 ],
@@ -15894,13 +15894,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "获取空间详情",
+                "summary": "获取工作区详情",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "空间ID",
+                        "description": "工作区ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -15908,7 +15908,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "空间详情",
+                        "description": "工作区详情",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -15921,7 +15921,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "空间不存在",
+                        "description": "工作区不存在",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -15934,7 +15934,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "更新空间信息",
+                "description": "更新工作区信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -15942,19 +15942,19 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "更新空间",
+                "summary": "更新工作区",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "空间ID",
+                        "description": "工作区ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "空间信息",
+                        "description": "工作区信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -15965,7 +15965,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "更新后的空间",
+                        "description": "更新后的工作区",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -15985,7 +15985,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "删除空间。两种情况下拒绝：空间里还有调用者以外的成员（code 2007），\n或这是部署中最后一个空间（code 2008）。先把其他成员移出，再删除。",
+                "description": "删除工作区。两种情况下拒绝：工作区里还有调用者以外的成员（code 2007），\n或这是部署中最后一个工作区（code 2008）。先把其他成员移出，再删除。",
                 "consumes": [
                     "application/json"
                 ],
@@ -15993,13 +15993,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "删除空间",
+                "summary": "删除工作区",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "空间ID",
+                        "description": "工作区ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16020,7 +16020,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "空间仍有其他成员 / 最后一个空间",
+                        "description": "工作区仍有其他成员 / 最后一个工作区",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -16043,13 +16043,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "获取空间 API Key 用户身份配置",
+                "summary": "获取工作区 API Key 用户身份配置",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "空间ID",
+                        "description": "工作区ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16091,13 +16091,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
-                "summary": "更新空间 API Key 用户身份配置",
+                "summary": "更新工作区 API Key 用户身份配置",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "空间ID",
+                        "description": "工作区ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16142,7 +16142,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "使用空间已保存的 HMAC 密钥签发短期外部用户 JWT（Owner）",
+                "description": "使用工作区已保存的 HMAC 密钥签发短期外部用户 JWT（Owner）",
                 "consumes": [
                     "application/json"
                 ],
@@ -16150,13 +16150,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间管理"
+                    "工作区管理"
                 ],
                 "summary": "生成 API Playground 测试 JWT",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "空间ID",
+                        "description": "工作区ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16204,18 +16204,18 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "返回该空间最近的审计事件，按 id 倒序。游标分页：将上次响应的 next_cursor 作为下一次请求的 after_id。",
+                "description": "返回该工作区最近的审计事件，按 id 倒序。游标分页：将上次响应的 next_cursor 作为下一次请求的 after_id。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "审计日志"
                 ],
-                "summary": "获取空间审计日志",
+                "summary": "获取工作区审计日志",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间ID",
+                        "description": "工作区ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16274,18 +16274,18 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "按空间列出待接受 / 历史邀请。query include_terminal=true 时附带 accepted/declined/revoked/expired。",
+                "description": "按工作区列出待接受 / 历史邀请。query include_terminal=true 时附带 accepted/declined/revoked/expired。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "空间邀请"
+                    "工作区邀请"
                 ],
-                "summary": "列出空间邀请",
+                "summary": "列出工作区邀请",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16327,7 +16327,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Owner 通过邮箱邀请已注册用户加入空间。开启 tenant.auto_accept_invitation 后被邀请人立即自动加入（响应为成员结构），否则需在 /me/invitations 接受后成为成员。",
+                "description": "Owner 通过邮箱邀请已注册用户加入工作区。开启 tenant.auto_accept_invitation 后被邀请人立即自动加入（响应为成员结构），否则需在 /me/invitations 接受后成为成员。",
                 "consumes": [
                     "application/json"
                 ],
@@ -16335,13 +16335,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间邀请"
+                    "工作区邀请"
                 ],
-                "summary": "发出空间邀请",
+                "summary": "发出工作区邀请",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16379,13 +16379,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间邀请"
+                    "工作区邀请"
                 ],
                 "summary": "撤销待接受邀请",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16416,7 +16416,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "生成一条多次使用的共享邀请链接：谁拿到链接谁就能注册并加入当前空间。\n链接持续有效，直到过期或被撤销。",
+                "description": "生成一条多次使用的共享邀请链接：谁拿到链接谁就能注册并加入当前工作区。\n链接持续有效，直到过期或被撤销。",
                 "consumes": [
                     "application/json"
                 ],
@@ -16424,13 +16424,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间邀请"
+                    "工作区邀请"
                 ],
                 "summary": "生成共享邀请链接",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16463,18 +16463,18 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "调用方主动退出当前空间。等价于以自己的 user_id 调 RemoveMember，",
+                "description": "调用方主动退出当前工作区。等价于以自己的 user_id 调 RemoveMember，",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "退出当前空间",
+                "summary": "退出当前工作区",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16498,18 +16498,18 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "分页返回空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。\n/tenants/{id}/members 供空间成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意空间。",
+                "description": "分页返回工作区内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。\n/tenants/{id}/members 供工作区成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意工作区。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "列出空间成员",
+                "summary": "列出工作区成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16558,13 +16558,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "直接添加空间成员（直加路径）",
+                "summary": "直接添加工作区成员（直加路径）",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16588,7 +16588,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "用户未注册 / 空间不存在",
+                        "description": "用户未注册 / 工作区不存在",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -16609,7 +16609,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "修改某位成员在空间内的角色；不能将最后一位 Owner 降级。\nOwner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。",
+                "description": "修改某位成员在工作区内的角色；不能将最后一位 Owner 降级。\nOwner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。",
                 "consumes": [
                     "application/json"
                 ],
@@ -16617,13 +16617,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "修改空间成员角色",
+                "summary": "修改工作区成员角色",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -16667,18 +16667,18 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "将某位成员从空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。\nOwner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。",
+                "description": "将某位成员从工作区中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。\nOwner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "空间成员"
+                    "工作区成员"
                 ],
-                "summary": "移除空间成员",
+                "summary": "移除工作区成员",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "空间 ID",
+                        "description": "工作区 ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -17152,7 +17152,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "将向量库设为平台共享（所有空间可见可选用，连接配置对非系统管理员隐藏）或取消共享。\n仅系统管理员可调用。取消共享时，若owner 之外的空间仍有知识库绑定该向量库，请求会被拒绝。",
+                "description": "将向量库设为平台共享（所有工作区可见可选用，连接配置对非系统管理员隐藏）或取消共享。\n仅系统管理员可调用。取消共享时，若owner 之外的工作区仍有知识库绑定该向量库，请求会被拒绝。",
                 "consumes": [
                     "application/json"
                 ],
@@ -17190,7 +17190,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "仍被其他空间引用",
+                        "description": "仍被其他工作区引用",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -17490,7 +17490,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "将 Provider 设为平台共享（所有空间可见可选用，Base URL 与凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。",
+                "description": "将 Provider 设为平台共享（所有工作区可见可选用，Base URL 与凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。",
                 "consumes": [
                     "application/json"
                 ],

@@ -1190,7 +1190,7 @@ func (h *InitializationHandler) CheckRemoteModel(c *gin.Context) {
 	}
 	if !h.requireTenantContext(ctx) {
 		logger.Error(ctx, "Tenant info not found")
-		c.Error(errors.NewBadRequestError("空间信息未找到"))
+		c.Error(errors.NewBadRequestError("工作区信息未找到"))
 		return
 	}
 
@@ -1264,7 +1264,7 @@ func (h *InitializationHandler) TestEmbeddingModel(c *gin.Context) {
 
 	if !h.requireTenantContext(ctx) {
 		logger.Error(ctx, "Tenant info not found")
-		c.Error(errors.NewBadRequestError("空间信息未找到"))
+		c.Error(errors.NewBadRequestError("工作区信息未找到"))
 		return
 	}
 
@@ -1417,7 +1417,7 @@ func (h *InitializationHandler) CheckRerankModel(c *gin.Context) {
 
 	if !h.requireTenantContext(ctx) {
 		logger.Error(ctx, "Tenant info not found")
-		c.Error(errors.NewBadRequestError("空间信息未找到"))
+		c.Error(errors.NewBadRequestError("工作区信息未找到"))
 		return
 	}
 

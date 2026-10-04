@@ -80,7 +80,7 @@ func (kb *KnowledgeBase) IsGraphEnabled() bool {
 | `relations` | []*GraphRelation | nil | 示例关系（node1 / node2 / type） |
 | `custom_instructions` | string | 空 | 领域自定义抽取指令（追加进系统提示，结构化输出协议仍由系统控制） |
 
-配置界面背后的辅助 API（`internal/handler/initialization.go`，路由见 `internal/router/routes_infra.go`，需空间 Admin 角色）：
+配置界面背后的辅助 API（`internal/handler/initialization.go`，路由见 `internal/router/routes_infra.go`，需工作区 Admin 角色）：
 
 - `POST /initialization/extract/text-relation`（`ExtractTextRelations`）：对一段文本（≤5000 字符）按选定标签试跑关系抽取，即「开始提取」；
 - `POST /initialization/extract/fabri-text` / `fabri-tag`（`FabriText` / `FabriTag`）：让大模型生成示例文本 / 推荐标签，即「生成随机文本」「生成随机标签」。

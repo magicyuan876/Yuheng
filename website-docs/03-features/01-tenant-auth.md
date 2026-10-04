@@ -1,25 +1,25 @@
-# 租户、用户与认证授权
+# 工作区、用户与认证授权
 
-在 Yuheng 里，**用户**是全局身份：注册只创建账号，账号本身不属于任何空间。**空间**（后端叫租户 Tenant，界面上叫工作空间）是资源隔离边界：知识库、模型、会话、API Key 都归属某个空间，配额也按空间算。一个用户可以是多个空间的成员，每个成员关系有各自的角色。
+在 Yuheng 里，**用户**是全局身份：注册只创建账号，账号本身不属于任何工作区。**工作区**（后端叫租户 Tenant，界面上叫工作区）是资源隔离边界：知识库、模型、会话、API Key 都归属某个工作区，配额也按工作区算。一个用户可以是多个工作区的成员，每个成员关系有各自的角色。
 
-模型是**一个企业一个空间，空间内知识库任意多**：部署的第一个注册者（bootstrap）创建默认空间并成为它的 Owner 与系统管理员；之后再建空间只有系统管理员可以。企业内的团队用**空间组**（见 §8）表达，不再有跨空间共享知识库的「组织」——一个知识库只能从拥有它的空间访问。
+模型是**一个企业一个工作区，工作区内知识库任意多**：部署的第一个注册者（bootstrap）创建默认工作区并成为它的 Owner 与系统管理员；之后再建工作区只有系统管理员可以。企业内的团队用**工作区组**（见 §8）表达，不再有跨工作区共享知识库的「组织」——一个知识库只能从拥有它的工作区访问。
 
 日常最常用的操作：
 
 | 想做什么 | 怎么做 |
 | --- | --- |
-| 部署后创建第一个账号 | 直接在注册页注册。默认的 `auto` 注册模式下，第一个注册的人同时创建默认空间（注册页此时多一个「空间名称」字段，默认「默认空间」）、成为其 Owner 与系统管理员，之后公开注册自动关闭（见 §2.1） |
-| 让没有账号的人加入 | 空间设置 → 成员 → 生成邀请链接，对方凭链接注册并直接进入空间（公开注册关闭时也可用）；或由系统管理员在「设置 → 用户与空间」创建账号，创建时可直接选定空间与角色 |
-| 拉同事进来一起用 | 空间设置 → 成员 → 邀请（对方须已有账号），并给对方一个角色（Owner / Admin / Contributor / Viewer）；系统管理员也可以在「用户与空间」里把任何账号加入任何空间 |
-| 把成员分组，批量授权 | 空间设置 → 空间组：建组、加人；在线文档的空间成员与页面授权可以直接授给组（见 §8） |
-| 再开一个空间 | 只有**系统管理员**可以（「设置 → 用户与空间 → 创建空间」或 `POST /tenants`），创建时就要指定 Owner |
-| 让程序调接口 | 由空间 Owner 在 **设置 → 空间 → API Key** 创建 API Key（等价接口 `POST /api/v1/tenants/:id/api-keys`），按需勾选能力（检索 / 问答 / 入库 / 管理），必要时限定可访问的知识库、设置过期时间；之后可在同一页修改授权范围或吊销 |
-| 管理整个部署（全局设置、空间与账号、任务队列、跨空间审计） | 需要**系统管理员**身份，与空间 Owner 是两回事，见[平台管理与系统管理员](20-platform-admin.md) |
-| 删除整个空间 | 空间设置里由 **Owner** 触发（`DELETE /tenants/:id`）；会连带清掉该空间的知识库、会话与成员关系，不可撤销。空间里还有别的成员、或它是部署里最后一个空间时拒绝（见 §7.3） |
+| 部署后创建第一个账号 | 直接在注册页注册。默认的 `auto` 注册模式下，第一个注册的人同时创建默认工作区（注册页此时多一个「工作区名称」字段，默认「默认工作区」）、成为其 Owner 与系统管理员，之后公开注册自动关闭（见 §2.1） |
+| 让没有账号的人加入 | 工作区设置 → 成员 → 生成邀请链接，对方凭链接注册并直接进入工作区（公开注册关闭时也可用）；或由系统管理员在「设置 → 用户与工作区」创建账号，创建时可直接选定工作区与角色 |
+| 拉同事进来一起用 | 工作区设置 → 成员 → 邀请（对方须已有账号），并给对方一个角色（Owner / Admin / Contributor / Viewer）；系统管理员也可以在「用户与工作区」里把任何账号加入任何工作区 |
+| 把成员分组，批量授权 | 工作区设置 → 工作区组：建组、加人；在线文档的空间成员与页面授权可以直接授给组（见 §8） |
+| 再开一个工作区 | 只有**系统管理员**可以（「设置 → 用户与工作区 → 创建工作区」或 `POST /tenants`），创建时就要指定 Owner |
+| 让程序调接口 | 由工作区 Owner 在 **设置 → 工作区 → API Key** 创建 API Key（等价接口 `POST /api/v1/tenants/:id/api-keys`），按需勾选能力（检索 / 问答 / 入库 / 管理），必要时限定可访问的知识库、设置过期时间；之后可在同一页修改授权范围或吊销 |
+| 管理整个部署（全局设置、工作区与账号、任务队列、跨工作区审计） | 需要**系统管理员**身份，与工作区 Owner 是两回事，见[平台管理与系统管理员](20-platform-admin.md) |
+| 删除整个工作区 | 工作区设置里由 **Owner** 触发（`DELETE /tenants/:id`）；会连带清掉该工作区的知识库、会话与成员关系，不可撤销。工作区里还有别的成员、或它是部署里最后一个工作区时拒绝（见 §7.3） |
 
-四个角色能做什么，一句话版本：Viewer 只能看和问，Contributor 可以建库和传文档，Admin 管成员和空间设置，Owner 额外能删空间和转让。完整矩阵见下文 RBAC 章节。
+四个角色能做什么，一句话版本：Viewer 只能看和问，Contributor 可以建库和传文档，Admin 管成员和工作区设置，Owner 额外能删工作区和转让。完整矩阵见下文 RBAC 章节。
 
-技术上，认证支持密码登录、OIDC 单点登录与 API Key 三种主体；授权由空间内 RBAC 角色阶梯 + 资源所有权（ownership）+ API Key 能力（capability）三套正交机制共同实现，下面逐层展开。
+技术上，认证支持密码登录、OIDC 单点登录与 API Key 三种主体；授权由工作区内 RBAC 角色阶梯 + 资源所有权（ownership）+ API Key 能力（capability）三套正交机制共同实现，下面逐层展开。
 
 ## 概念总览
 
@@ -29,8 +29,8 @@ graph TB
         U["User (登录主体, email 唯一, 不带 tenant_id)"]
     end
     subgraph tenants["租户层 (资源隔离边界)"]
-        T["Tenant (工作空间)"]
-        G["TenantGroup (空间组, 主体 group:<id>)"]
+        T["Tenant (工作区)"]
+        G["TenantGroup (工作区组, 主体 group:<id>)"]
         KB["KnowledgeBase / Model / Session ..."]
     end
     U -- "TenantMember (owner / admin / contributor / viewer)" --> T
@@ -38,20 +38,20 @@ graph TB
     G --- T
     T --- KB
     K["TenantAPIKey (机器主体, capabilities + KB allow-list)"] --> T
-    SA["IsSystemAdmin (平台级, 不属于任何空间)"] -. "建空间、加成员" .-> T
+    SA["IsSystemAdmin (平台级, 不属于任何工作区)"] -. "建工作区、加成员" .-> T
 ```
 
 关键点：
 
-- 用户与空间之间**只有** `tenant_members` 一种关系：一个 User 可以同时属于多个 Tenant，每个成员关系有独立角色。用户行上没有「主空间」，`users.tenant_id` 已删除（迁移 000139）；用户「当前所在」的空间只是一个偏好 `preferences.last_active_tenant_id`，每次登录都按成员关系校验。
-- 没有任何空间的用户可以登录，但只能访问身份级接口（`/auth/me`、邀请收件箱等），其余接口返回 409 `TENANT_REQUIRED`；界面提示「你的账号还没有加入任何空间，请联系管理员」。
-- 知识库只能从拥有它的空间访问；别的空间的知识库对调用者来说**不存在**（404），没有跨空间共享通道。
-- 空间组是空间内的成员集合，授权可以授给组（`group:<id>`）；表与类型名沿用 `tenant_groups` / `TenantGroup`。
-- API Key 是与 JWT 用户完全独立的机器主体，不复用租户角色阶梯；空间 Key 始终以合成用户 `system-<tenantID>` 的身份行动。
+- 用户与工作区之间**只有** `tenant_members` 一种关系：一个 User 可以同时属于多个 Tenant，每个成员关系有独立角色。用户行上没有「主工作区」，`users.tenant_id` 已删除（迁移 000139）；用户「当前所在」的工作区只是一个偏好 `preferences.last_active_tenant_id`，每次登录都按成员关系校验。
+- 没有任何工作区的用户可以登录，但只能访问身份级接口（`/auth/me`、邀请收件箱等），其余接口返回 409 `TENANT_REQUIRED`；界面提示「你的账号还没有加入任何工作区，请联系管理员」。
+- 知识库只能从拥有它的工作区访问；别的工作区的知识库对调用者来说**不存在**（404），没有跨工作区共享通道。
+- 工作区组是工作区内的成员集合，授权可以授给组（`group:<id>`）；表与类型名沿用 `tenant_groups` / `TenantGroup`。
+- API Key 是与 JWT 用户完全独立的机器主体，不复用租户角色阶梯；工作区 Key 始终以合成用户 `system-<tenantID>` 的身份行动。
 
 ## 1. 数据模型
 
-### 1.1 Tenant（租户 / 工作空间）
+### 1.1 Tenant（租户 / 工作区）
 
 `internal/types/tenant.go`：
 
@@ -77,7 +77,7 @@ type Tenant struct {
 }
 ```
 
-租户是配额（`StorageQuota` / `StorageUsed`；新空间按系统设置 `tenant.default_storage_quota_gb` 取值，默认 0 即不限，列上没有 gorm 默认值，所以 0 不会被覆盖成别的数）与各类租户级配置（检索引擎、Web 搜索、解析引擎、凭证、聊天历史等）的挂载点。存储没有租户级配置：`DefaultStorageBackendID` 指向一个存储后端（新租户为部署存储 `env`），见[存储后端](19-storage-backends.md)。
+租户是配额（`StorageQuota` / `StorageUsed`；新工作区按系统设置 `tenant.default_storage_quota_gb` 取值，默认 0 即不限，列上没有 gorm 默认值，所以 0 不会被覆盖成别的数）与各类租户级配置（检索引擎、Web 搜索、解析引擎、凭证、聊天历史等）的挂载点。存储没有租户级配置：`DefaultStorageBackendID` 指向一个存储后端（新租户为部署存储 `env`），见[存储后端](19-storage-backends.md)。
 
 ### 1.2 User（用户）
 
@@ -97,7 +97,7 @@ type User struct {
 }
 
 type UserPreferences struct {
-    // 用户「当前所在」的空间：新设备登录、刷新 token 时落到这里，
+    // 用户「当前所在」的工作区：新设备登录、刷新 token 时落到这里，
     // 也是没带 X-Tenant-ID、JWT 里又没有 tenant_id 时的作用域。
     // 它只是一个指针，是否可用由 tenant_members 决定（见下文解析顺序）。
     LastActiveTenantID *uint64 `json:"last_active_tenant_id,omitempty"`
@@ -107,20 +107,20 @@ type UserPreferences struct {
 }
 ```
 
-用户行上**没有** `tenant_id`：用户是全局身份，属于哪些空间只看 `tenant_members`。请求作用于哪个空间（「当前空间」）由一个统一的解析器决定，登录签发 token、刷新 token 和认证中间件都走同一条路径（`UserService.ResolveActiveTenantID` 与 `middleware/auth.go` 的 `resolveTargetTenant`），顺序是：
+用户行上**没有** `tenant_id`：用户是全局身份，属于哪些工作区只看 `tenant_members`。请求作用于哪个工作区（「当前工作区」）由一个统一的解析器决定，登录签发 token、刷新 token 和认证中间件都走同一条路径（`UserService.ResolveActiveTenantID` 与 `middleware/auth.go` 的 `resolveTargetTenant`），顺序是：
 
-1. 请求头 `X-Tenant-ID`（须是该空间的活跃成员，或跨空间超管；畸形或 0 值返回 400，无权访问返回 403）；
+1. 请求头 `X-Tenant-ID`（须是该工作区的活跃成员，或跨工作区超管；畸形或 0 值返回 400，无权访问返回 403）；
 2. JWT 里的 `tenant_id` claim（登录或 `/auth/switch-tenant` 签发时写入）；
-3. `preferences.last_active_tenant_id`，且它指向的空间仍存在、用户仍是活跃成员（或 CanAccessAllTenants）；
+3. `preferences.last_active_tenant_id`，且它指向的工作区仍存在、用户仍是活跃成员（或 CanAccessAllTenants）；
 4. 按加入时间最早的活跃成员关系（结果回写为偏好，下次不再遍历）；
-5. 以上都没有 → 无空间。认证通过但只放行身份级接口，其余返回 409 `TENANT_REQUIRED`。
+5. 以上都没有 → 无工作区。认证通过但只放行身份级接口，其余返回 409 `TENANT_REQUIRED`。
 
-一个还没有任何空间的用户拿到的 token 里 `tenant_id` 为 0；接受邀请或被管理员加入空间后，下一次请求就会按第 3/4 步落到那个空间，不需要重新登录。
+一个还没有任何工作区的用户拿到的 token 里 `tenant_id` 为 0；接受邀请或被管理员加入工作区后，下一次请求就会按第 3/4 步落到那个工作区，不需要重新登录。
 
 两个特殊标志：
 
-- `CanAccessAllTenants`：跨空间超级用户。**必须两个开关同时为真**才生效——用户行上的 `CanAccessAllTenants`，以及部署级的 `tenant.enable_cross_tenant_access` / `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS`（`middleware/access.go` 的 `IsCrossTenantSuperuser()` 先查配置再查用户；配置关掉时登录响应里这个字段也会被抹成 false）。生效后可绕过空间角色检查，访问任意空间，并与系统管理员一样能调空间目录接口（`/tenants/all`、`/tenants/search`、`POST /tenants`）。
-- `IsSystemAdmin`：平台级管理员（system admin），独立于任何租户角色，用于 `/system/admin/*` 控制面，也是创建空间、把用户加入任意空间的身份（`middleware/access.go` 的 `CanManageTenantCatalog`：系统管理员、生效中的跨空间超管、平台 API Key 三者之一）。它管的是整个部署而不是某个空间，怎么产生第一个、能做什么见[平台管理与系统管理员](20-platform-admin.md)。
+- `CanAccessAllTenants`：跨工作区超级用户。**必须两个开关同时为真**才生效——用户行上的 `CanAccessAllTenants`，以及部署级的 `tenant.enable_cross_tenant_access` / `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS`（`middleware/access.go` 的 `IsCrossTenantSuperuser()` 先查配置再查用户；配置关掉时登录响应里这个字段也会被抹成 false）。生效后可绕过工作区角色检查，访问任意工作区，并与系统管理员一样能调工作区目录接口（`/tenants/all`、`/tenants/search`、`POST /tenants`）。
+- `IsSystemAdmin`：平台级管理员（system admin），独立于任何租户角色，用于 `/system/admin/*` 控制面，也是创建工作区、把用户加入任意工作区的身份（`middleware/access.go` 的 `CanManageTenantCatalog`：系统管理员、生效中的跨工作区超管、平台 API Key 三者之一）。它管的是整个部署而不是某个工作区，怎么产生第一个、能做什么见[平台管理与系统管理员](20-platform-admin.md)。
 
 ### 1.3 TenantMember 与租户角色
 
@@ -158,11 +158,11 @@ type TenantMember struct {
 }
 ```
 
-登录响应里返回 `Membership{TenantID, TenantName, Role}` 投影列表，前端据此渲染工作空间切换器。
+登录响应里返回 `Membership{TenantID, TenantName, Role}` 投影列表，前端据此渲染工作区切换器。
 
-一个空间可以有**多位** Owner，约束是「至少一位」：降级或移除成员、成员自己退出时，只有会让空间失去最后一位活跃 Owner 的操作被拒绝（`ErrLastOwner`）。
+一个工作区可以有**多位** Owner，约束是「至少一位」：降级或移除成员、成员自己退出时，只有会让工作区失去最后一位活跃 Owner 的操作被拒绝（`ErrLastOwner`）。
 
-空间**从诞生起就有 Owner**：bootstrap 注册在同一个事务里写入空间、用户与 Owner 成员关系；`POST /tenants` 在同一个请求里创建空间并写入 Owner（`owner_email` 指定，缺省为调用者本人），写不进去就把空间回滚。因此认证中间件没有「孤儿空间自愈」：`resolveTenantRole` 只看成员关系行与跨空间超管，没有成员的空间是要暴露的 bug，不是靠把下一个登录的人提升为 Owner 来修的状态。
+工作区**从诞生起就有 Owner**：bootstrap 注册在同一个事务里写入工作区、用户与 Owner 成员关系；`POST /tenants` 在同一个请求里创建工作区并写入 Owner（`owner_email` 指定，缺省为调用者本人），写不进去就把工作区回滚。因此认证中间件没有「孤儿工作区自愈」：`resolveTenantRole` 只看成员关系行与跨工作区超管，没有成员的工作区是要暴露的 bug，不是靠把下一个登录的人提升为 Owner 来修的状态。
 
 ### 1.4 TenantAPIKey（API Key）
 
@@ -186,7 +186,7 @@ type TenantAPIKey struct {
 - **不落库明文**：Key 只在创建时返回一次（响应里的 `token`），库里只存两样东西：认证用的不可逆 `KeyHash`（SHA-256），以及用来区分 Key 的 `KeyHint`（前 7 位 + `...` + 后 4 位，接口里仍以 `api_key` 字段返回）。两者都无法还原出 Key，所以丢了只能吊销重建。
 - **校验流程**：请求携带 `X-API-Key` → 计算哈希 → 按 `KeyHash` 查表 → 检查 `RevokedAt` / `ExpiresAt` → 将 `TenantAPIKeyScope{KeyID, ScopeType, FullAccess, KnowledgeBaseIDs, Capabilities}` 注入 context，后续用 `types.TenantAPIKeyScopeFromContext` 读取。
 
-### 1.5 TenantGroup（空间组）
+### 1.5 TenantGroup（工作区组）
 
 `internal/types/tenant_group.go`：
 
@@ -194,7 +194,7 @@ type TenantAPIKey struct {
 type TenantGroup struct {
     ID          string
     TenantID    uint64
-    Name        string            // 空间内不区分大小写唯一
+    Name        string            // 工作区内不区分大小写唯一
     Description string
     IsDefault   bool              // 隐式的「所有人」组：成员就是全部活跃成员，不写 tenant_group_members
     Source      TenantGroupSource // manual（默认）| oidc | ldap —— SSO 组映射的挂点
@@ -210,7 +210,7 @@ type TenantGroupMember struct {
 }
 ```
 
-空间组是空间内的一组成员，授权时作为一个主体（`group:<id>`）使用。它曾是在线文档模块的一部分，现在是核心概念（`internal/application/service`、`internal/handler`、`internal/router/routes_groups.go`），不依赖 `YUHENG_DOCS_ENABLED`；表名与类型名沿用 `tenant_groups` / `TenantGroup`，因为 ACL 主体 `group:<id>` 与已存的行是契约的一部分。管理方式见 §8。
+工作区组是工作区内的一组成员，授权时作为一个主体（`group:<id>`）使用。它曾是在线文档模块的一部分，现在是核心概念（`internal/application/service`、`internal/handler`、`internal/router/routes_groups.go`），不依赖 `YUHENG_DOCS_ENABLED`；表名与类型名沿用 `tenant_groups` / `TenantGroup`，因为 ACL 主体 `group:<id>` 与已存的行是契约的一部分。管理方式见 §8。
 
 ## 2. 注册与登录
 
@@ -220,7 +220,7 @@ type TenantGroupMember struct {
 
 ```go
 type AuthConfig struct {
-    RegistrationMode string // "auto"（默认：仅在还没有任何用户时开放，首个注册者创建默认空间并成为系统管理员） | "self_serve"（公开注册） | "invite_only"（仅邀请）
+    RegistrationMode string // "auto"（默认：仅在还没有任何用户时开放，首个注册者创建默认工作区并成为系统管理员） | "self_serve"（公开注册） | "invite_only"（仅邀请）
 }
 
 func (c *AuthConfig) IsInviteOnly() bool {
@@ -228,7 +228,7 @@ func (c *AuthConfig) IsInviteOnly() bool {
 }
 ```
 
-注册**只创建账号，不创建空间**——没有「注册后自动建个人空间」的策略可配（旧的 `auth.default_tenant_mode` / `YUHENG_AUTH_DEFAULT_TENANT_MODE` 已删除）。唯一的例外是 bootstrap：部署的第一个账号。
+注册**只创建账号，不创建工作区**——没有「注册后自动建个人工作区」的策略可配（旧的 `auth.default_tenant_mode` / `YUHENG_AUTH_DEFAULT_TENANT_MODE` 已删除）。唯一的例外是 bootstrap：部署的第一个账号。
 
 判定分两层，理解这一点才能解释「改了 env 没生效」：
 
@@ -236,11 +236,11 @@ func (c *AuthConfig) IsInviteOnly() bool {
 
 **每次请求时**（`resolveRegistrationMode()`）只比较两个来源：数据库 `system_settings` 的 `auth.registration_mode` 行 > 上面合成的 cfg 值 > 硬编码兜底 `auto`。`DISABLE_REGISTRATION` **不会**被逐请求重新读取。
 
-`auto` 模式下，只要系统里还没有任何用户，注册就是开放的，且首个注册者是 **bootstrap**：在一个事务里（`CreateFirstUser`，PostgreSQL advisory lock 保证并发注册只有一个赢家）创建部署的默认空间、把用户标为系统管理员、写入该空间的 Owner 成员关系——任何时刻都不存在没有 Owner 的空间。空间名称来自请求体可选的 `workspace_name`（`/auth/config` 的 `first_user` 为 true 时注册页才显示这个字段，默认值 `default_workspace_name` 即 `Default Workspace`，界面上叫「默认空间」）。之后公开注册自动关闭（邀请注册走另一个端点，不受影响）。无法识别的模式值按 `auto` 处理，拼写错误不会意外打开注册；`config.yaml` 里写了非法值则启动校验直接报错。
+`auto` 模式下，只要系统里还没有任何用户，注册就是开放的，且首个注册者是 **bootstrap**：在一个事务里（`CreateFirstUser`，PostgreSQL advisory lock 保证并发注册只有一个赢家）创建部署的默认工作区、把用户标为系统管理员、写入该工作区的 Owner 成员关系——任何时刻都不存在没有 Owner 的工作区。工作区名称来自请求体可选的 `workspace_name`（`/auth/config` 的 `first_user` 为 true 时注册页才显示这个字段，默认值 `default_workspace_name` 即 `Default Workspace`，界面上叫「默认工作区」）。之后公开注册自动关闭（邀请注册走另一个端点，不受影响）。无法识别的模式值按 `auto` 处理，拼写错误不会意外打开注册；`config.yaml` 里写了非法值则启动校验直接报错。
 
-这是一个**安装步骤**而不是注册策略：bootstrap 之后再注册的任何账号（`self_serve` 模式）都不带空间，等待被邀请或被系统管理员加入。
+这是一个**安装步骤**而不是注册策略：bootstrap 之后再注册的任何账号（`self_serve` 模式）都不带工作区，等待被邀请或被系统管理员加入。
 
-公开注册关闭时，`POST /auth/register` 返回 403，提示「请管理员创建账号或发送邀请链接」。之后的账号有三个来源：邀请链接注册（§2.3，注册即进入发出邀请的空间）、系统管理员在控制台直接创建（`POST /system/admin/users/create`，可带 `tenant_id` + `role` 一步加入空间，见[平台管理与系统管理员](20-platform-admin.md)）、OIDC 首次登录（只建账号，不进任何空间）。
+公开注册关闭时，`POST /auth/register` 返回 403，提示「请管理员创建账号或发送邀请链接」。之后的账号有三个来源：邀请链接注册（§2.3，注册即进入发出邀请的工作区）、系统管理员在控制台直接创建（`POST /system/admin/users/create`，可带 `tenant_id` + `role` 一步加入工作区，见[平台管理与系统管理员](20-platform-admin.md)）、OIDC 首次登录（只建账号，不进任何工作区）。
 
 后果是：系统管理员在界面上把 `auth.registration_mode` 设成 `self_serve` 后，即使部署里仍写着 `DISABLE_REGISTRATION=true`，公开注册也是开着的。要彻底关掉，得把数据库里那一行重置（`DELETE /system/admin/settings/auth.registration_mode`）。
 
@@ -252,7 +252,7 @@ func (c *AuthConfig) IsInviteOnly() bool {
 ### 2.2 密码注册 / 登录
 
 - `POST /auth/register`：`{username(2-50), email, password, workspace_name?}`；只创建账号。`workspace_name`（≤128 字符）只在 bootstrap 注册时生效，其他时候被忽略。
-- `POST /auth/login`：`{email, password}`，返回 `LoginResponse{user, active_tenant, memberships[], token, refresh_token}`；`active_tenant` 按 §1.2 的顺序解析（偏好 → 最早的成员关系），没有任何空间时为 `null`，`memberships` 为空数组。
+- `POST /auth/login`：`{email, password}`，返回 `LoginResponse{user, active_tenant, memberships[], token, refresh_token}`；`active_tenant` 按 §1.2 的顺序解析（偏好 → 最早的成员关系），没有任何工作区时为 `null`，`memberships` 为空数组。
 - 密码要求分三处，**强度并不一致**，集成时要按最严的来：
   - **注册页（前端表单）**：8–32 字符，且至少含 1 个字母 + 1 个数字；
   - **`POST /auth/register`（后端）**：只有 binding 的 `min=6`——`Register()` **不调用** `ValidatePasswordPolicy`，所以直接打接口能设出 6 位纯数字密码；
@@ -274,9 +274,9 @@ type registerByInviteRequest struct {
 }
 ```
 
-流程：校验 token（`LookupByToken`）→ 检查邮箱未注册（已注册返回 409）→ 创建账号 → `AcceptByToken` 创建 `tenant_members` 行（状态 `active`，角色取邀请中指定的角色）→ 把邀请空间记为该用户的当前空间（`RememberFirstWorkspace`，只在偏好为空时写入）。
+流程：校验 token（`LookupByToken`）→ 检查邮箱未注册（已注册返回 409）→ 创建账号 → `AcceptByToken` 创建 `tenant_members` 行（状态 `active`，角色取邀请中指定的角色）→ 把邀请工作区记为该用户的当前工作区（`RememberFirstWorkspace`，只在偏好为空时写入）。
 
-配套端点 `POST /auth/invitations/lookup`（无需认证）返回邀请上下文 `{tenant_id, tenant_name, role, expires_at}` 供注册页展示；**故意使用 POST + body 而非 GET + path，避免 token 落入访问日志**；token 无效/被撤销返回 410。已经有账号的用户登录后用 `POST /me/invitations/accept-by-token` 凭同一个 token 加入空间，不新建账号。
+配套端点 `POST /auth/invitations/lookup`（无需认证）返回邀请上下文 `{tenant_id, tenant_name, role, expires_at}` 供注册页展示；**故意使用 POST + body 而非 GET + path，避免 token 落入访问日志**；token 无效/被撤销返回 410。已经有账号的用户登录后用 `POST /me/invitations/accept-by-token` 凭同一个 token 加入工作区，不新建账号。
 
 ### 2.4 登录保护：按 IP 限流与账户锁定
 
@@ -368,7 +368,7 @@ refreshClaims := jwt.MapClaims{
 | `manage_storage_backends` | 管理对象存储后端 |
 | `manage_web_search` | 管理 Web 搜索配置 |
 | `run_evaluations` | 运行与查看评估任务 |
-| `manage_members` | 管理租户成员、邀请与空间组（`/tenants/:id/members`、`/tenants/:id/invitations`、`/groups/**`）——把人加进组在一切方面都是成员关系变更，只是写的表不同 |
+| `manage_members` | 管理租户成员、邀请与工作区组（`/tenants/:id/members`、`/tenants/:id/invitations`、`/groups/**`）——把人加进组在一切方面都是成员关系变更，只是写的表不同 |
 | `manage_tenant_settings` | 读写租户整合设置 |
 | `system_tenants_read` / `system_tenants_manage` | 平台级：租户管理（仅 platform key） |
 | `system_settings_read` / `system_settings_manage` | 平台级：系统设置 |
@@ -413,7 +413,7 @@ requireTenantAPIKeyKnowledgeBases(ctx, "kb-1", "kb-2") // → forbidden
 
 ### 4.4 API Key 的身份
 
-空间 Key 不冒充任何真人：认证中间件为它合成一个按空间固定的用户 `system-<tenantID>`（`middleware/auth.go` 的 `systemAPIKeyUser`），Key 写下的资源的 `creator_id`、审计行的 `actor_user_id` 都是这个 ID。Key 属于空间而不是创建它的人，所以经 Key 写入的数据在那个人离开后仍归空间所有。`types.IsSyntheticUserID` 识别这类 ID；记录「谁加入了谁」时（成员的 `invited_by`、组的 `creator_id` / `added_by`）合成用户不被写入，因为它不是账号——审计行里仍记着是谁操作的。平台 Key 则有自己稳定的机器身份（`platform-api-key-<keyID>`），跨它访问的所有空间不变。
+工作区 Key 不冒充任何真人：认证中间件为它合成一个按工作区固定的用户 `system-<tenantID>`（`middleware/auth.go` 的 `systemAPIKeyUser`），Key 写下的资源的 `creator_id`、审计行的 `actor_user_id` 都是这个 ID。Key 属于工作区而不是创建它的人，所以经 Key 写入的数据在那个人离开后仍归工作区所有。`types.IsSyntheticUserID` 识别这类 ID；记录「谁加入了谁」时（成员的 `invited_by`、组的 `creator_id` / `added_by`）合成用户不被写入，因为它不是账号——审计行里仍记着是谁操作的。平台 Key 则有自己稳定的机器身份（`platform-api-key-<keyID>`），跨它访问的所有工作区不变。
 
 ## 5. OIDC 单点登录
 
@@ -456,7 +456,7 @@ r.GET("/auth/oidc/start",    handler.OIDCStart)               // 直接 302 跳�
 
 自动开户细节：
 
-- 只创建账号，不进任何空间；新用户登录后看到「还没有加入任何空间」的引导页，等待被邀请或被系统管理员加入（将来 SSO 组映射会挂在空间组的 `source = oidc` 上）；
+- 只创建账号，不进任何工作区；新用户登录后看到「还没有加入任何工作区」的引导页，等待被邀请或被系统管理员加入（将来 SSO 组映射会挂在工作区组的 `source = oidc` 上）；
 - 用户名候选：OIDC username → email 前缀 → `oidc-user`，冲突时追加 `-1..-20` 数字后缀，仍冲突则用 Unix 时间戳；
 - 生成 32 字符随机密码写入（用户不知晓，只能走 OIDC 登录）；
 - 响应带 `is_new_user` 供 SPA 做首登引导；`IsActive=false` 的账户拒绝登录。
@@ -482,7 +482,7 @@ sequenceDiagram
     W->>W: 签发本地 JWT (access 24h + refresh 7d)
     W-->>B: 302 /#oidc_result=base64url({success, token, refresh_token, is_new_user})
     B->>B: App.vue 解析 hash, 写入 token
-    B->>W: GET /auth/me 补全用户与空间
+    B->>W: GET /auth/me 补全用户与工作区
 ```
 
 **回调结果怎么回到前端**：`/auth/oidc/callback` 不返回 JSON，而是 302 到前端根路径 `/`，结果放在 URL hash 里（不会再作为请求发回服务端，前端读取后立即清除）：
@@ -495,7 +495,7 @@ sequenceDiagram
 | `#oidc_error=missing_code` | 回调没有带 `code` |
 | `#oidc_error=login_failed&oidc_error_description=…` | 换 token、取用户信息或本地登录失败（例如账号被停用） |
 
-前端在 `frontend/src/App.vue` 统一处理这个 hash（`Login.vue` 不处理回调）：失败时回到 `/login` 并提示；成功时保存 token 与 refresh token，调 `/auth/me` 取用户与空间，若 OIDC 跳转前在邀请注册页暂存了邀请 token，先凭它加入对应空间，最后进入 `/platform/knowledge-bases`（没有可用空间时进入 `/onboarding/workspace`）。
+前端在 `frontend/src/App.vue` 统一处理这个 hash（`Login.vue` 不处理回调）：失败时回到 `/login` 并提示；成功时保存 token 与 refresh token，调 `/auth/me` 取用户与工作区，若 OIDC 跳转前在邀请注册页暂存了邀请 token，先凭它加入对应工作区，最后进入 `/platform/knowledge-bases`（没有可用空间时进入 `/onboarding/workspace`）。
 
 ### 5.3 部署与本地联调
 
@@ -509,7 +509,7 @@ sequenceDiagram
 
 1. **角色守卫**（role-only）：`Viewer()` / `Contributor()` / `Admin()` / `Owner()` / `SystemAdmin()`，问"调用者在本租户的角色是什么"。
 2. **所有权守卫**（ownership-or-role）：`OwnedKBOrAdmin()` 等，问"调用者是否是**这个资源**的创建者，或至少 Admin+"。
-3. **KB 访问守卫**（KB-access）：`KBAccess()` 及其变体，问"这个 KB 是不是调用者空间的"——不是就当它不存在（404）。
+3. **KB 访问守卫**（KB-access）：`KBAccess()` 及其变体，问"这个 KB 是不是调用者工作区的"——不是就当它不存在（404）。
 
 ### 6.1 角色能力矩阵
 
@@ -551,7 +551,7 @@ sequenceDiagram
 | `OwnedChunkKBOrAdmin` / `...FromChunkID` | `:knowledge_id` 或 chunk `:id` → KB.CreatorID | chunk 变更 |
 | `OwnedWikiKBOrAdmin` | `:kb_id` → KB.CreatorID | Wiki 页面 CRUD |
 
-子资源必须继承父 KB 的门禁（注释明确点名曾修复过 FAQ/Tag、KB share 接错轴的 bug）。归属链是 `chunk / FAQ 条目 / 生成的问题 / 标签 / Wiki 页面 → knowledge → KB → knowledge_bases.creator_id`；`creator_id` 为空的 KB 视为空间共有，只有 Admin+ 能改。这样 Contributor 在自己的 KB 里像 Owner，在别人的 KB 里像 Viewer。
+子资源必须继承父 KB 的门禁（注释明确点名曾修复过 FAQ/Tag、KB share 接错轴的 bug）。归属链是 `chunk / FAQ 条目 / 生成的问题 / 标签 / Wiki 页面 → knowledge → KB → knowledge_bases.creator_id`；`creator_id` 为空的 KB 视为工作区共有，只有 Admin+ 能改。这样 Contributor 在自己的 KB 里像 Owner，在别人的 KB 里像 Viewer。
 
 ### 6.4 中间件语义（`internal/middleware/rbac.go`）
 
@@ -576,9 +576,9 @@ sequenceDiagram
 
 ### 6.5 KB 访问守卫
 
-`middleware/kb_access.go`（`RequireKBAccess`，由 `rbac.go` 的 `KBAccess(param)` / `KBAccessFromKnowledgeIDParam` / `KBAccessFromChunkIDParam` 包装）只回答一个二元问题：**这个知识库属不属于调用者的空间**。属于 → 放行，调用者接下来能做什么由角色与所有权守卫决定；不属于，或 ID 根本不存在 → 一律 404 `knowledge base not found`，所以用 ID 探测得不到「别的空间有没有这个库」的信息。守卫同时执行 API Key 的 KB 白名单（`AuthorizeTenantAPIKeyKnowledgeBases`），对只带 knowledge / chunk ID 的路由也一样。
+`middleware/kb_access.go`（`RequireKBAccess`，由 `rbac.go` 的 `KBAccess(param)` / `KBAccessFromKnowledgeIDParam` / `KBAccessFromChunkIDParam` 包装）只回答一个二元问题：**这个知识库属不属于调用者的工作区**。属于 → 放行，调用者接下来能做什么由角色与所有权守卫决定；不属于，或 ID 根本不存在 → 一律 404 `knowledge base not found`，所以用 ID 探测得不到「别的工作区有没有这个库」的信息。守卫同时执行 API Key 的 KB 白名单（`AuthorizeTenantAPIKeyKnowledgeBases`），对只带 knowledge / chunk ID 的路由也一样。
 
-守卫成功后把 `KBAccess{KnowledgeBase}` 存入 gin context（`KBAccessContextKey`），handler 不必再查一次；请求上下文里的租户 ID 不会被改写——没有「有效租户」的概念，因为没有跨空间访问。以前区分读 / 写的 `KBAccessRead` / `KBAccessWrite` 只是为了表达组织共享的权限级别，随组织一起删除；写操作的门禁就是 `OwnedXxxOrAdmin`。
+守卫成功后把 `KBAccess{KnowledgeBase}` 存入 gin context（`KBAccessContextKey`），handler 不必再查一次；请求上下文里的租户 ID 不会被改写——没有「有效租户」的概念，因为没有跨工作区访问。以前区分读 / 写的 `KBAccessRead` / `KBAccessWrite` 只是为了表达组织共享的权限级别，随组织一起删除；写操作的门禁就是 `OwnedXxxOrAdmin`。
 
 ## 7. 租户成员、邀请与邀请链接
 
@@ -592,15 +592,15 @@ Handler：`internal/handler/tenant_member.go`、`tenant_invitation.go`。`/tenan
 | `POST /tenants/:id/members` | Owner | 直接添加现有用户 `{email, role}` |
 | `PUT /tenants/:id/members/:user_id` | Owner | 修改角色 |
 | `DELETE /tenants/:id/members/:user_id` | Owner | 移除成员 |
-| `POST /tenants/:id/leave` | Viewer | 本人退出空间；会让空间失去最后一个 Owner 时拒绝 |
+| `POST /tenants/:id/leave` | Viewer | 本人退出工作区；会让工作区失去最后一个 Owner 时拒绝 |
 | `POST /tenants/:id/invitations` | Owner | 定向邀请现有用户 `{email, role, message}` |
 | `GET /tenants/:id/invitations` | Viewer | 列出邀请 |
 | `DELETE /tenants/:id/invitations/:inv_id` | Owner | 撤销邀请 |
 | `GET /me/invitations`、`GET /me/invitations/pending-count` | 本人 | 邀请收件箱 / 待处理数量 |
 | `POST /me/invitations/:inv_id/accept` / `.../decline` | 本人 | 接受 / 拒绝 |
-| `GET / POST /system/admin/tenants/:id/members`、`PATCH / DELETE .../members/:user_id` | 系统管理员 | 同一组 handler，但守卫换成 `SystemAdmin()`，不要求是该空间成员——用来给自己不在的空间加第一批人，或把没有空间的用户加进来 |
+| `GET / POST /system/admin/tenants/:id/members`、`PATCH / DELETE .../members/:user_id` | 系统管理员 | 同一组 handler，但守卫换成 `SystemAdmin()`，不要求是该工作区成员——用来给自己不在的工作区加第一批人，或把没有工作区的用户加进来 |
 
-`TenantInvitation` 状态机：`pending → accepted / declined / revoked / expired`（过期由惰性清扫转移并审计 `rbac.invitation_expired`）。邀请（定向邀请与邀请链接）的有效期默认 7 天，由 `YUHENG_INVITATION_TTL`（Go duration，如 `168h`）调整。接受邀请（或被加入）时，如果用户还没有当前空间偏好，这个空间会被记为 `last_active_tenant_id`——只是偏好，不是归属。成员与邀请全生命周期都有审计事件：`rbac.member_added` / `member_removed` / `member_role_changed` / `member_left` / `invitation_sent` / `invitation_accepted` / `invitation_declined` / `invitation_revoked`（`internal/types/audit_log.go`）。系统管理员在自己不在的空间里操作时，审计行的 `actor_role` 记为 `system_admin`，而不是他在别处恰好持有的角色。
+`TenantInvitation` 状态机：`pending → accepted / declined / revoked / expired`（过期由惰性清扫转移并审计 `rbac.invitation_expired`）。邀请（定向邀请与邀请链接）的有效期默认 7 天，由 `YUHENG_INVITATION_TTL`（Go duration，如 `168h`）调整。接受邀请（或被加入）时，如果用户还没有当前工作区偏好，这个工作区会被记为 `last_active_tenant_id`——只是偏好，不是归属。成员与邀请全生命周期都有审计事件：`rbac.member_added` / `member_removed` / `member_role_changed` / `member_left` / `invitation_sent` / `invitation_accepted` / `invitation_declined` / `invitation_revoked`（`internal/types/audit_log.go`）。系统管理员在自己不在的工作区里操作时，审计行的 `actor_role` 记为 `system_admin`，而不是他在别处恰好持有的角色。
 
 ### 7.2 共享邀请链接（invite link）
 
@@ -611,31 +611,31 @@ Handler：`internal/handler/tenant_member.go`、`tenant_invitation.go`。`/tenan
 
 链接持续有效直到过期或撤销，配合 §2.3 的 `register-by-invite` 打通 invite-only 模式下的开户闭环。
 
-### 7.3 空间的创建与删除
+### 7.3 工作区的创建与删除
 
-创建空间是**目录操作**，不是空间内操作：`POST /tenants` 走 `TenantCatalog()` 守卫（`RequireTenantCatalogAccess`），只对系统管理员、生效中的跨空间超管与带 `system_tenants_manage` 的平台 API Key 开放；它在 `isTenantOptionalAPI` 名单里，所以还没有任何空间的系统管理员也能建。请求体是完整的 `types.Tenant`（`name` 必填，`storage_quota` 缺省取 `tenant.default_storage_quota_gb`）加 `owner_email`：指定则该已注册用户成为 Owner，省略则调用者本人成为 Owner；平台 Key 没有「本人」，不给 `owner_email` 返回 400（code 2006），邮箱没注册返回 404。Owner 成员关系在同一请求里写入（`EnsureOwner`），失败就删掉刚建的空间。成功后记平台级审计 `system.tenant_created`（`details` 含 `name`、`owner_user_id`、`owner_email`）。
+创建工作区是**目录操作**，不是工作区内操作：`POST /tenants` 走 `TenantCatalog()` 守卫（`RequireTenantCatalogAccess`），只对系统管理员、生效中的跨工作区超管与带 `system_tenants_manage` 的平台 API Key 开放；它在 `isTenantOptionalAPI` 名单里，所以还没有任何工作区的系统管理员也能建。请求体是完整的 `types.Tenant`（`name` 必填，`storage_quota` 缺省取 `tenant.default_storage_quota_gb`）加 `owner_email`：指定则该已注册用户成为 Owner，省略则调用者本人成为 Owner；平台 Key 没有「本人」，不给 `owner_email` 返回 400（code 2006），邮箱没注册返回 404。Owner 成员关系在同一请求里写入（`EnsureOwner`），失败就删掉刚建的工作区。成功后记平台级审计 `system.tenant_created`（`details` 含 `name`、`owner_user_id`、`owner_email`）。
 
-删除（`DELETE /tenants/:id`，Owner）有两道拒绝：空间里还有调用者以外的活跃成员 → 409（code 2007，消息里带人数，先把他们移出）；这是部署里最后一个空间 → 409（code 2008，部署总要留一个空间放人）。成功后记 `system.tenant_deleted`。
+删除（`DELETE /tenants/:id`，Owner）有两道拒绝：工作区里还有调用者以外的活跃成员 → 409（code 2007，消息里带人数，先把他们移出）；这是部署里最后一个工作区 → 409（code 2008，部署总要留一个工作区放人）。成功后记 `system.tenant_deleted`。
 
-## 8. 空间组
+## 8. 工作区组
 
-空间组（`tenant_groups`，界面叫「空间组」）是空间内的一组成员，用途是把一批人当作一个授权主体：在线文档的空间成员与页面授权可以直接授给 `group:<id>`，ACL 的后续工作也建在它上面；`source = oidc | ldap` 为 SSO 组映射预留。它不依赖在线文档模块，`/api/v1/groups/**` 始终注册（`internal/router/routes_groups.go`）。
+工作区组（`tenant_groups`，界面叫「工作区组」）是工作区内的一组成员，用途是把一批人当作一个授权主体：在线文档的空间成员与页面授权可以直接授给 `group:<id>`，ACL 的后续工作也建在它上面；`source = oidc | ldap` 为 SSO 组映射预留。它不依赖在线文档模块，`/api/v1/groups/**` 始终注册（`internal/router/routes_groups.go`）。
 
 | 端点 | 最低角色 | 说明 |
 | --- | --- | --- |
 | `GET /groups`、`GET /groups/:gid`、`GET /groups/:gid/members` | Viewer | 任何成员都能看——授权选择器要列出组 |
 | `POST /groups`、`PATCH /groups/:gid`、`DELETE /groups/:gid` | Admin | 建组（可同时带 `member_ids`）、改名 / 改描述、删除 |
-| `PUT /groups/:gid/members`、`DELETE /groups/:gid/members/:uid` | Admin | 加人（须是空间活跃成员）、移出 |
+| `PUT /groups/:gid/members`、`DELETE /groups/:gid/members/:uid` | Admin | 加人（须是工作区活跃成员）、移出 |
 
-与 `/tenants/:id/members` 不同，这里不要求 Owner：组本身不授予任何权限，组能做什么由管理被授权对象的人决定。API Key 需要 `manage_members`（或 full-access）。每个空间有一个隐式的默认组 `everyone`（`is_default`），成员就是全部活跃成员，不能改名、删除或增删成员；其他组名不能占用这个名字。
+与 `/tenants/:id/members` 不同，这里不要求 Owner：组本身不授予任何权限，组能做什么由管理被授权对象的人决定。API Key 需要 `manage_members`（或 full-access）。每个工作区有一个隐式的默认组 `everyone`（`is_default`），成员就是全部活跃成员，不能改名、删除或增删成员；其他组名不能占用这个名字。
 
 删除一个组时，在线文档模块里授予该组的空间成员身份与页面授权在**同一个事务**里清理（`internal/docs/groupbridge.go` 注册到核心服务的回调），不会有「组没了、授权还在」的瞬间；每次提交后权限缓存失效，并向文档事件流发 `docs.group.changed`。审计动作与成员事件同族：`rbac.group_created` / `group_updated` / `group_deleted` / `group_member_added`（每个被加的人一行，`target_user_id` 是他）/ `group_member_removed`。
 
-界面在「设置 → 空间 → 空间组」，不再跟随在线文档的部署能力显示。
+界面在「设置 → 工作区 → 工作区组」，不再跟随在线文档的部署能力显示。
 
-### 8.1 已删除：组织与跨空间共享
+### 8.1 已删除：组织与跨工作区共享
 
-早期版本有「组织（共享空间）」：多个空间加入一个组织，把知识库共享进去，用 `admin / editor / viewer` 三级组织角色封顶权限。这一层连同 `kb_shares`、加入申请、`manage_spaces` 能力、MCP 的 `list_shared_knowledge_bases`、SDK 的组织客户端一起删除（迁移 `000138_drop_organizations`，共享记录不迁移）。一个企业就是一个空间，团队用空间组表达；历史审计行里的 `kb.share_*` 动作仍按原字符串显示。
+早期版本有「组织（共享工作区）」：多个工作区加入一个组织，把知识库共享进去，用 `admin / editor / viewer` 三级组织角色封顶权限。这一层连同 `kb_shares`、加入申请、`manage_spaces` 能力、MCP 的 `list_shared_knowledge_bases`、SDK 的组织客户端一起删除（迁移 `000138_drop_organizations`，共享记录不迁移）。一个企业就是一个工作区，团队用工作区组表达；历史审计行里的 `kb.share_*` 动作仍按原字符串显示。
 
 ## 9. 配置速查
 
@@ -644,7 +644,7 @@ Handler：`internal/handler/tenant_member.go`、`tenant_invitation.go`。`/tenan
 | `auth.registration_mode` | `auto` / `self_serve` / `invite_only` | `auto` | 公开注册策略（DB system_settings 可热改） |
 | `DISABLE_REGISTRATION`（环境变量） | 留空 / `true` / `false` | 留空 | `true` 改写为 `invite_only`，`false` 改写为 `self_serve`，留空沿用 YAML（见 §2.1） |
 | `tenant.enable_rbac` / `YUHENG_TENANT_ENABLE_RBAC` | `true` / `false` | `true` | RBAC 强制执行 / 仅日志模式 |
-| `tenant.enable_cross_tenant_access` / `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS` | `true` / `false` | `false` | 跨空间超级用户开关（还需用户行上的 `can_access_all_tenants`） |
+| `tenant.enable_cross_tenant_access` / `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS` | `true` / `false` | `false` | 跨工作区超级用户开关（还需用户行上的 `can_access_all_tenants`） |
 | `JWT_SECRET`（环境变量） | 至少 32 个字符 | 无，必填 | JWT HMAC 密钥（§3.1） |
 | `SYSTEM_AES_KEY`（环境变量） | 正好 32 字节 | 无，必填 | API Key、模型凭据等落库加密（§3.1） |
 | `YUHENG_INSECURE_DEV`（环境变量） | `true` / `false` | `false` | 跳过密钥校验，仅限本地试验 |
@@ -653,7 +653,7 @@ Handler：`internal/handler/tenant_member.go`、`tenant_invitation.go`。`/tenan
 | `YUHENG_INVITATION_TTL` | Go duration | `168h` | 邀请与邀请链接的有效期 |
 | `YUHENG_TRUSTED_PROXIES` | CIDR 列表 | loopback + 私网段 | 计算客户端 IP（限流用）时信任的代理 |
 | `YUHENG_CORS_ALLOWED_ORIGINS` | 逗号分隔的来源 | 留空（任意来源，不带 credentials） | 浏览器跨域策略（见 §10） |
-| `tenant.default_storage_quota_gb` / `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB` | 整数 GB | 0（不限） | 新建空间的存储配额，仅创建时读取；`Tenant.StorageQuota` ≤ 0 表示不限 |
+| `tenant.default_storage_quota_gb` / `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB` | 整数 GB | 0（不限） | 新建工作区的存储配额，仅创建时读取；`Tenant.StorageQuota` ≤ 0 表示不限 |
 | `tenant.auto_accept_invitation` / `YUHENG_TENANT_AUTO_ACCEPT_INVITATION` | `true` / `false` | `false` | 邀请已注册用户时直接加入，不等对方接受 |
 
 ## 10. 跨域（CORS）
@@ -673,16 +673,16 @@ API 的认证全部走请求头（`Authorization`、`X-API-Key`），不依赖 c
 | 租户成员与角色 | `internal/types/tenant_member.go` |
 | 租户邀请 | `internal/types/tenant_invitation.go` |
 | API Key 模型与能力 | `internal/types/tenant_api_key.go` |
-| 空间组模型 | `internal/types/tenant_group.go` |
+| 工作区组模型 | `internal/types/tenant_group.go` |
 | 注册 / 登录 Handler | `internal/handler/auth.go` |
 | 邀请注册 Handler | `internal/handler/auth_register_by_invite.go` |
 | 成员 / 邀请 / 邀请链接 Handler | `internal/handler/tenant_member.go`、`tenant_invitation.go`、`tenant_invite_link.go` |
-| 空间 Handler（创建 / 删除、目录） | `internal/handler/tenant.go` |
-| 空间组 Handler / 路由 | `internal/handler/tenant_group.go`、`internal/router/routes_groups.go` |
+| 工作区 Handler（创建 / 删除、目录） | `internal/handler/tenant.go` |
+| 工作区组 Handler / 路由 | `internal/handler/tenant_group.go`、`internal/router/routes_groups.go` |
 | JWT / OIDC / 用户服务 | `internal/application/service/user.go` |
-| 空间组服务 / 在线文档桥接 | `internal/application/service/tenant_group.go`、`internal/docs/groupbridge.go` |
-| 当前空间解析 | `internal/application/service/user.go`（`ResolveActiveTenantID`）、`internal/middleware/auth.go`（`resolveTargetTenant`） |
-| 空间目录守卫 | `internal/middleware/access.go`（`CanManageTenantCatalog`、`RequireTenantCatalogAccess`） |
+| 工作区组服务 / 在线文档桥接 | `internal/application/service/tenant_group.go`、`internal/docs/groupbridge.go` |
+| 当前工作区解析 | `internal/application/service/user.go`（`ResolveActiveTenantID`）、`internal/middleware/auth.go`（`resolveTargetTenant`） |
+| 工作区目录守卫 | `internal/middleware/access.go`（`CanManageTenantCatalog`、`RequireTenantCatalogAccess`） |
 | KB 访问守卫 | `internal/middleware/kb_access.go` |
 | RBAC 中间件 | `internal/middleware/rbac.go` |
 | RBAC 路由守卫矩阵 | `internal/router/rbac.go` |

@@ -167,9 +167,9 @@ func (h *AuthHandler) registrationState(ctx context.Context) (open, bootstrap bo
 
 // Register godoc
 // @Summary      用户注册
-// @Description  注册新用户账号。注册只创建账号，不创建空间；用户通过邀请或由系统管理员加入空间。
-// @Description  例外是部署的首个账号（/auth/config 的 first_user 为 true）：它同时创建部署的默认空间并成为其 Owner，
-// @Description  可通过 workspace_name 指定空间名称（为空则为 "Default Workspace"）。
+// @Description  注册新用户账号。注册只创建账号，不创建工作区；用户通过邀请或由系统管理员加入工作区。
+// @Description  例外是部署的首个账号（/auth/config 的 first_user 为 true）：它同时创建部署的默认工作区并成为其 Owner，
+// @Description  可通过 workspace_name 指定工作区名称（为空则为 "Default Workspace"）。
 // @Tags         认证
 // @Accept       json
 // @Produce      json
@@ -858,15 +858,15 @@ func (h *AuthHandler) GetAuthConfig(c *gin.Context) {
 }
 
 // SwitchTenant godoc
-// @Summary      切换激活空间
-// @Description  为当前用户在目标空间重新签发访问令牌；要求该用户在目标空间存在 active 成员关系（跨空间超管除外）
+// @Summary      切换激活工作区
+// @Description  为当前用户在目标工作区重新签发访问令牌；要求该用户在目标工作区存在 active 成员关系（跨工作区超管除外）
 // @Tags         认证
 // @Accept       json
 // @Produce      json
 // @Param        request  body      object{tenant_id=integer,refresh_token=string}  true  "切换请求"
 // @Success      200      {object}  types.LoginResponse
 // @Failure      400      {object}  errors.AppError  "参数错误"
-// @Failure      403      {object}  errors.AppError  "无该空间成员关系"
+// @Failure      403      {object}  errors.AppError  "无该工作区成员关系"
 // @Security     Bearer
 // @Router       /auth/switch-tenant [post]
 //

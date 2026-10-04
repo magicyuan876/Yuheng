@@ -432,7 +432,7 @@ func (h *WebSearchProviderHandler) doTestSearch(ctx context.Context, providerTyp
 
 // UpdateProviderSharing godoc
 // @Summary      设置网络搜索 Provider 平台共享
-// @Description  将 Provider 设为平台共享（所有空间可见可选用，Base URL 与凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。
+// @Description  将 Provider 设为平台共享（所有工作区可见可选用，Base URL 与凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。
 // @Tags         WebSearchProvider
 // @Accept       json
 // @Produce      json

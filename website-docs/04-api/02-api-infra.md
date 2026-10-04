@@ -85,14 +85,14 @@ curl -X POST $BASE/api/v1/vector-stores/__env_postgres__/test -H "Authorization:
 | `use_ssl` | bool | 只在 `endpoint` 不带协议头时生效 |
 | `addressing_style` | string | `auto`（默认）/ `path` / `virtual`。`auto` 时 endpoint 为空或属于 `amazonaws.com` 用 virtual-hosted，其他 endpoint（RustFS、MinIO 等）用 path-style；阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS 不接受 path-style，必须显式设为 `virtual` |
 
-响应里的 `StorageBackend` 另有 `id`、`tenant_id`、`source`、`is_builtin`（平台共享）、`created_at`、`updated_at`。`source` 为 `user` 是空间注册的实例；`env` 是部署存储，全平台只有一条（`id` 为 `env`，`tenant_id` 为 0），由 `STORAGE_TYPE`、`S3_*` 等环境变量在每次启动时写入，不存凭证，共享给所有空间，不能经 API 修改、删除或取消共享。
+响应里的 `StorageBackend` 另有 `id`、`tenant_id`、`source`、`is_builtin`（平台共享）、`created_at`、`updated_at`。`source` 为 `user` 是工作区注册的实例；`env` 是部署存储，全平台只有一条（`id` 为 `env`，`tenant_id` 为 0），由 `STORAGE_TYPE`、`S3_*` 等环境变量在每次启动时写入，不存凭证，共享给所有工作区，不能经 API 修改、删除或取消共享。
 
 规则一览（违反时返回 400，名称冲突 409）：
 
-- 创建与更新都会先校验配置、对 `s3` 的 endpoint 做 SSRF 校验（`rustfs:9000` 这类内网地址要在 `SSRF_WHITELIST` 中放行），再实际连一次；连接失败的错误信息经过脱敏，不含内部主机名、IP、端口与 TLS 细节。同一空间内名称唯一。
+- 创建与更新都会先校验配置、对 `s3` 的 endpoint 做 SSRF 校验（`rustfs:9000` 这类内网地址要在 `SSRF_WHITELIST` 中放行），再实际连一次；连接失败的错误信息经过脱敏，不含内部主机名、IP、端口与 TLS 细节。同一工作区内名称唯一。
 - `provider` 与决定物理位置的 `endpoint`、`region`、`bucket_name`、`path_prefix` 创建后不可改，要换位置走存储迁移；凭证可以单独轮换：更新时凭证字段传 `***` 表示保留原值，传空字符串表示清除（两把都清除即改用 AWS 默认凭证链）。
-- 停用、删除、取消共享按**所有空间**统计仍在使用它的地方：设为默认的空间、绑定它的知识库与文档空间、存在它上面的有效文件。停用与删除在有任何一项时拒绝；取消共享只看所属空间以外的使用。删除是软删除，平台共享中的实例须先取消共享。
-- 空间能看到的任何 `active` 实例都能设为默认：自己的、平台共享的、部署存储 `env`。
+- 停用、删除、取消共享按**所有工作区**统计仍在使用它的地方：设为默认的工作区、绑定它的知识库与文档空间、存在它上面的有效文件。停用与删除在有任何一项时拒绝；取消共享只看所属工作区以外的使用。删除是软删除，平台共享中的实例须先取消共享。
+- 工作区能看到的任何 `active` 实例都能设为默认：自己的、平台共享的、部署存储 `env`。
 
 ### GET /api/v1/storage-backends/types
 
@@ -163,7 +163,7 @@ curl -X POST $BASE/api/v1/storage-backends/sb-1/test -H "Authorization: Bearer $
 
 ### PUT /api/v1/storage-backends/:id/sharing
 
-用途：设为平台共享（所有空间可见可选用，端点与凭证对非系统管理员隐藏）或取消共享。权限：平台管理，服务层限定系统管理员。请求体：`{"shared":true}`（必填）。取消共享时，若 owner 之外的空间仍有默认存储、知识库或活跃资源绑定，返回 400。
+用途：设为平台共享（所有工作区可见可选用，端点与凭证对非系统管理员隐藏）或取消共享。权限：平台管理，服务层限定系统管理员。请求体：`{"shared":true}`（必填）。取消共享时，若 owner 之外的工作区仍有默认存储、知识库或活跃资源绑定，返回 400。
 
 响应：200 `{"success":true,"data":{StorageBackend}}`
 
@@ -174,7 +174,7 @@ curl -X PUT $BASE/api/v1/storage-backends/sb-1/sharing -H "Authorization: Bearer
 
 ### PUT /api/v1/storage-backends/:id/default
 
-用途：设为本空间的默认后端。权限：Admin+（集中管理模式下也是 Admin+：它只是在可用后端中选一个给本空间用，不改后端本身）。响应：200 `{"success":true}`
+用途：设为本工作区的默认后端。权限：Admin+（集中管理模式下也是 Admin+：它只是在可用后端中选一个给本工作区用，不改后端本身）。响应：200 `{"success":true}`
 
 ```bash
 curl -X PUT $BASE/api/v1/storage-backends/sb-1/default -H "Authorization: Bearer $TOKEN"
@@ -347,7 +347,7 @@ curl -X POST $BASE/api/v1/datasource/validate-credentials -H "Authorization: Bea
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `knowledge_base_id` | string | 是 | 目标 KB（须归属本空间） |
+| `knowledge_base_id` | string | 是 | 目标 KB（须归属本工作区） |
 | `name` | string | 是 | 名称 |
 | `type` | string | 是 | 连接器类型 |
 | `config` | object | 是 | 凭证（加密存储）+资源选择+设置 |

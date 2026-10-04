@@ -1063,8 +1063,8 @@ export default {
   inviteRegister: {
     bannerTitle: 'You have been invited to join "{tenant}"',
     bannerHint:
-      "Fill in the details below to register. You will join the team automatically once registration completes.",
-    bannerHintLogin: "Log in to join this team automatically.",
+      "Fill in the details below to register. You will join the workspace automatically once registration completes.",
+    bannerHintLogin: "Log in to join this workspace automatically.",
     loading: "Verifying invitation link…",
     invalidTitle: "Invitation link is invalid or revoked",
     invalidBody: "Ask your inviter to send a new link, or sign in with an existing account.",
@@ -1083,7 +1083,7 @@ export default {
     submit: "Complete registration",
     submitting: "Submitting…",
     success: "Registration successful — entering workspace…",
-    joined: "You have joined the team.",
+    joined: "You have joined the workspace.",
     failed: "Registration failed; please try again later",
     usernameRequired: "Display name is required",
     passwordTooShort: "Password must be at least 6 characters",
@@ -1795,7 +1795,7 @@ export default {
     postCreateHint: {
       title: "Created successfully",
       footer: 'Keep adjusting settings, configure sharing and data sources, then click "Save and Close".',
-      followUpDesc: "Configure data sources on the left, or use Share Management to publish to spaces",
+      followUpDesc: "Configure data sources on the left, or use Share Management to publish to the workspace",
     },
     messages: {
       loadModelsFailed: "Failed to load model list",
@@ -4412,7 +4412,7 @@ export default {
       },
       manage_kbs: {
         label: "Manage knowledge bases",
-        hint: "Let this key manage the full knowledge-base lifecycle: create, copy, update, and delete knowledge bases and change their initialization/configuration. Operations on existing knowledge bases (copy/update/delete) stay bounded by the selected scope; creating a new knowledge base is unrestricted (the new KB belongs to this space).",
+        hint: "Let this key manage the full knowledge-base lifecycle: create, copy, update, and delete knowledge bases and change their initialization/configuration. Operations on existing knowledge bases (copy/update/delete) stay bounded by the selected scope; creating a new knowledge base is unrestricted (the new KB belongs to this workspace).",
       },
       message_history: {
         label: "Message history",
@@ -4428,15 +4428,15 @@ export default {
       },
       docs_read: {
         label: "Read documents",
-        hint: "Read pages, members and attachment metadata of visible spaces; no changes.",
+        hint: "Read pages, members and attachment metadata of visible docs spaces; no changes.",
       },
       docs_write: {
         label: "Edit documents",
-        hint: "Create, edit and move pages, manage labels and comments; limited by space role.",
+        hint: "Create, edit and move pages, manage labels and comments; limited by docs space role.",
       },
       docs_admin: {
         label: "Administer documents",
-        hint: "Manage space members, page-level permissions and user groups, like a space admin.",
+        hint: "Manage docs space members, page-level permissions and user groups, like a docs space admin.",
       },
       manage_models: {
         label: "Manage models",

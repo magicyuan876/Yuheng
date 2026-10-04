@@ -132,7 +132,7 @@ graph TB
 
 ### 1.6 存储配置
 
-- **StorageBackendID**（必填）：新文件写入的存储后端实例，创建时不指定就绑定空间默认（见[存储后端](19-storage-backends.md)）。它只决定新文件写到哪里：已有文件按各自的资源记录读取，所以有文件的知识库也可以换实例。响应里另带 `storage_backend`（实例的 `id`、`name`、`provider`、`source`、`is_builtin`），只对知识库所属空间返回。
+- **StorageBackendID**（必填）：新文件写入的存储后端实例，创建时不指定就绑定工作区默认（见[存储后端](19-storage-backends.md)）。它只决定新文件写到哪里：已有文件按各自的资源记录读取，所以有文件的知识库也可以换实例。响应里另带 `storage_backend`（实例的 `id`、`name`、`provider`、`source`、`is_builtin`），只对知识库所属工作区返回。
 
 ### 1.7 KB 计算字段
 
@@ -146,7 +146,7 @@ graph TB
 
 ## 2. KB 路由与权限
 
-（门禁语义见《租户、用户与认证授权》篇；`KBAccess` 要求知识库属于调用者的空间，别的空间的知识库返回 404，读写同一个守卫，读写的区别在角色与所有权守卫上。）
+（门禁语义见《工作区、用户与认证授权》篇；`KBAccess` 要求知识库属于调用者的工作区，别的工作区的知识库返回 404，读写同一个守卫，读写的区别在角色与所有权守卫上。）
 
 | 方法 | 路径 | Handler | 门禁 |
 | --- | --- | --- | --- |
@@ -328,7 +328,7 @@ type KnowledgeTagRelation struct { KnowledgeID, TagID string } // 多对多
 
 `internal/handler/knowledge_preview_security_test.go` 固化了这一点：内容是 `<script>alert(1)</script>` 的 HTML 文件只会作为附件下载。
 
-下载原始文件（`GET /knowledge/:id/download`）比预览更严：要求 Contributor+——空间 Viewer 不能下载原件。
+下载原始文件（`GET /knowledge/:id/download`）比预览更严：要求 Contributor+——工作区 Viewer 不能下载原件。
 
 ## 4. 知识库复制与知识移动
 
@@ -342,7 +342,7 @@ type KnowledgeTagRelation struct { KnowledgeID, TagID string } // 多对多
 Preflight（复制前在 handler 里同步校验，不通过直接返回，异步任务里还会再查一遍）：
 
 1. 源 KB 存在，且属于调用者的租户（跨租户返回 403）；
-2. 指定了 `target_id` 时：目标 KB 存在且属于调用者的租户；两库 **embedding 模型相同**（否则向量空间不兼容）；绑定**同一个向量存储**（`SharesStoreWith`）；使用**同一个存储后端实例**（`SharesStorageBackendWith`，比较具体实例而不只是 provider 类型）；
+2. 指定了 `target_id` 时：目标 KB 存在且属于调用者的租户；两库 **embedding 模型相同**（否则向量工作区不兼容）；绑定**同一个向量存储**（`SharesStoreWith`）；使用**同一个存储后端实例**（`SharesStorageBackendWith`，比较具体实例而不只是 provider 类型）；
 3. API Key 调用时源 / 目标 KB 均须在 allow-list 内。
 
 ### 4.2 知识移动门禁（move gate）

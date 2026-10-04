@@ -186,7 +186,7 @@ curl -X PUT $BASE/api/v1/knowledge-bases/kb-1/faq/import/last-result/display \
 
 ### GET /api/v1/faq/import/progress/:task_id
 
-用途：查询 FAQ 导入/dry-run 进度（任务按空间隔离）。权限：Viewer+；API key `retrieve`/`ingest`/full。
+用途：查询 FAQ 导入/dry-run 进度（任务按工作区隔离）。权限：Viewer+；API key `retrieve`/`ingest`/full。
 
 响应：200 `{"success":true,"data":{FAQImportProgress}}`，主要字段：`task_id`、`kb_id`、`knowledge_id`、`status`（`pending`/`processing`/`completed`/`failed`）、`progress`（0-100）、`total`、`processed`、`success_count`、`failed_count`、`partial_failed_count`、`skipped_count`、`added_count`、`merged_count`、`success_entries`、`failed_entries_url`、`message`、`error`、`dry_run`、`created_at`/`updated_at`（Unix 秒）。有失败条目时会生成 CSV，通过 `failed_entries_url` 下载，内联的 `failed_entries` 随之清空。dry-run 任务的 `success_entries` 不会真正写入。
 

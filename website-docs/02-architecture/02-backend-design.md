@@ -122,7 +122,7 @@ if redisAvailable {
 ### 2.4 资源清理与工厂
 
 - `ResourceCleaner`（`internal/container/cleanup.go`）：各组件通过 `RegisterWithName(name, cleanupFunc)` 注册析构（ants 池、Langfuse flush、数据源调度器、Housekeeping、`KnowledgeReviewSweep` 等），退出时统一 `Cleanup(ctx)`；
-- `EngineFactory`（`internal/container/engine_factory.go`）：根据 `vector_stores` 表行在运行时创建检索引擎实例——按行的 `engine_type` 到引擎目录（`retriever.Catalog`，由各引擎的 `EngineDescriptor` 构成）里查描述符并调用其 `New`。社区版目录里只有 postgres 且不可由工作空间注册，因此这条路径在社区版不会创建新引擎；
+- `EngineFactory`（`internal/container/engine_factory.go`）：根据 `vector_stores` 表行在运行时创建检索引擎实例——按行的 `engine_type` 到引擎目录（`retriever.Catalog`，由各引擎的 `EngineDescriptor` 构成）里查描述符并调用其 `New`。社区版目录里只有 postgres 且不可由工作区注册，因此这条路径在社区版不会创建新引擎；
 - `initDatabase`（`container.go`）：`DB_DRIVER` 只接受 `postgres`；内置检索引擎启用时先检查 `vector` / `pg_search` 扩展（`pgextensions.go`），再执行迁移（`AUTO_MIGRATE`，默认开启）。迁移失败默认**终止启动**（`MIGRATION_FAIL_FAST`，设为 `false` 才只告警继续，此时 `/ready` 保持 503）。迁移之后依次执行：序列同步（`syncSequences`）、遗留 pending 任务复位（`resetPendingTasks`）、存储后端回填（`migrateLegacyStorageBackends`）、`config/builtin_models.yaml` 声明式内置模型 UPSERT。
 
 ## 3. cmd/server 启动流程
@@ -207,8 +207,8 @@ kb.PUT("/:id", g.OwnedKBOrAdmin(), handler.UpdateKnowledgeBase)
 
 - **角色守卫**（调用者在租户内是什么角色）：`Viewer()` / `Contributor()` / `Admin()` / `Owner()` / `AdminOrSystemAdmin()` / `SystemAdmin()`，底层是 `middleware.RequireRole`；
 - **所有权守卫**（是否为资源创建者或 Admin+）：`OwnedKBOrAdmin()`、`OwnedKnowledgeKBOrAdmin()`、`OwnedChunkKBOrAdmin()`、`OwnedWikiKBOrAdmin()` 等——子资源通过 `KBCreatorLookupFromKnowledgeID` 等闭包沿 URL 参数回溯到所属 KB 的 `creator_id`；
-- **知识库访问守卫**（知识库必须属于调用者的空间，否则 404）：`KBAccess(param)` 及 `...FromKnowledgeIDParam` / `...FromChunkIDParam` 变体，底层是 `middleware.RequireKBAccess`，同时执行 API Key 的知识库白名单；
-- **租户边界守卫**：`CrossTenant()`（平台级操作需 `EnableCrossTenantAccess` + `CanAccessAllTenants`）、`TenantCatalog()`（空间目录：系统管理员 / 跨空间超管 / 平台 Key）、`PathTenantMatch()`（`/tenants/:id` 必须与上下文租户一致）。
+- **知识库访问守卫**（知识库必须属于调用者的工作区，否则 404）：`KBAccess(param)` 及 `...FromKnowledgeIDParam` / `...FromChunkIDParam` 变体，底层是 `middleware.RequireKBAccess`，同时执行 API Key 的知识库白名单；
+- **租户边界守卫**：`CrossTenant()`（平台级操作需 `EnableCrossTenantAccess` + `CanAccessAllTenants`）、`TenantCatalog()`（工作区目录：系统管理员 / 跨工作区超管 / 平台 Key）、`PathTenantMatch()`（`/tenants/:id` 必须与上下文租户一致）。
 
 所有守卫尊重 `cfg.Tenant.EnableRBAC`：关闭时只记录"本应拒绝"日志后放行。
 
@@ -276,9 +276,9 @@ kb.PUT("/:id", g.OwnedKBOrAdmin(), handler.UpdateKnowledgeBase)
 
 ```mermaid
 erDiagram
-    TENANT ||--o{ TENANT_MEMBER : "成员 (用户与空间的唯一关系)"
-    USER ||--o{ TENANT_MEMBER : "加入多个空间"
-    TENANT ||--o{ TENANT_GROUP : "空间组"
+    TENANT ||--o{ TENANT_MEMBER : "成员 (用户与工作区的唯一关系)"
+    USER ||--o{ TENANT_MEMBER : "加入多个工作区"
+    TENANT ||--o{ TENANT_GROUP : "工作区组"
     USER ||--o{ TENANT_GROUP_MEMBER : "组成员"
     TENANT ||--o{ TENANT_API_KEY : "API Key (tenant_id 为空则平台级)"
     TENANT ||--o{ KNOWLEDGE_BASE : "拥有"

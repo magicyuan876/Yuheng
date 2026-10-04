@@ -141,7 +141,7 @@ func (h *KnowledgeFindingHandler) UpdateFinding(c *gin.Context) {
 
 // AssignFinding godoc
 // @Summary      指派问题的处理人
-// @Description  把问题交给指定成员处理（之后的自动检测不再改派）；assignee_id 为空表示交还自动派发，并立即重新派发。处理人须能编辑该知识库，涉及在线文档的问题也可以是空间的在职成员。操作记入知识库动态
+// @Description  把问题交给指定成员处理（之后的自动检测不再改派）；assignee_id 为空表示交还自动派发，并立即重新派发。处理人须能编辑该知识库，涉及在线文档的问题也可以是文档空间的在职成员。操作记入知识库动态
 // @Tags         知识健康
 // @Accept       json
 // @Produce      json
@@ -208,7 +208,7 @@ func (h *KnowledgeFindingHandler) SupersedeFinding(c *gin.Context) {
 
 // ListAssignedFindings godoc
 // @Summary      我的知识待办
-// @Description  当前空间里派给我处理的知识健康问题，跨知识库，附知识库名称。status 默认 open，all 列出全部
+// @Description  当前工作区里派给我处理的知识健康问题，跨知识库，附知识库名称。status 默认 open，all 列出全部
 // @Tags         知识健康
 // @Produce      json
 // @Param        status     query  string  false  "open（默认）/ dismissed / resolved / all"
@@ -235,7 +235,7 @@ func (h *KnowledgeFindingHandler) ListAssignedFindings(c *gin.Context) {
 
 // CountAssignedFindings godoc
 // @Summary      我的待办数量
-// @Description  当前空间里派给我、尚未处理的知识健康问题数量，用于导航角标
+// @Description  当前工作区里派给我、尚未处理的知识健康问题数量，用于导航角标
 // @Tags         知识健康
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}  "data: {open_total}"
@@ -253,7 +253,7 @@ func (h *KnowledgeFindingHandler) CountAssignedFindings(c *gin.Context) {
 
 // ScanFindings godoc
 // @Summary      重新检测整个知识库
-// @Description  为知识库中所有已完成索引的文档安排一次健康检测（分批错开执行，已在排队的不重复安排），返回新安排的数量。仅知识库所属空间可发起
+// @Description  为知识库中所有已完成索引的文档安排一次健康检测（分批错开执行，已在排队的不重复安排），返回新安排的数量。仅知识库所属工作区可发起
 // @Tags         知识健康
 // @Produce      json
 // @Param        id  path  string  true  "知识库 ID"

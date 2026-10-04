@@ -130,11 +130,11 @@ sequenceDiagram
 | `builtin` | docreader | 见下表 | docreader 已连接 |
 | `simple` | Go 进程内 | md、markdown、txt、csv、json、图片、音频 | 总是可用 |
 | `anydoc` | Go 进程内（cgo） | doc、docx、docm、odt、rtf、ppt、pptx、pptm、odp、xls、xlsx、xlsm、ods、epub、csv、pdf | 二进制链接了 anydoc（见 §8） |
-| `mineru` / `mineru_cloud` | 自托管 MinerU 服务 / MinerU 云 API | pdf、图片、doc、docx、ppt、pptx | 空间设置里配置了服务地址 / API Key 且探测可达 |
+| `mineru` / `mineru_cloud` | 自托管 MinerU 服务 / MinerU 云 API | pdf、图片、doc、docx、ppt、pptx | 工作区设置里配置了服务地址 / API Key 且探测可达 |
 | `mineru_tianshu` | 自托管 MinerU 天枢任务队列 | 另含 xls、xlsx、html、htm | 配置了服务地址（及所需凭据）且探测可达 |
 | `paddleocr_vl` / `paddleocr_vl_cloud` | 自托管 PaddleOCR-VL / AI Studio 云 API | pdf、jpg、jpeg、png、bmp、tiff | 配置了服务地址 / Token 且探测可达 |
 
-MinerU、PaddleOCR-VL 这类远程引擎的地址与凭据是空间级配置（`Tenant.ParserEngineConfig`），由 Go 直接调用，不经 docreader。上表的文件类型是引擎能处理的范围，最终能否上传仍受上传白名单约束（例如 `bmp`、`tiff`、`odt` 不在白名单内：图片以按字节嗅探出的 MIME 类型送给视觉模型，TIFF 嗅探不出、会被当作 PNG 发送，BMP 常见的视觉模型接口不收，浏览器也不显示 TIFF，放行只会得到一条没有内容可检索的知识）。
+MinerU、PaddleOCR-VL 这类远程引擎的地址与凭据是工作区级配置（`Tenant.ParserEngineConfig`），由 Go 直接调用，不经 docreader。上表的文件类型是引擎能处理的范围，最终能否上传仍受上传白名单约束（例如 `bmp`、`tiff`、`odt` 不在白名单内：图片以按字节嗅探出的 MIME 类型送给视觉模型，TIFF 嗅探不出、会被当作 PNG 发送，BMP 常见的视觉模型接口不收，浏览器也不显示 TIFF，放行只会得到一条没有内容可检索的知识）。
 
 docreader 侧 `ParserEngineRegistry`（`docreader/parser/registry.py`）维护 `引擎名 → {文件扩展名 → 解析器类}` 的两级映射，并支持每个引擎注册 `check_available` 探针（用于 `ListEngines` 汇报可用性与不可用原因）。`_build_default_registry()` 注册三个引擎：
 

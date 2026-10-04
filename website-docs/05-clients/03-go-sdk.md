@@ -106,7 +106,7 @@ SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、模�
 | 方法 | 说明 |
 |---|---|
 | `Login` | 邮箱密码登录，返回 JWT access/refresh token（`POST /api/v1/auth/login`） |
-| `GetCurrentUser` | 获取当前登录主体与租户信息（`GET /api/v1/auth/me`）。`AuthUser` 不带 `tenant_id`——用户是全局身份，当前空间是登录响应的 `ActiveTenant` 或 `/auth/me` 的 `Tenant`，成员关系在 `Memberships` 里 |
+| `GetCurrentUser` | 获取当前登录主体与租户信息（`GET /api/v1/auth/me`）。`AuthUser` 不带 `tenant_id`——用户是全局身份，当前工作区是登录响应的 `ActiveTenant` 或 `/auth/me` 的 `Tenant`，成员关系在 `Memberships` 里 |
 | `RefreshToken` | 用 refresh token 换取新 access token |
 | `ChangePassword` | 修改当前用户密码（`POST /api/v1/auth/change-password`）；成功后服务端吊销该用户所有会话，调用方应丢弃本地 token |
 
@@ -215,8 +215,8 @@ SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、模�
 
 | 方法 | 说明 |
 |---|---|
-| `CreateTenant` / `CreateTenantWithOwner` | 创建空间（只有系统管理员、跨空间超管与平台 API Key 可调）。`CreateTenant` 让调用者本人成为 Owner；平台 Key 不是人，必须用 `CreateTenantWithOwner` 在 `CreateTenantRequest.OwnerEmail` 里指定一位已注册用户（否则服务端返回 code 2006） |
-| `GetTenant` / `UpdateTenant` / `DeleteTenant` | 租户读取、更新、删除（删除在空间还有其他成员或是最后一个空间时被拒绝，code 2007 / 2008） |
+| `CreateTenant` / `CreateTenantWithOwner` | 创建工作区（只有系统管理员、跨工作区超管与平台 API Key 可调）。`CreateTenant` 让调用者本人成为 Owner；平台 Key 不是人，必须用 `CreateTenantWithOwner` 在 `CreateTenantRequest.OwnerEmail` 里指定一位已注册用户（否则服务端返回 code 2006） |
+| `GetTenant` / `UpdateTenant` / `DeleteTenant` | 租户读取、更新、删除（删除在工作区还有其他成员或是最后一个工作区时被拒绝，code 2007 / 2008） |
 | `ListTenants` | 列出当前用户可访问的租户 |
 | `ListAllTenants` | 列出全部租户（系统管理员 / 跨租户权限），每项带 `member_count` |
 | `SearchTenants` | 搜索租户（分页，同上） |

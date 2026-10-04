@@ -33,9 +33,9 @@ echo "YUHENG_API_KEY=your_api_key_here" >> .env
 
 以下是各种 MCP 工具的使用示例：
 
-### 空间管理
+### 工作区管理
 
-#### 创建空间
+#### 创建工作区
 ```json
 {
   "tool": "create_tenant",
@@ -53,7 +53,7 @@ echo "YUHENG_API_KEY=your_api_key_here" >> .env
 }
 ```
 
-#### 列出所有空间
+#### 列出所有工作区
 ```json
 {
   "tool": "list_tenants",
@@ -234,7 +234,7 @@ python main.py --verbose
 # 2. 在 MCP 客户端中执行以下步骤：
 ```
 
-#### 步骤 1: 创建空间
+#### 步骤 1: 创建工作区
 ```json
 {
   "tool": "create_tenant",

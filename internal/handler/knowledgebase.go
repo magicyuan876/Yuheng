@@ -470,7 +470,7 @@ func (h *KnowledgeBaseHandler) GetKnowledgeBase(c *gin.Context) {
 
 // ListKnowledgeBases godoc
 // @Summary      获取知识库列表
-// @Description  获取当前空间的所有知识库
+// @Description  获取当前工作区的所有知识库
 // @Tags         知识库
 // @Accept       json
 // @Produce      json

@@ -33,7 +33,7 @@ export default {
       },
       manage_kbs: {
         label: "지식베이스 관리",
-        hint: "지식베이스 전체 수명 주기를 관리할 수 있습니다: 생성, 복사, 수정, 삭제 및 초기화/설정 변경. 기존 지식베이스에 대한 작업(복사/수정/삭제)은 선택한 범위로 제한되며, 새 지식베이스 생성은 제한되지 않습니다(새 지식베이스는 이 스페이스에 속함).",
+        hint: "지식베이스 전체 수명 주기를 관리할 수 있습니다: 생성, 복사, 수정, 삭제 및 초기화/설정 변경. 기존 지식베이스에 대한 작업(복사/수정/삭제)은 선택한 범위로 제한되며, 새 지식베이스 생성은 제한되지 않습니다(새 지식베이스는 이 워크스페이스에 속함).",
       },
       message_history: {
         label: "메시지 기록",
@@ -49,15 +49,15 @@ export default {
       },
       docs_read: {
         label: "문서 읽기",
-        hint: "보이는 공간의 페이지, 구성원, 첨부 메타데이터를 읽습니다. 내용은 변경하지 않습니다.",
+        hint: "보이는 문서 공간의 페이지, 구성원, 첨부 메타데이터를 읽습니다. 내용은 변경하지 않습니다.",
       },
       docs_write: {
         label: "문서 편집",
-        hint: "페이지 생성·편집·이동, 라벨과 댓글 관리를 허용합니다. 공간 역할의 제한을 받습니다.",
+        hint: "페이지 생성·편집·이동, 라벨과 댓글 관리를 허용합니다. 문서 공간 역할의 제한을 받습니다.",
       },
       docs_admin: {
         label: "문서 관리",
-        hint: "공간 구성원, 페이지 권한, 사용자 그룹을 관리합니다. 공간 관리자와 동일합니다.",
+        hint: "문서 공간 구성원, 페이지 권한, 사용자 그룹을 관리합니다. 문서 공간 관리자와 동일합니다.",
       },
       manage_models: {
         label: "모델 관리",
@@ -2272,7 +2272,7 @@ export default {
     formatError: "형식 오류",
     searchPlaceholder: "워크스페이스 이름 검색 또는 워크스페이스 ID 입력...",
     noMatch: "일치하는 워크스페이스를 찾을 수 없습니다",
-    switchSuccessTitle: "공간이 전환되었습니다",
+    switchSuccessTitle: "워크스페이스가 전환되었습니다",
     switchSuccessContent: "{name} 에 입장했습니다",
     loadTenantsFailed: "워크스페이스 목록 로드 실패",
     loading: "로딩 중...",
@@ -2306,17 +2306,17 @@ export default {
       failed: "Failed to delete workspace",
     },
     leaveDangerZone: {
-      title: "이 스페이스 나가기",
-      desc: "현재 스페이스에서 멤버십을 종료합니다. 지식 베이스에 접근할 수 없게 되며, 이후 초대되면 다시 참여할 수 있습니다.",
-      button: "스페이스 나가기",
+      title: "이 워크스페이스 나가기",
+      desc: "현재 워크스페이스에서 멤버십을 종료합니다. 지식 베이스에 접근할 수 없게 되며, 이후 초대되면 다시 참여할 수 있습니다.",
+      button: "워크스페이스 나가기",
     },
     storage: {
       quotaLabel: "저장소 할당량",
-      quotaDescription: "워크스페이스의 총 저장 스페이스 할당량",
+      quotaDescription: "워크스페이스의 총 저장 공간 할당량",
       usedLabel: "사용된 저장소",
-      usedDescription: "이미 사용된 저장 스페이스",
+      usedDescription: "이미 사용된 저장 공간",
       usageLabel: "저장소 사용률",
-      usageDescription: "저장 스페이스의 사용 백분율",
+      usageDescription: "저장 공간의 사용 백분율",
       unlimited: "제한 없음",
     },
     details: {
@@ -2670,7 +2670,7 @@ export default {
       indexModeDescription: "질문만 인덱싱하면 정확도가 향상되고, Q&A를 인덱싱하면 재현율이 향상됩니다",
       questionIndexModeLabel: "질문 인덱스 방식",
       questionIndexModeDescription:
-        "병합 인덱스: 표준 질문과 유사 질문을 병합 인덱싱; 개별 인덱스: 표준 질문과 각 유사 질문을 독립적으로 인덱싱하여 더 정확하게 검색하지만 더 많은 저장 스페이스가 필요합니다",
+        "병합 인덱스: 표준 질문과 유사 질문을 병합 인덱싱; 개별 인덱스: 표준 질문과 각 유사 질문을 독립적으로 인덱싱하여 더 정확하게 검색하지만 더 많은 저장 공간이 필요합니다",
       entryGuide:
         "FAQ 항목은 표준 질문, 유사 질문, 반례 및 여러 답변으로 구성됩니다. 지식베이스 세부 정보에서 일괄 가져오기 및 편집할 수 있습니다.",
       tagDesc: "FAQ 항목에 태그 선택",
@@ -2757,7 +2757,7 @@ export default {
     postCreateHint: {
       title: "생성 완료",
       footer: '설정을 계속 조정하고 공유·데이터 소스를 구성한 뒤 "저장 후 닫기"를 클릭하세요.',
-      followUpDesc: '왼쪽에서 데이터 소스를 구성하거나 "공유 관리"에서 스페이스에 게시할 수 있습니다',
+      followUpDesc: '왼쪽에서 데이터 소스를 구성하거나 "공유 관리"에서 워크스페이스에 게시할 수 있습니다',
     },
     buttons: {
       create: "지식베이스 생성",
@@ -3454,8 +3454,8 @@ export default {
   },
   inviteRegister: {
     bannerTitle: "「{tenant}」에 초대되었습니다",
-    bannerHint: "아래 정보를 입력해 가입을 완료하세요. 등록이 끝나면 자동으로 팀에 합류합니다.",
-    bannerHintLogin: "로그인하면 자동으로 팀에 합류됩니다.",
+    bannerHint: "아래 정보를 입력해 가입을 완료하세요. 등록이 끝나면 자동으로 워크스페이스에 합류합니다.",
+    bannerHintLogin: "로그인하면 자동으로 워크스페이스에 합류됩니다.",
     loading: "초대 링크를 확인하는 중…",
     invalidTitle: "초대 링크가 유효하지 않거나 취소되었습니다",
     invalidBody: "초대한 분께 새 링크를 요청하거나 기존 계정으로 로그인하세요.",
@@ -3474,7 +3474,7 @@ export default {
     submit: "가입 완료",
     submitting: "전송 중…",
     success: "가입 완료, 워크스페이스로 이동합니다…",
-    joined: "팀에 합류했습니다.",
+    joined: "워크스페이스에 합류했습니다.",
     failed: "가입에 실패했습니다. 잠시 후 다시 시도해 주세요",
     usernameRequired: "이름을 입력하세요",
     passwordTooShort: "비밀번호는 최소 6자 이상이어야 합니다",
@@ -3814,7 +3814,7 @@ export default {
     },
     navGroups: {
       account: "계정",
-      workspace: "공간",
+      workspace: "워크스페이스",
       modelsRuntime: "모델",
       dataExtensions: "데이터 및 확장",
       systemAdministration: "시스템 관리",

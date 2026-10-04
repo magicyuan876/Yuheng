@@ -6,7 +6,7 @@
 
 - 部署时用 `docker-compose.yml` 自带的 ParadeDB 镜像（已内置 `vector` 与 `pg_search`）即可。改用自有 PostgreSQL 时须自行安装这两个扩展；服务启动会检查，缺任何一个都拒绝启动并说明原因。云厂商托管的 PostgreSQL 通常无法安装 `pg_search`，不适用；
 - 知识库编辑弹窗的「向量存储」页签会列出唯一的「PostgreSQL」存储，所有知识库都用它。知识库建好后绑定的向量存储不可更改；
-- 空间设置里的向量存储列表同样只显示这一个由环境变量决定的只读存储，没有可以新注册的引擎类型。
+- 工作区设置里的向量存储列表同样只显示这一个由环境变量决定的只读存储，没有可以新注册的引擎类型。
 
 上游 WeKnora 的 Elasticsearch、OpenSearch、Milvus、Weaviate、Qdrant、Doris、腾讯云 VectorDB 驱动不在开源版里。可用引擎由后端的**引擎目录**（engine catalog）决定：核心只注册 PostgreSQL，其他引擎要通过扩展提供一个引擎描述（`EngineDescriptor`）加入目录；`/api/v1/vector-stores` 的注册接口、`RETRIEVE_DRIVER` 的解析、设置页的表单都从目录读取。
 
@@ -25,7 +25,7 @@
 
 ## 1. 分层架构：Catalog → Repository → KVHybridRetrieveEngine → Composite → Registry
 
-**引擎目录**（`Catalog`）是一次性构建、之后不可变的引擎清单。每个 `EngineDescriptor` 声明：类型与 `RETRIEVE_DRIVER` 里的驱动名、支持的检索类型（`vector` / `keywords`）、向量分数的值域（`ScoreScale`：已在 [0,1] 或原始余弦 [-1,1]）、能否由空间自行注册（`Registrable`）、注册表单字段、连接测试与待拨号地址（用于 SSRF 校验）、构造函数。核心在容器里以 dig value group `retrieve_engines` 提供 `PostgresDescriptor`，扩展往同一个 group 提供自己的描述即可接入；两个描述重复声明同一类型或驱动名、或缺少必需字段时启动失败。PostgreSQL 的描述是 `Registrable: false`：`embeddings` 表名固定、不按存储分区，同一台服务器上再注册一个存储也分不开数据。
+**引擎目录**（`Catalog`）是一次性构建、之后不可变的引擎清单。每个 `EngineDescriptor` 声明：类型与 `RETRIEVE_DRIVER` 里的驱动名、支持的检索类型（`vector` / `keywords`）、向量分数的值域（`ScoreScale`：已在 [0,1] 或原始余弦 [-1,1]）、能否由工作区自行注册（`Registrable`）、注册表单字段、连接测试与待拨号地址（用于 SSRF 校验）、构造函数。核心在容器里以 dig value group `retrieve_engines` 提供 `PostgresDescriptor`，扩展往同一个 group 提供自己的描述即可接入；两个描述重复声明同一类型或驱动名、或缺少必需字段时启动失败。PostgreSQL 的描述是 `Registrable: false`：`embeddings` 表名固定、不按存储分区，同一台服务器上再注册一个存储也分不开数据。
 
 每个后端实现 `interfaces.RetrieveEngineRepository`（`EngineType()` / `Support()` / `Save` / `BatchSave` / `Retrieve` / `DeleteBy*` / `CopyIndices` / `BatchUpdateChunkEnabledStatus` / `BatchUpdateChunkTagID` / `EstimateStorageSize`）。其上依次是：
 
@@ -46,7 +46,7 @@
 
 ### 1.1 引擎注册：initRetrieveEngineRegistry
 
-`internal/container/engine_factory.go`。启动时用目录解析 `RETRIEVE_DRIVER`（逗号分隔）：目录里没有的驱动名记错误日志并跳过；其余逐个用描述的 `EnvStore` 与构造函数建成引擎并 `Register`，单个驱动初始化失败只记日志不阻断启动。随后 `loadDBStoresIntoRegistry` 从 `vector_stores` 表加载空间注册的存储实例，经 `NewEngineFactory` 构建后 `RegisterWithStoreID`；工厂会拒绝目录里没有的引擎、不可注册的引擎，以及地址没通过 SSRF 校验的存储。
+`internal/container/engine_factory.go`。启动时用目录解析 `RETRIEVE_DRIVER`（逗号分隔）：目录里没有的驱动名记错误日志并跳过；其余逐个用描述的 `EnvStore` 与构造函数建成引擎并 `Register`，单个驱动初始化失败只记日志不阻断启动。随后 `loadDBStoresIntoRegistry` 从 `vector_stores` 表加载工作区注册的存储实例，经 `NewEngineFactory` 构建后 `RegisterWithStoreID`；工厂会拒绝目录里没有的引擎、不可注册的引擎，以及地址没通过 SSRF 校验的存储。
 
 数据库初始化时，`RETRIEVE_DRIVER` 含 `postgres` 才会执行建 `embeddings` 表的迁移并检查扩展（`requireRetrievalExtensions`）。
 
@@ -54,7 +54,7 @@
 
 检索入口 `HybridSearch`（`knowledgebase_search.go`）按 KB 的绑定关系选择引擎：
 
-1. `resolveStoreGroups` 把参与检索的 KB 按 `VectorStoreID` 分组（所有 KB 都属于请求的租户，别的空间的知识库在更早的守卫处就按不存在处理）；
+1. `resolveStoreGroups` 把参与检索的 KB 按 `VectorStoreID` 分组（所有 KB 都属于请求的租户，别的工作区的知识库在更早的守卫处就按不存在处理）；
 2. 每组调用 `retriever.CreateRetrieveEngineForKB`（`factory.go`）：
    - KB 未绑定 store（`VectorStoreID` 为空，当前默认）→ 走租户的 `GetRetrieverEngines()`：租户配置了 `RetrieverEngines.Engines` 则用之，否则 `GetDefaultRetrieverEngines()` 按 `RETRIEVE_DRIVER` 环境变量生成（`internal/types/tenant.go`）；
    - KB 绑定了 store → 先 `StoreOwnedBy`（`ownership.go`）校验租户属主（防跨租户探测，失败返回 `ErrVectorStoreForbidden`），再按 store ID 取实例（必要时按需重建，未注册返回 `ErrVectorStoreNotFound`，暂不可用返回 `ErrVectorStoreUnavailable`），包装为单成员 Composite；
@@ -123,7 +123,7 @@ Yuheng 允许不同 KB 使用不同 embedding 模型（维度各异），各引�
 
 知识库换了 embedding 模型、旧文档还没重新索引时，新旧维度的向量都留在表里，但一次检索只命中查询向量那一维。
 
-检索侧的一致性由 `validateSameEmbeddingModel`（`knowledgebase_search_storegroup.go`）保证：一次多库检索中的所有 KB 必须共享同一 embedding 模型身份（`model.Name + BaseURL`，跨租户可等价），否则拒绝——避免跨向量空间的分数不可比。查询向量按模型身份分组只计算一次（`ResolveEmbeddingModelKeys` + `GetQueryEmbedding`），随 `params.QueryEmbedding` 传播到所有 store 组，杜绝重复 embedding API 调用。
+检索侧的一致性由 `validateSameEmbeddingModel`（`knowledgebase_search_storegroup.go`）保证：一次多库检索中的所有 KB 必须共享同一 embedding 模型身份（`model.Name + BaseURL`，跨租户可等价），否则拒绝——避免跨向量工作区的分数不可比。查询向量按模型身份分组只计算一次（`ResolveEmbeddingModelKeys` + `GetQueryEmbedding`），随 `params.QueryEmbedding` 传播到所有 store 组，杜绝重复 embedding API 调用。
 
 ## 5. 混合检索打分与归一化
 

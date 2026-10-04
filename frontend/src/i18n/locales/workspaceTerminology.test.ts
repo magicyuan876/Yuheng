@@ -45,3 +45,27 @@ test("user-facing locale values use workspace terminology", () => {
     assert.deepEqual(legacyValues, [], `${check.name} still contains user-facing tenant terminology`);
   }
 });
+
+// Chinese has two words that English keeps apart as "Workspace" and "Space": the tenant layer
+// is 「工作区」, and only the docs module's content containers are 「空间」. The two drifted
+// together once (the tenant layer was called 空间 in most of the UI while the docs module used
+// the same word for its own containers), so outside the namespaces where 空间 is the right word
+// a bare 空间 is treated as the tenant layer misnamed. Compounds that are a different word
+// altogether — 存储空间 (storage), 命名空间 (a GitLab namespace) — or that name a docs space
+// explicitly (文档空间) are not a bare 空间.
+const zhSpaceNamespaces = [
+  // The docs module itself: its containers are spaces.
+  "docs.",
+  // Third-party data sources: Feishu wiki spaces, cloud drives and the like are their names.
+  "datasource.",
+];
+const zhNotBareSpace = /(?:文档|存储|命名)空间/g;
+
+test("zh-CN calls the tenant layer 工作区 and keeps 空间 for docs spaces", () => {
+  const misnamed = collectStrings(zhCN)
+    .filter(({ path }) => !zhSpaceNamespaces.some((prefix) => path.startsWith(prefix)))
+    .filter(({ value }) => value.replace(zhNotBareSpace, "").includes("空间"))
+    .map(({ path, value }) => `${path}=${value}`);
+
+  assert.deepEqual(misnamed, [], "outside the docs module the tenant layer is 工作区, a docs space is 文档空间");
+});

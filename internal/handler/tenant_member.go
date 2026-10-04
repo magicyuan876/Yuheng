@@ -97,12 +97,12 @@ func parseTenantIDFromPath(c *gin.Context) (uint64, bool) {
 }
 
 // ListMembers godoc
-// @Summary      列出空间成员
-// @Description  分页返回空间内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。
-// @Description  /tenants/{id}/members 供空间成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意空间。
-// @Tags         空间成员
+// @Summary      列出工作区成员
+// @Description  分页返回工作区内 active 成员（含每位成员的角色、邮箱、头像）；支持 q 按邮箱/用户名筛选。
+// @Description  /tenants/{id}/members 供工作区成员使用（Viewer+）；/system/admin/tenants/{id}/members 供系统管理员查看任意工作区。
+// @Tags         工作区成员
 // @Produce      json
-// @Param        id         path   string  true   "空间 ID"
+// @Param        id         path   string  true   "工作区 ID"
 // @Param        q          query  string  false  "按邮箱/用户名模糊筛选"
 // @Param        page       query  int     false  "页码（从 1 起）"  default(1)
 // @Param        page_size  query  int     false  "每页数量（最大 100）"  default(20)
@@ -176,7 +176,7 @@ func (h *TenantMemberHandler) ListMembers(c *gin.Context) {
 }
 
 // AddMember godoc
-// @Summary      直接添加空间成员（直加路径）
+// @Summary      直接添加工作区成员（直加路径）
 // @Description
 //
 //	通过 email 直接把已注册用户作为 active 成员添加进空间。
@@ -194,13 +194,13 @@ func (h *TenantMemberHandler) ListMembers(c *gin.Context) {
 //	人在 /me/invitations 主动接受后再写 tenant_members 行。
 //	这条路径与 invitations 路径共存而不互相替代。
 //
-// @Tags         空间成员
+// @Tags         工作区成员
 // @Accept       json
 // @Produce      json
-// @Param        id        path  string                 true  "空间 ID"
+// @Param        id        path  string                 true  "工作区 ID"
 // @Param        request   body  addMemberRequest       true  "邀请请求"
 // @Success      201  {object}  map[string]interface{}
-// @Failure      404  {object}  apperrors.AppError  "用户未注册 / 空间不存在"
+// @Failure      404  {object}  apperrors.AppError  "用户未注册 / 工作区不存在"
 // @Failure      409  {object}  apperrors.AppError  "已经是成员"
 // @Security     Bearer
 // @Router       /tenants/{id}/members [post]
@@ -325,13 +325,13 @@ func writeAddMemberSuccess(c *gin.Context, user *types.User, member *types.Tenan
 }
 
 // UpdateMemberRole godoc
-// @Summary      修改空间成员角色
-// @Description  修改某位成员在空间内的角色；不能将最后一位 Owner 降级。
+// @Summary      修改工作区成员角色
+// @Description  修改某位成员在工作区内的角色；不能将最后一位 Owner 降级。
 // @Description  Owner 用 PUT /tenants/{id}/members/{user_id}；系统管理员用 PATCH /system/admin/tenants/{id}/members/{user_id}。
-// @Tags         空间成员
+// @Tags         工作区成员
 // @Accept       json
 // @Produce      json
-// @Param        id       path  string                  true  "空间 ID"
+// @Param        id       path  string                  true  "工作区 ID"
 // @Param        user_id  path  string                  true  "用户 ID"
 // @Param        request  body  updateMemberRoleRequest true  "目标角色"
 // @Success      200  {object}  map[string]interface{}
@@ -383,12 +383,12 @@ func (h *TenantMemberHandler) UpdateMemberRole(c *gin.Context) {
 }
 
 // RemoveMember godoc
-// @Summary      移除空间成员
-// @Description  将某位成员从空间中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。
+// @Summary      移除工作区成员
+// @Description  将某位成员从工作区中移除（软删除 tenant_members 行）；不能移除最后一位 Owner。
 // @Description  Owner 用 /tenants/{id}/members/{user_id}；系统管理员用 /system/admin/tenants/{id}/members/{user_id}。
-// @Tags         空间成员
+// @Tags         工作区成员
 // @Produce      json
-// @Param        id       path  string  true  "空间 ID"
+// @Param        id       path  string  true  "工作区 ID"
 // @Param        user_id  path  string  true  "用户 ID"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      409  {object}  apperrors.AppError  "最后一位 Owner 不能移除"
@@ -425,15 +425,15 @@ func (h *TenantMemberHandler) RemoveMember(c *gin.Context) {
 }
 
 // LeaveTenant godoc
-// @Summary      退出当前空间
-// @Description  调用方主动退出当前空间。等价于以自己的 user_id 调 RemoveMember，
+// @Summary      退出当前工作区
+// @Description  调用方主动退出当前工作区。等价于以自己的 user_id 调 RemoveMember，
 //
 //	但不需要 Owner 权限——非 Owner 也可以自助离开。最后一位 Owner 仍然不能离开
 //	（需先把其他成员提升为 Owner），由服务层 ErrLastOwner 拦截。
 //
-// @Tags         空间成员
+// @Tags         工作区成员
 // @Produce      json
-// @Param        id  path  string  true  "空间 ID"
+// @Param        id  path  string  true  "工作区 ID"
 // @Success      200  {object}  map[string]interface{}
 // @Security     Bearer
 // @Router       /tenants/{id}/leave [post]

@@ -85,9 +85,9 @@ uv run --extra test python -m unittest discover -s . -p "test_*.py"
 
 该 MCP 服务器提供以下工具：
 
-### 空间管理
-- `create_tenant` - 创建新空间
-- `list_tenants` - 列出所有空间
+### 工作区管理
+- `create_tenant` - 创建新工作区
+- `list_tenants` - 列出所有工作区
 
 ### 知识库管理
 - `create_knowledge_base` - 创建知识库

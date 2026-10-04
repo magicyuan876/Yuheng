@@ -35,11 +35,11 @@ type auditLogListResponse struct {
 }
 
 // ListTenantAuditLog godoc
-// @Summary      获取空间审计日志
-// @Description  返回该空间最近的审计事件，按 id 倒序。游标分页：将上次响应的 next_cursor 作为下一次请求的 after_id。
+// @Summary      获取工作区审计日志
+// @Description  返回该工作区最近的审计事件，按 id 倒序。游标分页：将上次响应的 next_cursor 作为下一次请求的 after_id。
 // @Tags         审计日志
 // @Produce      json
-// @Param        id        path   string  true   "空间ID"
+// @Param        id        path   string  true   "工作区ID"
 // @Param        after_id  query  int     false  "游标：返回 id 小于此值的记录（默认从最新开始）"
 // @Param        limit     query  int     false  "页大小，1-100，默认 50"
 // @Param        action    query  string  false  "按 action 精确过滤（如 rbac.member_added / rbac.access_denied）"
@@ -110,7 +110,7 @@ func (h *AuditLogHandler) ListTenantAuditLog(c *gin.Context) {
 // knowledge base. The route has already resolved KB access (the base belongs
 // to the caller's workspace); this handler only reads the stashed result.
 // @Summary      获取知识库活动记录
-// @Description  返回知识库的重要变更与后台任务入口。仅知识库创建者或所属空间管理员可读。
+// @Description  返回知识库的重要变更与后台任务入口。仅知识库创建者或所属工作区管理员可读。
 // @Tags         知识库
 // @Produce      json
 // @Param        id        path   string  true   "知识库ID"

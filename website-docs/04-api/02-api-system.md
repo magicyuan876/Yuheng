@@ -1,10 +1,10 @@
 # API 参考：系统与平台管理
 
-这一组是部署级接口：读系统信息与部署能力，以及系统管理员专属的平台控制面（全局设置、平台级解析引擎配置、运行时队列、平台 API Key、跨空间审计、创建用户与重置密码、任意空间的成员管理）。创建空间与空间目录（`POST /tenants`、`/tenants/all`、`/tenants/search`）同样只对系统管理员开放，但挂在 `/tenants` 下，见[租户与成员](./02-api-tenant.md)。功能说明见[平台管理与系统管理员](../03-features/20-platform-admin.md)。
+这一组是部署级接口：读系统信息与部署能力，以及系统管理员专属的平台控制面（全局设置、平台级解析引擎配置、运行时队列、平台 API Key、跨工作区审计、创建用户与重置密码、任意工作区的成员管理）。创建工作区与工作区目录（`POST /tenants`、`/tenants/all`、`/tenants/search`）同样只对系统管理员开放，但挂在 `/tenants` 下，见[租户与成员](./02-api-tenant.md)。功能说明见[平台管理与系统管理员](../03-features/20-platform-admin.md)。
 
 路由注册：`internal/router/routes_auth_tenant.go` 的 `RegisterSystemAdminRoutes` 与 `RegisterSystemRoutes`。Handler：`internal/handler/system.go`、`internal/handler/audit_log.go`。
 
-`/system/admin/*` 全组挂 `SystemAdmin()` 守卫；平台 API Key 按能力细分（`system_settings_read/manage`、`system_runtime_read/manage`、`system_tenants_read/manage`、`system_audit_read`）。只有设置、运行时队列、批量配额、任意空间的成员管理与审计日志对平台 key 开放；管理员授予与撤销、创建用户、重置密码、平台 API key 管理、平台解析引擎配置只接受 JWT。
+`/system/admin/*` 全组挂 `SystemAdmin()` 守卫；平台 API Key 按能力细分（`system_settings_read/manage`、`system_runtime_read/manage`、`system_tenants_read/manage`、`system_audit_read`）。只有设置、运行时队列、批量配额、任意工作区的成员管理与审计日志对平台 key 开放；管理员授予与撤销、创建用户、重置密码、平台 API key 管理、平台解析引擎配置只接受 JWT。
 
 ## 系统信息（/api/v1/system）
 
@@ -36,7 +36,7 @@ curl $BASE/api/v1/system/upload-limits -H "Authorization: Bearer $TOKEN"
 
 ### GET /api/v1/system/governance
 
-用途：是否开启「集中管控基础设施」（系统设置 `governance.centralized_infra`）。开启后模型、Web 搜索、解析引擎、向量存储、存储后端等共享基础设施的写操作只允许系统管理员（见[总览](./01-api-overview.md)的 PlatformManaged），前端据此隐藏空间管理员的设置入口。权限：Viewer+；返回值只有一个布尔量，不含配置内容。
+用途：是否开启「集中管控基础设施」（系统设置 `governance.centralized_infra`）。开启后模型、Web 搜索、解析引擎、向量存储、存储后端等共享基础设施的写操作只允许系统管理员（见[总览](./01-api-overview.md)的 PlatformManaged），前端据此隐藏工作区管理员的设置入口。权限：Viewer+；返回值只有一个布尔量，不含配置内容。
 
 响应：200 `{"code":0,"msg":"success","data":{"centralized_infra":bool}}`
 
@@ -137,17 +137,17 @@ curl -X POST $BASE/api/v1/system/admin/users/reset-password -H "Authorization: B
 
 ### POST /api/v1/system/admin/users/create
 
-用途：由系统管理员创建本地用户。账号是全局身份，创建本身不进任何空间；带 `tenant_id` 时在同一请求里把它加入该空间。
+用途：由系统管理员创建本地用户。账号是全局身份，创建本身不进任何工作区；带 `tenant_id` 时在同一请求里把它加入该工作区。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `username` | string | 是（`binding:"required,min=2,max=50"`） | 用户名，去掉首尾空白后仍需 2-50 字符 |
 | `email` | string | 是（`binding:"required,email"`） | 邮箱 |
 | `password` | *string | 否 | 省略或为 null 时服务端随机生成；只要提供了值（包括空串）就按密码策略校验 |
-| `tenant_id` | uint64 | 否 | 创建后加入的空间；不存在返回 404 |
-| `role` | string | 否 | 在该空间的角色，默认 `viewer`；非法值 400。只在给了 `tenant_id` 时有意义 |
+| `tenant_id` | uint64 | 否 | 创建后加入的工作区；不存在返回 404 |
+| `role` | string | 否 | 在该工作区的角色，默认 `viewer`；非法值 400。只在给了 `tenant_id` 时有意义 |
 
-响应：201 `{"user":{UserInfo},"generated_password":"...","membership":{成员对象}}`，`generated_password` 只在服务端生成密码时出现，且只返回这一次，不写日志和审计；`membership` 只在给了 `tenant_id` 时出现。邮箱或用户名已存在且指向同一用户时幂等返回 200 与已有用户（此时若带 `tenant_id`，已有的成员关系原样保留、角色不改）；邮箱与用户名分属不同用户返回 409。审计 `system.user_created`，加入空间另记 `rbac.member_added`（`actor_role` 为 `system_admin`）。
+响应：201 `{"user":{UserInfo},"generated_password":"...","membership":{成员对象}}`，`generated_password` 只在服务端生成密码时出现，且只返回这一次，不写日志和审计；`membership` 只在给了 `tenant_id` 时出现。邮箱或用户名已存在且指向同一用户时幂等返回 200 与已有用户（此时若带 `tenant_id`，已有的成员关系原样保留、角色不改）；邮箱与用户名分属不同用户返回 409。审计 `system.user_created`，加入工作区另记 `rbac.member_added`（`actor_role` 为 `system_admin`）。
 
 ```bash
 curl -X POST $BASE/api/v1/system/admin/users/create -H "Authorization: Bearer $TOKEN" \
@@ -166,7 +166,7 @@ curl $BASE/api/v1/system/admin/api-keys -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/system/admin/api-keys
 
-用途：创建平台 API key（明文仅在响应的 `data.token` 里返回一次，之后列表只有掩码）。请求体：`name`（非空）、`capabilities`（必填，每一项都必须是已知 capability，否则 1010；可以是 `system_*`，也可以是作用于 `X-Tenant-ID` 所选空间的空间 capability）、`expires_at_unix`（可选，须为未来时间）。平台 key 没有 `full_access`，也不能创建或删除别的平台 key（这三个管理接口只接受 JWT）。平台 key 的调用方式见[总览](./01-api-overview.md)。
+用途：创建平台 API key（明文仅在响应的 `data.token` 里返回一次，之后列表只有掩码）。请求体：`name`（非空）、`capabilities`（必填，每一项都必须是已知 capability，否则 1010；可以是 `system_*`，也可以是作用于 `X-Tenant-ID` 所选工作区的工作区 capability）、`expires_at_unix`（可选，须为未来时间）。平台 key 没有 `full_access`，也不能创建或删除别的平台 key（这三个管理接口只接受 JWT）。平台 key 的调用方式见[总览](./01-api-overview.md)。
 
 响应：201 `{"success":true,"data":{...,"api_key":"sk-AbCd...wXyZ","token":"<明文>"}}`：`token` 只在这次响应里出现，`api_key` 是掩码提示
 
@@ -218,7 +218,7 @@ curl -X DELETE $BASE/api/v1/system/admin/settings/default_storage_quota -H "Auth
 
 ### GET /api/v1/system/admin/parser-engine-config 与 PUT 同路径
 
-用途：平台级解析引擎配置，处于「部署 ENV < 平台默认 < 空间覆盖」的中间层；空间层仍走 `PUT /tenants/kv/parser-engine-config`（开启集中管控后空间不能再覆盖）。仅 JWT 的 SystemAdmin（未对平台 API key 声明）。
+用途：平台级解析引擎配置，处于「部署 ENV < 平台默认 < 工作区覆盖」的中间层；工作区层仍走 `PUT /tenants/kv/parser-engine-config`（开启集中管控后工作区不能再覆盖）。仅 JWT 的 SystemAdmin（未对平台 API key 声明）。
 
 - GET 响应：200 `{"success":true,"data":{ParserEngineConfig}}`，凭据字段以掩码返回，即使调用者是系统管理员。
 - PUT 请求体：`types.ParserEngineConfig`；凭据字段原样传回掩码占位符表示不修改。出站地址要通过 SSRF 校验，不通过返回 1010。响应：200 `{"success":true,"data":{...},"message":"..."}`。
@@ -270,7 +270,7 @@ curl -X DELETE $BASE/api/v1/system/admin/runtime/queues/default/archived -H "Aut
 
 ### /api/v1/system/admin/tenants/:id/members 与 .../members/:user_id
 
-用途：系统管理员管理**任意**空间的成员——同一组成员 handler 再挂一份在这里，守卫换成 `SystemAdmin()`，不要求调用者是该空间成员。`GET`（列表）、`POST`（`{email, role}` 添加已注册用户）、`PATCH .../:user_id`（`{role}` 改角色）、`DELETE .../:user_id`（移出）。平台 key：读需 `system_tenants_read|manage`，写需 `system_tenants_manage`。字段、响应与错误见[租户与成员](./02-api-tenant.md#系统管理员的成员接口systemadmintenantsidmembers)。
+用途：系统管理员管理**任意**工作区的成员——同一组成员 handler 再挂一份在这里，守卫换成 `SystemAdmin()`，不要求调用者是该工作区成员。`GET`（列表）、`POST`（`{email, role}` 添加已注册用户）、`PATCH .../:user_id`（`{role}` 改角色）、`DELETE .../:user_id`（移出）。平台 key：读需 `system_tenants_read|manage`，写需 `system_tenants_manage`。字段、响应与错误见[租户与成员](./02-api-tenant.md#系统管理员的成员接口systemadmintenantsidmembers)。
 
 ```bash
 curl $BASE/api/v1/system/admin/tenants/10001/members -H "Authorization: Bearer $TOKEN"
@@ -278,7 +278,7 @@ curl $BASE/api/v1/system/admin/tenants/10001/members -H "Authorization: Bearer $
 
 ### POST /api/v1/system/admin/tenants/apply-default-storage-quota
 
-用途：把当前默认存储配额批量写到全部空间（平台 key 需 `system_tenants_manage`）。无请求体。
+用途：把当前默认存储配额批量写到全部工作区（平台 key 需 `system_tenants_manage`）。无请求体。
 
 响应：200 `{"affected":N,"quota_bytes":N,"quota_gb":N}`
 
@@ -288,7 +288,7 @@ curl -X POST $BASE/api/v1/system/admin/tenants/apply-default-storage-quota -H "A
 
 ### GET /api/v1/system/admin/audit-log
 
-用途：平台级审计日志（tenant_id=0 行；平台 key 需 `system_audit_read`）。查询参数同空间审计（`after_id/limit/action/outcome/actor`）。Handler: `internal/handler/audit_log.go`
+用途：平台级审计日志（tenant_id=0 行；平台 key 需 `system_audit_read`）。查询参数同工作区审计（`after_id/limit/action/outcome/actor`）。Handler: `internal/handler/audit_log.go`
 
 响应：200 `{"success":true,"data":[AuditLog],"next_cursor":N}`
 

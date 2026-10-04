@@ -3,7 +3,7 @@
 换个向量模型、开不开重排、分块调大一点——这些改动到底有没有让效果变好？评估能力就是用来回答这个问题的：准备一份带标准答案的 QA 数据集，Yuheng 会自动建一个临时知识库灌进语料，逐题跑完整的检索 + 生成流程，最后给出一组可比较的分数（检索侧 Precision / Recall / NDCG / MRR / MAP，生成侧 BLEU / ROUGE）。
 
 ::: tip 目前只有 API
-评估暂时没有界面入口，通过 `POST /api/v1/evaluation` 发起（需要空间 Admin 权限）、用返回的任务 ID 调 `GET /api/v1/evaluation?task_id=...` 轮询结果。数据集是 app 容器工作目录下 `dataset/samples/` 里的 5 个 Parquet 文件，格式要求见下文。
+评估暂时没有界面入口，通过 `POST /api/v1/evaluation` 发起（需要工作区 Admin 权限）、用返回的任务 ID 调 `GET /api/v1/evaluation?task_id=...` 轮询结果。数据集是 app 容器工作目录下 `dataset/samples/` 里的 5 个 Parquet 文件，格式要求见下文。
 :::
 
 用法建议：固定数据集，每次只改一个变量（比如只换 embedding 模型），对比同一组指标，否则分数变化归因不清。

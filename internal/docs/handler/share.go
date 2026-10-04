@@ -240,7 +240,7 @@ func (h *PageHandler) UnlockPublicPage(c *gin.Context) {
 // PublicSpace godoc
 // @Summary      访问公开空间（无需登录）
 // @Description  返回空间信息与顶层页面。空间必须是 public，且部署开启了公开分享
-// @Description  用空间 ID 而不是 slug 寻址：slug 只在租户内唯一，而访客没有租户
+// @Description  用空间 ID 而不是 slug 寻址：slug 只在工作区内唯一，而访客没有工作区
 // @Tags         在线文档
 // @Produce      json
 // @Param        sid  path  string  true  "空间 ID"

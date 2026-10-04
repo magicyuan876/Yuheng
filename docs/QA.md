@@ -143,7 +143,7 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 - **API Key 调用**：API Key 不沿用成员角色，而是按它被授予的能力（capability）与知识库白名单授权，未声明策略的接口默认拒绝；报 403 时检查这把 Key 是否有对应能力。
 - **跨空间超管**：需要 `User.CanAccessAllTenants=true` 且配置 `enable_cross_tenant_access=true`，并通过 `X-Tenant-ID` 切换空间。
 
-需要临时回退到「只记录、不拦截」时，可设置 `tenant.enable_rbac=false`（或环境变量 `YUHENG_TENANT_ENABLE_RBAC=false`）。角色矩阵与 API Key 能力见[租户、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)。
+需要临时回退到「只记录、不拦截」时，可设置 `tenant.enable_rbac=false`（或环境变量 `YUHENG_TENANT_ENABLE_RBAC=false`）。角色矩阵与 API Key 能力见[工作区、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)。
 
 ## 11. 为什么登录后没有自动回到上次的工作区？
 
@@ -155,7 +155,7 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 
 ## 12. 如何让多人协作时正确分配权限？
 
-按照[租户、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)里的角色矩阵：
+按照[工作区、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)里的角色矩阵：
 
 - 只读用户 → `Viewer`
 - 普通成员（上传文档、维护「自己」的 KB）→ `Contributor`
@@ -230,7 +230,7 @@ API Key 是独立的机器主体，不等同于某个用户：它要么是全量
 - 路由按声明的策略放行，未声明策略的接口对 API Key 默认拒绝；给集成用具备所需能力的受限 Key，而不是全量 Key。
 - Key 的 `last_used_at` 按节流更新，避免高频写库。
 
-能力清单与知识库白名单见[租户、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)的「API Key 体系」。
+能力清单与知识库白名单见[工作区、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)的「API Key 体系」。
 
 ### 如何用一个 API Key 自动化管理多个空间？
 

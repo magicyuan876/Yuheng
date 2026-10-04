@@ -12,7 +12,7 @@ API key：`manage_models` 或 full-access。读接口 Viewer+；所有写操作�
 
 用途：模型厂商列表。权限：Viewer+。查询参数：`model_type`（可选：`chat/embedding/rerank/vllm/asr`，分别映射到上述模型类型；省略时返回全部厂商）。Handler: `internal/handler/model.go`
 
-响应：200 `{"success":true,"data":[{value,label,description,defaultUrls,modelTypes}]}`。`value` 是厂商标识，填到创建模型时的 `parameters.provider`，用来选择对应的 API 适配器；`defaultUrls` 按模型类型（`chat`、`embedding`、`rerank` 等）给出该厂商的默认接口地址；`modelTypes` 是该厂商支持的模型类型（前端别名）。这是系统级元数据，与空间无关。
+响应：200 `{"success":true,"data":[{value,label,description,defaultUrls,modelTypes}]}`。`value` 是厂商标识，填到创建模型时的 `parameters.provider`，用来选择对应的 API 适配器；`defaultUrls` 按模型类型（`chat`、`embedding`、`rerank` 等）给出该厂商的默认接口地址；`modelTypes` 是该厂商支持的模型类型（前端别名）。这是系统级元数据，与工作区无关。
 
 代码中注册的厂商标识（`internal/models/provider/provider.go`）：`generic`（自定义 OpenAI 兼容接口）、`openai`、`azure_openai`、`anthropic`、`aliyun`、`zhipu`、`volcengine`、`hunyuan`、`lkeap`、`deepseek`、`minimax`、`mimo`、`moonshot`、`qianfan`、`qiniu`、`longcat`、`siliconflow`、`jina`、`openrouter`、`requesty`、`gemini`、`modelscope`、`gpustack`、`nvidia`、`novita`。某个厂商支持哪些模型类型以接口返回为准。
 
@@ -52,7 +52,7 @@ curl "$BASE/api/v1/models/providers?model_type=chat" -H "Authorization: Bearer $
 
 火山引擎 Rerank 用 AK/SK 签名而不是方舟 API Key：`api_key` 填 Access Key ID，`app_secret` 填 Secret Access Key。
 
-响应：201 `{"success":true,"data":{ModelResponse}}`（`id,tenant_id,name,display_name,type,source,description,parameters,is_default,is_builtin,status,credentials,created_at,updated_at`）。`status` 取值 `active`、`downloading`、`download_failed`。响应里永远没有 `api_key` 与 `app_secret`，只在 `credentials` 里给出 `{"api_key":{"configured":bool},"app_secret":{"configured":bool}}`。空间角色低于 Admin 的成员，以及既非 full-access 也没有 `manage_tenant_settings` 的 API key，看不到 `base_url`、`extra_config`、`custom_headers`；平台共享（内置）模型对非系统管理员还会隐去 `app_id` 且不返回 `credentials`，只保留描述能力的字段（`embedding_parameters`、`parameter_size`、`provider`、`interface_type`、`supports_vision`）。
+响应：201 `{"success":true,"data":{ModelResponse}}`（`id,tenant_id,name,display_name,type,source,description,parameters,is_default,is_builtin,status,credentials,created_at,updated_at`）。`status` 取值 `active`、`downloading`、`download_failed`。响应里永远没有 `api_key` 与 `app_secret`，只在 `credentials` 里给出 `{"api_key":{"configured":bool},"app_secret":{"configured":bool}}`。工作区角色低于 Admin 的成员，以及既非 full-access 也没有 `manage_tenant_settings` 的 API key，看不到 `base_url`、`extra_config`、`custom_headers`；平台共享（内置）模型对非系统管理员还会隐去 `app_id` 且不返回 `credentials`，只保留描述能力的字段（`embedding_parameters`、`parameter_size`、`provider`、`interface_type`、`supports_vision`）。
 
 ```bash
 curl -X POST $BASE/api/v1/models -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
@@ -146,9 +146,9 @@ curl -X DELETE $BASE/api/v1/models/m-1/credentials/api_key -H "Authorization: Be
 
 ### PUT /api/v1/models/:id/sharing
 
-用途：设为平台共享（所有空间可见可用，凭证对非系统管理员隐藏）或取消共享。共享状态单独成一个子资源，避免普通编辑误改。权限：平台管理，服务层限定系统管理员。请求体：`{"shared":true}`（必填）。
+用途：设为平台共享（所有工作区可见可用，凭证对非系统管理员隐藏）或取消共享。共享状态单独成一个子资源，避免普通编辑误改。权限：平台管理，服务层限定系统管理员。请求体：`{"shared":true}`（必填）。
 
-响应：200 `{"success":true,"data":{ModelResponse}}`；取消共享时若仍有其他空间的知识库绑定该模型，返回 400；非系统管理员 403。
+响应：200 `{"success":true,"data":{ModelResponse}}`；取消共享时若仍有其他工作区的知识库绑定该模型，返回 400；非系统管理员 403。
 
 ```bash
 curl -X PUT $BASE/api/v1/models/m-1/sharing -H "Authorization: Bearer $TOKEN" \
@@ -322,9 +322,9 @@ Handler: `internal/handler/evaluation.go`。API key：`run_evaluations`/full。
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `dataset_id` | string | 否 | 数据集 ID，省略时为 `default` |
-| `knowledge_base_id` | string | 否 | 参照的 KB：评估总是新建一个名为 `evaluation` 的知识库，沿用该 KB 的 Embedding 与摘要模型；省略时取空间里找到的 Embedding 与对话模型，找不到则失败 |
-| `chat_id` | string | 否 | 对话模型 ID，省略时取空间里的一个 `KnowledgeQA` 模型，找不到则失败 |
-| `rerank_id` | string | 否 | Rerank 模型 ID，省略时取空间里的一个 `Rerank` 模型（可以没有） |
+| `knowledge_base_id` | string | 否 | 参照的 KB：评估总是新建一个名为 `evaluation` 的知识库，沿用该 KB 的 Embedding 与摘要模型；省略时取工作区里找到的 Embedding 与对话模型，找不到则失败 |
+| `chat_id` | string | 否 | 对话模型 ID，省略时取工作区里的一个 `KnowledgeQA` 模型，找不到则失败 |
+| `rerank_id` | string | 否 | Rerank 模型 ID，省略时取工作区里的一个 `Rerank` 模型（可以没有） |
 
 响应：200 `{"success":true,"data":{"task":{EvaluationTask},"params":{...}}}`。`task` 字段：`id`、`tenant_id`、`dataset_id`、`start_time`、`status`（0 等待、1 运行中、2 成功、3 失败）、`err_msg`、`total`、`finished`；`params` 是本次评估实际使用的检索与生成参数。
 

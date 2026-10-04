@@ -43,7 +43,7 @@ migrations/
 | 000075–000079 | Wiki 版本、分块编辑、文件夹 | `wiki_page_revisions`、`chunks` 的 `source_content`/`content_revision`/`index_status`/`context_header`、`chunk_revisions`、`knowledges.custom_metadata`（000078）、`knowledges.folder_path`（000079） |
 | 000080–000088 | 自动打标与上游遗留 | `knowledge_bases.auto_tag_config`（000080）、`messages.usage`（000085）、`is_builtin` 列（000088）；同段的沙箱、记忆、技能等为上游功能，大部分在 000089 删除 |
 | 000089 | 移除 Agent 基础设施 | DROP `custom_agents`、`agent_shares`、`tenant_disabled_shared_agents`、`mcp_tool_approvals`、`tenant_skills`（+快照）、`memory_*`（6 张）、`im_channels`、`im_channel_sessions`、`embed_channels`；`sessions.agent_config`→`last_request_state`、`messages.agent_steps`→`turn_steps`，并删除若干 `agent_*` 列 |
-| 000120 | 在线文档模块 | `tenant_groups`、`tenant_group_members`（空间组，现为核心概念，见 3.1）与全部 `docs_*` 表（见 3.8） |
+| 000120 | 在线文档模块 | `tenant_groups`、`tenant_group_members`（工作区组，现为核心概念，见 3.1）与全部 `docs_*` 表（见 3.8） |
 | 000121 | 清理存储配置 | 把 `knowledge_bases.cos_config` 中的 provider 迁入 `storage_provider_config`，删除 `cos_config` |
 | 000122 | 文档索引队列 | `docs_index_state` |
 | 000123 | 页面排除出知识库 | `docs_pages.exclude_from_knowledge` 取代 `status`（草稿即排除） |
@@ -56,13 +56,13 @@ migrations/
 | 000130 | 删除无写入方的页面问题表 | DROP `wiki_page_issues` |
 | 000131 | 清理智能体收藏 | 删除 `user_resource_favorites` 中 `resource_type = 'agent'` 的行 |
 | 000132 | API Key 不再可还原 | 新增 `tenant_api_keys.key_hint`，删除 `api_key` 列；000065 留下的占位 Key（从未能认证）一并删除 |
-| 000133 | 删除空间级置顶列 | 删除 `knowledge_bases.is_pinned` / `pinned_at`（置顶自 000050 起按用户存在 `user_kb_pins`） |
-| 000134 | 存储配置只有一个来源 | 删除 `storage_backends.legacy_alias` 与每个空间的环境存储副本，新增全平台唯一的部署存储记录 `env`（`tenant_id` 为空）；空间默认、知识库与文档空间的存储绑定改为必填 |
-| 000135 | 删除空间存储配置 | DROP `tenants.storage_engine_config` |
+| 000133 | 删除工作区级置顶列 | 删除 `knowledge_bases.is_pinned` / `pinned_at`（置顶自 000050 起按用户存在 `user_kb_pins`） |
+| 000134 | 存储配置只有一个来源 | 删除 `storage_backends.legacy_alias` 与每个工作区的环境存储副本，新增全平台唯一的部署存储记录 `env`（`tenant_id` 为空）；工作区默认、知识库与文档空间的存储绑定改为必填 |
+| 000135 | 删除工作区存储配置 | DROP `tenants.storage_engine_config` |
 | 000136 | 删除知识库存储类型 | DROP `knowledge_bases.storage_provider_config` |
 | 000137 | 资源按后端定位 | `resources.storage_backend_id` 必填，DROP `resources.provider`，位置唯一索引改为 `(storage_backend_id, location_hash)` |
-| 000138 | 删除组织与跨空间共享 | DROP `kb_shares`、`organization_join_requests`、`organization_tenant_members`、`organization_members_pre_plan3`（000045 改名后从未删除）、`organizations`；一个知识库只能从拥有它的空间访问 |
-| 000139 | 用户是全局身份 | DROP `users.tenant_id`（及索引 `idx_users_tenant_id`、外键 `fk_users_tenant`）；删除 `system_settings` 中 `auth.default_tenant_mode`、`tenant.self_service_creation_enabled`、`tenant.max_owned_per_user` 三行。成员关系只有 `tenant_members`，当前空间只有 `users.preferences.last_active_tenant_id` |
+| 000138 | 删除组织与跨工作区共享 | DROP `kb_shares`、`organization_join_requests`、`organization_tenant_members`、`organization_members_pre_plan3`（000045 改名后从未删除）、`organizations`；一个知识库只能从拥有它的工作区访问 |
+| 000139 | 用户是全局身份 | DROP `users.tenant_id`（及索引 `idx_users_tenant_id`、外键 `fk_users_tenant`）；删除 `system_settings` 中 `auth.default_tenant_mode`、`tenant.self_service_creation_enabled`、`tenant.max_owned_per_user` 三行。成员关系只有 `tenant_members`，当前工作区只有 `users.preferences.last_active_tenant_id` |
 
 ## 3. 最终表结构
 
@@ -72,13 +72,13 @@ migrations/
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
-| `tenants` | 租户（工作空间），多租户体系根 | `id`（SERIAL，起始 10000）、`name`、`retriever_engines`（JSONB）、`status`、`storage_quota`/`storage_used`、`context_config`/`conversation_config`/`web_search_config`/`credentials`（JSONB）、`default_storage_backend_id`（必填，默认 `env`；`agent_config` 为上游遗留的空列） |
+| `tenants` | 租户（工作区），多租户体系根 | `id`（SERIAL，起始 10000）、`name`、`retriever_engines`（JSONB）、`status`、`storage_quota`/`storage_used`、`context_config`/`conversation_config`/`web_search_config`/`credentials`（JSONB）、`default_storage_backend_id`（必填，默认 `env`；`agent_config` 为上游遗留的空列） |
 | `users` | 登录用户（全局身份，不属于任何租户；000139 起没有 `tenant_id`） | `id`（UUID）、`username`（唯一）、`email`（唯一）、`password_hash`、`is_active`、`is_system_admin`、`can_access_all_tenants`、`preferences`（JSONB，`last_active_tenant_id` 是用户指向租户的唯一指针，按 `tenant_members` 校验） |
 | `auth_tokens` | 登录令牌 | `user_id`（FK→users，CASCADE）、`token`、`token_type`（access/refresh）、`expires_at`（TIMESTAMPTZ）、`is_revoked` |
 | `tenant_members` | 租户级 RBAC 成员关系——用户与租户之间**唯一**的关系；对 `tenants` 没有外键，服务层在加成员前校验租户存在 | `user_id`+`tenant_id`（软删除下唯一）、`role`（owner/admin/contributor/viewer）、`status`、`invited_by`、`joined_at` |
 | `tenant_invitations` | 站内邀请与邀请链接 | `tenant_id`、`invitee_user_id`、`role`、`status`（pending/accepted/rejected）、`token`、`accepted_count`、`expires_at` |
 | `tenant_api_keys` | 租户/平台 API Key | `tenant_id`（平台作用域时为 NULL）、`scope_type`（tenant/platform）、`key_hash`（唯一，认证用）、`key_hint`（掩码提示）、`full_access`、`knowledge_base_ids`、`capabilities`、`expires_at`/`revoked_at` |
-| `tenant_groups` / `tenant_group_members` | 空间组（000120 随在线文档建表，现为核心概念：成员关系的另一半，授权可以授给 `group:<id>`；在线文档的空间成员与页面授权是第一个使用者，`source` 为 SSO 组映射预留） | 组：`name`（租户内不区分大小写唯一）、`description`、`is_default`（隐式「所有人」组，不写成员行）、`source`（manual/oidc/ldap）/`external_id`、`creator_id`；成员：PK（`group_id`,`user_id`）、`added_by` |
+| `tenant_groups` / `tenant_group_members` | 工作区组（000120 随在线文档建表，现为核心概念：成员关系的另一半，授权可以授给 `group:<id>`；在线文档的空间成员与页面授权是第一个使用者，`source` 为 SSO 组映射预留） | 组：`name`（租户内不区分大小写唯一）、`description`、`is_default`（隐式「所有人」组，不写成员行）、`source`（manual/oidc/ldap）/`external_id`、`creator_id`；成员：PK（`group_id`,`user_id`）、`added_by` |
 | `user_kb_pins` | 用户级知识库置顶 | PK（`tenant_id`,`user_id`,`kb_id`）+ `pinned_at` |
 | `user_resource_favorites` | 用户收藏（知识库、在线文档页面与空间等） | PK（`user_id`,`tenant_id`,`resource_type`,`resource_id`） |
 | `audit_logs` | 审计日志（000044） | `tenant_id`、`actor_user_id`/`actor_role`、`action`、`target_type`/`target_id`/`target_user_id`、`request_path`/`request_method`、`outcome`（success/denied）、`scope_type`/`scope_id`、`details`（JSONB） |
@@ -122,7 +122,7 @@ migrations/
 
 ### 3.5 已删除：跨租户协作（组织）
 
-000012–000018、000045、000046 建立的组织层（`organizations`、`organization_members` → 改名为 `organization_members_pre_plan3`、`organization_tenant_members`、`organization_join_requests`、`kb_shares`）在 **000138** 全部删除：一个企业一个空间，知识库只能从拥有它的空间访问，团队用空间组表达。`000138.down.sql` 按原 DDL（含索引名与部分索引谓词）重建空表，不恢复数据。
+000012–000018、000045、000046 建立的组织层（`organizations`、`organization_members` → 改名为 `organization_members_pre_plan3`、`organization_tenant_members`、`organization_join_requests`、`kb_shares`）在 **000138** 全部删除：一个企业一个工作区，知识库只能从拥有它的工作区访问，团队用工作区组表达。`000138.down.sql` 按原 DDL（含索引名与部分索引谓词）重建空表，不恢复数据。
 
 ### 3.6 Wiki
 
@@ -154,8 +154,8 @@ migrations/
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
-| `docs_spaces` | 空间 | `slug`（租户内唯一）、`name`、`visibility`（private/open/public）、`default_role`（none/reader/writer）、`knowledge_base_id`（绑定的知识库）、`storage_backend_id`（必填）、`settings`、`quota_bytes`（0 = 不限，只有工作空间管理员可设） |
-| `docs_space_members` | 空间成员 | `space_id`、`principal_type`/`principal_id`（用户或组）、`role` |
+| `docs_spaces` | 文档空间 | `slug`（租户内唯一）、`name`、`visibility`（private/open/public）、`default_role`（none/reader/writer）、`knowledge_base_id`（绑定的知识库）、`storage_backend_id`（必填）、`settings`、`quota_bytes`（0 = 不限，只有工作区管理员可设） |
+| `docs_space_members` | 文档空间成员 | `space_id`、`principal_type`/`principal_id`（用户或组）、`role` |
 | `docs_pages` | 页面 | `short_id`（URL 标识，租户内唯一）、`space_id`、`parent_id`、`position`（分数索引，`COLLATE "C"`）、`title`、`content`（ProseMirror JSON，`ydoc` 的投影）、`ydoc`（Yjs 全量状态，协同的事实来源）、`ydoc_version`（乐观并发）、`text_content`、`tsv`（生成列，全文检索）、`is_locked`、`exclude_from_knowledge`、`knowledge_id`（镜像条目，NULL 表示未进入知识库）、`owner_id`、`superseded_by`（JSONB，被取代时的去向）、`source_refs`、`contributor_ids`、`creator_id`/`last_editor_id`、`content_updated_at` |
 | `docs_page_revisions` | 页面历史版本 | `page_id`、`version`、`title`、`content`、`text_content`、`editor_ids`、`reason` |
 | `docs_page_access` / `docs_page_grants` | 页面级限制与授权 | 限制：`page_id` + `mode`；授权：`principal_type`/`principal_id` + `role` |
@@ -184,7 +184,7 @@ erDiagram
     tenants ||--o{ knowledge_bases : "知识库"
     tenants ||--o{ tenant_api_keys : "API Key"
     tenants ||--o{ audit_logs : "审计"
-    tenants ||--o{ tenant_groups : "空间组"
+    tenants ||--o{ tenant_groups : "工作区组"
     users ||--o{ tenant_group_members : "组成员"
     tenant_groups ||--o{ tenant_group_members : "group_id"
 
