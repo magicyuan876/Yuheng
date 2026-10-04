@@ -127,7 +127,8 @@
     "tdesign-icons-vue-next": "0.4.4",
     "lodash-es": "^4.18.1",
     "@excalidraw/excalidraw": {
-      "nanoid": "^3.3.19"
+      "nanoid": "^3.3.19",
+      "sass": "^1.105.1"
     },
     "@excalidraw/mermaid-to-excalidraw": {
       "nanoid": "^5.1.16"
