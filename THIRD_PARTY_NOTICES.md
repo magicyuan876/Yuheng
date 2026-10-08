@@ -1634,7 +1634,7 @@ The runtime dependencies locked in `docreader/uv.lock`, as installed for Python 
 | `typing_extensions` | 4.15.0 | PSF-2.0 |
 | `tzdata` | 2025.2 | Apache Software License |
 | `tzlocal` | 5.3.1 | MIT License |
-| `urllib3` | 2.7.0 | MIT |
+| `urllib3` | 2.8.0 | MIT |
 | `xlrd` | 2.0.2 | BSD License |
 | `xlsxwriter` | 3.2.9 | BSD License |
 
@@ -1705,7 +1705,7 @@ The runtime dependencies locked in `mcp-server/uv.lock`, as installed for Python
 | `truststore` | 0.10.4 | MIT |
 | `typing-inspection` | 0.4.2 | MIT |
 | `typing_extensions` | 4.16.0 | PSF-2.0 |
-| `urllib3` | 2.7.0 | MIT |
+| `urllib3` | 2.8.0 | MIT |
 | `uvicorn` | 0.51.0 | BSD-3-Clause |
 
 </details>
