@@ -58,7 +58,13 @@ function tokenize(text: string): string[] {
 }
 
 const repo = 'https://github.com/magicyuan876/Yuheng'
-const site = 'https://magicyuan876.github.io/yuheng'
+const site = 'https://magicyuan876.github.io/Yuheng'
+
+// The site is published in two places under different prefixes: GitHub Pages
+// serves it under the repository name (/Yuheng/, set by the docs workflow), and
+// the Docker image serves it under /docs/ behind a gateway (the default here,
+// which website-docs/nginx.conf expects).
+const base = (process.env.DOCS_BASE ?? '/docs/') as `/${string}/`
 
 export default withMermaid(
   defineConfig({
@@ -106,14 +112,14 @@ export default withMermaid(
         },
       },
     },
-    base: '/docs/',
+    base,
     cleanUrls: true,
     lastUpdated: true,
     srcExclude: ['README.md'],
     metaChunk: true,
 
     head: [
-      ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
+      ['link', { rel: 'icon', href: `${base}favicon.svg`, type: 'image/svg+xml' }],
       ['meta', { name: 'theme-color', content: '#101f38' }],
       ['meta', { property: 'og:image', content: `${site}/brand/yuheng-banner.png` }],
       ['meta', { property: 'og:type', content: 'website' }],
@@ -151,7 +157,6 @@ export default withMermaid(
         { text: 'API', link: '/04-api/01-api-overview', activeMatch: '/04-api/' },
         { text: '客户端', link: '/05-clients/01-frontend', activeMatch: '/05-clients/' },
         { text: '开发', link: '/06-development/01-dev-guide', activeMatch: '/06-development/' },
-        { text: '官网', link: site },
       ],
 
       yuhengVersion: repoVersionLabel,
