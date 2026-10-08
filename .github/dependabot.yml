@@ -1,52 +1,39 @@
 # Dependabot configuration for the Yuheng repository.
 #
-# Policy: EVERY ecosystem is security-only. No scheduled version PRs are
-# opened for anything -- not the server module, not /cli, not any of the five
-# npm workspaces, not docreader, not the actions. A CVE still opens a PR,
-# grouped into one per ecosystem.
+# Policy: Dependabot opens NO pull requests on this repository. Changes land
+# by direct commits to main, one developer, no PR review; a bot PR is only a
+# second copy of work that has to be redone on main anyway (and Dependabot's
+# own PRs miss the regenerated THIRD_PARTY_NOTICES.md, so they fail CI).
 #
-# READ THIS BEFORE TRUSTING THE FILE: none of it does anything until
-# "Dependabot alerts" and "Dependabot security updates" are switched on in
-# Settings -> Code security. Both are currently OFF, so Dependabot opens
-# nothing at all on this repository. That is deliberate for now -- the project
-# is pre-release and has never been tagged -- but it means there is no
-# automated CVE warning either. Turning both on is the single action that
-# activates everything below.
+# How that is enforced, in two places:
 #
-# Security-only pattern (mirrors fluent/fluentd-kubernetes-daemonset and
-# the dependabot docs for "Disabling Dependabot version updates"):
+#   * Repository settings (Settings -> Code security): "Dependabot alerts" is
+#     ON, so a CVE in any lockfile still shows up under Security -> Dependabot
+#     and by e-mail. "Dependabot security updates" is OFF -- that switch is
+#     what opens security PRs, and this file cannot override it. It was
+#     switched off on 2026-10-08 after it opened PRs #3-#5.
 #
-#     open-pull-requests-limit: 0   # primary kill-switch for version PRs
-#     ignore:                        # belt-and-suspenders: drop every
-#       - dependency-name: "*"       # non-security update at the source.
-#         update-types: ["version-update"]
-#     groups:                        # collapse simultaneous CVE PRs into
-#       security-updates:            # ONE PR per ecosystem so a noisy
-#         applies-to: security-updates
-#         patterns: ["*"]
+#   * This file: every ecosystem has version updates disabled, so no
+#     scheduled bump PRs either. The pattern (mirrors the Dependabot docs on
+#     "Disabling Dependabot version updates"):
 #
-# Why both `open-pull-requests-limit: 0` AND `ignore`:
-#   The official docs treat `limit: 0` as the canonical way to disable
-#   version updates, but dependabot-core#7353 shows it has historically
-#   been ignored for some ecosystems. Adding the wildcard `ignore` rule
-#   guarantees zero scheduled version PRs even if the limit gets
-#   regressed upstream. Security updates are unaffected by either knob.
+#       open-pull-requests-limit: 0   # primary kill-switch for version PRs
+#       ignore:                        # belt-and-suspenders: drop every
+#         - dependency-name: "*"       # non-security update at the source.
+#           update-types: [...]
 #
-# Prerequisite: "Dependabot security updates" must be enabled in
-#   Settings → Code security and analysis. Without it, no CVE PRs are
-#   opened regardless of this file.
+#     Why both: dependabot-core#7353 shows `limit: 0` has historically been
+#     ignored for some ecosystems; the wildcard `ignore` holds even then.
 #
-# Conventions applied to `/cli`:
-#   * Monthly schedule (one batch / month).
-#   * Two groups so per-dep PRs never flood:
-#       - `cli-deps`        bundles minor + patch → ONE PR / month.
-#       - `cli-deps-major`  bundles semver-major bumps the same way so
-#                           breaking changes surface as a single
-#                           review-required PR rather than silently
-#                           accumulating.
-#   * `open-pull-requests-limit: 3` as a safety net against stalled queues.
-#   * `commit-message.prefix: "chore(deps)"` to match the repo's
-#     Conventional Commits convention.
+# Acting on an alert: upgrade on main (for an npm lockfile, `npm install
+# pkg@^x`; for uv, `uvx --from uv@latest uv lock --upgrade-package pkg` --
+# an old local uv downgrades the lockfile format), regenerate the notices
+# with `tools/license_check.sh notices <section>`, commit. The alert closes
+# itself once the default branch no longer carries the vulnerable version.
+#
+# The `groups: ... applies-to: security-updates` blocks below do nothing while
+# security updates are off. They are kept so that switching the setting back
+# on yields one grouped PR per ecosystem rather than one per package.
 version: 2
 updates:
   # ─── Go modules ───
