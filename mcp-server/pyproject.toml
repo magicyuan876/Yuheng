@@ -52,7 +52,7 @@ test = [
 
 [project.urls]
 Homepage = "https://github.com/magicyuan876/yuheng"
-Documentation = "https://docs.yuheng.com"
+Documentation = "https://magicyuan876.github.io/Yuheng/"
 Repository = "https://github.com/magicyuan876/yuheng/tree/main/mcp-server"
 "Bug Reports" = "https://github.com/magicyuan876/yuheng/issues"
 Changelog = "https://github.com/magicyuan876/yuheng/blob/main/mcp-server/CHANGELOG.md"

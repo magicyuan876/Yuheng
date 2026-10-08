@@ -1,0 +1,81 @@
+name: Docs
+
+# Publishes website-docs/ to GitHub Pages at https://magicyuan876.github.io/Yuheng/.
+# The repository's Pages source must be "GitHub Actions" (Settings → Pages).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website-docs/**"
+      - "VERSION"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "website-docs/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+# One deployment at a time, and a running one is never cancelled half-way:
+# Pages would be left serving whichever upload finished last.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build:
+    name: Check links and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website-docs
+    steps:
+      # Full history: every page's "last updated" date comes from git log.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: website-docs/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # vitepress build does not fail on a dead relative link; this does.
+      - name: Check links
+        run: npm run check:links
+
+      - name: Build
+        run: npm run build
+        env:
+          DOCS_BASE: /Yuheng/
+
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
+        with:
+          path: website-docs/.vitepress/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
