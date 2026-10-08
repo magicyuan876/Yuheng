@@ -69,6 +69,33 @@ Wiki and write knowledge back.
   manage workspaces and accounts, audit logs, AES-256-GCM encrypted
   credentials, login rate limits and lockout, Langfuse tracing.
 
+## A look around
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./website-docs/public/screenshots/en/health.png" alt="Knowledge health: two leave policies compared, the differences highlighted">
+      <p><b>Knowledge health</b>: the 2024 policy grants 15 days of leave, the 2025 one 10. The two near-copies are found on their own, the differences highlighted word by word, and the newer one can supersede the older on the spot.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./website-docs/public/screenshots/en/chat.png" alt="Cited answers">
+      <p><b>Cited answers</b>: once the old policy is retired, the same question is answered from the current one, every claim linked to the document it came from.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./website-docs/public/screenshots/en/wiki.png" alt="Auto-Wiki">
+      <p><b>Auto-Wiki</b>: as documents arrive, an LLM organizes the knowledge base into interlinked summaries, entities and concepts.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./website-docs/public/screenshots/en/docs.png" alt="Collaborative documents">
+      <p><b>Collaborative documents</b>: real-time co-editing with Mermaid, tables and draw.io; in a space bound to a knowledge base, every page becomes knowledge.</p>
+    </td>
+  </tr>
+</table>
+
+<sub>The company, people and policies in the screenshots are made-up demo data.</sub>
+
 ## Features
 
 **📥 Ingestion and parsing**

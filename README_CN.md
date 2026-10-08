@@ -52,6 +52,33 @@ ReAct 循环——任何智能体——都可以来这里检索、问答、读 W
 - **企业级**：一个企业一个工作区、工作区内知识库任意多，四级成员角色与工作区组，系统管理员
   统一管理工作区与账号；审计日志、凭据 AES-256-GCM 加密、登录限流与锁定、Langfuse 追踪。
 
+## 界面一览
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./website-docs/public/screenshots/zh/health.png" alt="知识健康：两版休假制度的差异逐字高亮">
+      <p><b>知识健康</b>：2024 版写年假 15 天，2025 版写 10 天。两篇「几乎一样却不一样」的文档被自动找出，差异逐字高亮，可以当场用新版取代旧版。</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./website-docs/public/screenshots/zh/chat.png" alt="带引用的问答">
+      <p><b>带引用的问答</b>：旧版被取代之后，同一个问题按现行制度作答，每个结论都链接回出处文档。</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./website-docs/public/screenshots/zh/wiki.png" alt="自动 Wiki">
+      <p><b>自动 Wiki</b>：文档进来，LLM 把知识库整理成互相链接的摘要、实体与概念页。</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./website-docs/public/screenshots/zh/docs.png" alt="在线协同文档">
+      <p><b>在线协同文档</b>：多人实时编辑，支持 Mermaid、表格与 draw.io；绑定知识库的空间，页面自动成为知识。</p>
+    </td>
+  </tr>
+</table>
+
+<sub>截图中的公司、人员与制度均为虚构的演示数据。</sub>
+
 ## 核心功能
 
 **📥 接入与解析**
