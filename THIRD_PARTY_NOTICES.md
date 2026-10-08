@@ -2,8 +2,10 @@
 
 This file lists the third-party components Yuheng depends on, with the license
 each one is distributed under. It complements — it does not replace — the
-`LICENSE` file, which carries Tencent's original MIT text for the upstream
-WeKnora code together with the third-party notices that upstream compiled.
+upstream project's own license file, kept verbatim at
+`licenses/upstream-weknora/LICENSE`, which carries Tencent's original MIT text
+for the upstream WeKnora code together with the third-party notices that
+upstream compiled.
 Full license texts are under [`licenses/`](./licenses/).
 
 How this list was produced, and what it does *not* cover, is documented in

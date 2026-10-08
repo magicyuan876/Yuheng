@@ -12,14 +12,16 @@ Yuheng is an independent fork of WeKnora (https://github.com/Tencent/WeKnora).
     SPDX-License-Identifier: MIT
 
 A substantial part of this software originates in that upstream project and is
-used under the MIT License. The original copyright notice and license terms are
-reproduced verbatim in the LICENSE file at the root of this repository, which
-also carries the upstream project's third-party component notices unchanged.
+used under the MIT License. The LICENSE file at the root of this repository is
+the MIT License with both copyright lines. The upstream project's own LICENSE
+file — Tencent's original copyright notice and license terms together with its
+third-party component notices — is reproduced verbatim, byte for byte, in
+licenses/upstream-weknora/LICENSE.
 
 Yuheng is not affiliated with, endorsed by, sponsored by, or supported by
 Tencent. It is not an official WeKnora release. "WeKnora" and "Tencent" are the
-marks of their respective owners and appear in this file and in the LICENSE
-file solely to record where this code came from. Support requests concerning
+marks of their respective owners and appear in this file and in the license
+files solely to record where this code came from. Support requests concerning
 Yuheng must be directed to this repository, never to the upstream maintainers.
 
 This repository was published as a fresh import of the forked tree. The
@@ -37,10 +39,12 @@ included in all copies or substantial portions of the software. When you
 redistribute Yuheng — as source, as a container image, or as a compiled binary —
 ship the following files together with it:
 
-    LICENSE                    Tencent's MIT text + upstream third-party notices
+    LICENSE                    the MIT License, with both copyright lines
     NOTICE                     this file
     THIRD_PARTY_NOTICES.md     per-dependency attribution for Yuheng's own tree
-    licenses/                  full license texts referenced by the above
+    licenses/                  full license texts referenced by the above,
+                               including upstream-weknora/LICENSE: Tencent's
+                               MIT text + upstream third-party notices
 
 At minimum, the following two lines must travel with any redistribution:
 
