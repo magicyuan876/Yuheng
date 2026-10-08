@@ -111,7 +111,7 @@ rather than per file.
 
 | What | Where | Why |
 |---|---|---|
-| Tencent's MIT text + the upstream third-party notice bundle | `LICENSE` (161 KB) | The MIT License's one condition. Removing or editing it is the one thing that would actually make the fork non-compliant. |
+| Tencent's MIT text + the upstream third-party notice bundle | `licenses/upstream-weknora/LICENSE` (161 KB) | The MIT License's one condition. Removing or editing it is the one thing that would actually make the fork non-compliant. It sat at the repository root until 2026-10-08 and was then moved, byte for byte, so that the root `LICENSE` can be the plain MIT text that license detectors (GitHub's among them) recognise; the root file keeps Tencent's copyright line beside ours. Moving the file within the distribution changes nothing about the obligation — it ships wherever `licenses/` ships. |
 | `Copyright (c) 2024 WeKnora Team` | `mcp-server/LICENSE` | A copyright line. (The mechanical pass did rewrite this one; it was **restored**, with a `Modifications Copyright` line added beneath.) |
 | `Copyright (c) 2026 Sideguide Technologies Inc.` | `third_party/anydoc-go/LICENSE` | Vendored dependency's own license. |
 | Upstream issue/PR references `Tencent/WeKnora#2136`, `#1262`, `#2768` | 10 Go files, 1 Python test, 1 doc | Attribution facts. They say "this code exists because of that upstream bug report", and that is true and useful. Protected with a sentinel through every mechanical pass. |

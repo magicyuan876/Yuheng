@@ -57,8 +57,9 @@ check_attribution() {
     && pass "licenses/upstream-weknora/ present ($(find licenses/upstream-weknora -type f | wc -l) files)" \
     || fail "licenses/upstream-weknora/ is missing"
 
-  # The upstream MIT grant. Without these exact facts in LICENSE the fork has no
-  # permission to exist.
+  # The root LICENSE is the plain MIT text, so that license detectors recognise
+  # it; it must still name Tencent beside us, because the code it covers is
+  # partly theirs.
   grep -q "Copyright (C) 2025 Tencent" LICENSE \
     && pass "LICENSE carries Tencent's copyright line" \
     || fail "LICENSE no longer carries 'Copyright (C) 2025 Tencent'"
@@ -67,14 +68,25 @@ check_attribution() {
     && pass "LICENSE carries the MIT permission notice" \
     || fail "LICENSE no longer carries the MIT permission notice"
 
-  # LICENSE also carries upstream's third-party notice bundle; a truncated file
-  # usually means someone replaced it with a bare MIT template.
-  local lines
-  lines=$(wc -l < LICENSE)
-  if (( lines < 3000 )); then
-    fail "LICENSE is only ${lines} lines — the upstream third-party notices look truncated"
+  # The upstream MIT grant, verbatim. Without these exact facts the fork has no
+  # permission to exist.
+  local upstream=licenses/upstream-weknora/LICENSE
+  if [[ ! -s $upstream ]]; then
+    fail "$upstream is missing — upstream's own license file must ship verbatim"
   else
-    pass "LICENSE is ${lines} lines (third-party notices intact)"
+    grep -q "Copyright (C) 2025 Tencent" "$upstream" && grep -q "Permission is hereby granted, free of charge" "$upstream" \
+      && pass "$upstream carries Tencent's copyright and MIT permission notice" \
+      || fail "$upstream lost Tencent's copyright line or the MIT permission notice"
+
+    # It also carries upstream's third-party notice bundle; a truncated file
+    # usually means someone replaced it with a bare MIT template.
+    local lines
+    lines=$(wc -l < "$upstream")
+    if (( lines < 3000 )); then
+      fail "$upstream is only ${lines} lines — the upstream third-party notices look truncated"
+    else
+      pass "$upstream is ${lines} lines (third-party notices intact)"
+    fi
   fi
 
   grep -q "Portions Copyright (c) 2025 Tencent" NOTICE \
