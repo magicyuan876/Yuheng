@@ -4477,6 +4477,10 @@ export default {
         title: "审计日志导出",
         description: "把审计日志导出为文件，或转发到 syslog 与 Webhook，便于接入 SIEM 等安全审计系统。",
       },
+      retrievalEngines: {
+        title: "更多检索引擎",
+        description: "在内置的 PostgreSQL 引擎之外，接入 OpenSearch 等社区版不提供的检索引擎。",
+      },
       license: { title: "许可证管理", description: "查看并更新企业版许可证。" },
     },
   },

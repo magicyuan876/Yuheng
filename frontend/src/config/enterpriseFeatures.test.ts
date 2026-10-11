@@ -23,7 +23,12 @@ test("catalog keys are unique, namespaced, and exclude the license page", () => 
   assert.equal(new Set(keys).size, keys.length);
   for (const key of keys) assert.match(key, /^enterprise\.[a-z_]+$/);
   assert.equal(keys.includes(ENTERPRISE_LICENSE_FEATURE_KEY), false);
-  assert.deepEqual(keys, ["enterprise.acl_retrieval", "enterprise.saml", "enterprise.audit_export"]);
+  assert.deepEqual(keys, [
+    "enterprise.acl_retrieval",
+    "enterprise.saml",
+    "enterprise.audit_export",
+    "enterprise.retrieval_engines",
+  ]);
 });
 
 test("nothing is claimed to be available before it exists", () => {

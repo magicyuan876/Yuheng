@@ -1,4 +1,4 @@
-import { FileClockIcon, KeyRoundIcon, ShieldCheckIcon, type LucideIcon } from "@lucide/vue";
+import { DatabaseIcon, FileClockIcon, KeyRoundIcon, ShieldCheckIcon, type LucideIcon } from "@lucide/vue";
 
 /**
  * The catalog of features the Enterprise edition adds, as the community
@@ -54,6 +54,18 @@ export const ENTERPRISE_FEATURES: readonly EnterpriseFeature[] = [
     icon: FileClockIcon,
     titleKey: "enterprise.features.auditExport.title",
     descriptionKey: "enterprise.features.auditExport.description",
+    stage: "planned",
+  },
+  {
+    // No backend key reports this yet (the engine is wired unconditionally in
+    // the Enterprise build today, ahead of its own licence gate), so this
+    // entry currently renders from its "planned" stage alone, same as the
+    // others before the backend ever lists them. The key is the name the
+    // gate will use once that engine starts following a licence.
+    key: "enterprise.retrieval_engines",
+    icon: DatabaseIcon,
+    titleKey: "enterprise.features.retrievalEngines.title",
+    descriptionKey: "enterprise.features.retrievalEngines.description",
     stage: "planned",
   },
 ];

@@ -4611,6 +4611,11 @@ export default {
         description:
           "Export the audit log to files, or forward it to syslog or a webhook, for integration with SIEM and other security tooling.",
       },
+      retrievalEngines: {
+        title: "Additional retrieval engines",
+        description:
+          "Run retrieval on OpenSearch and other engines the community edition does not ship, alongside the built-in PostgreSQL engine.",
+      },
       license: { title: "License management", description: "View and update the Enterprise license." },
     },
   },

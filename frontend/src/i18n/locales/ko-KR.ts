@@ -4571,6 +4571,11 @@ export default {
         title: "감사 로그 내보내기",
         description: "감사 로그를 파일로 내보내거나 syslog, 웹훅으로 전달하여 SIEM 등 보안 도구와 연동합니다.",
       },
+      retrievalEngines: {
+        title: "추가 검색 엔진",
+        description:
+          "내장 PostgreSQL 엔진 외에 커뮤니티 에디션에는 없는 OpenSearch 등의 검색 엔진을 사용할 수 있습니다.",
+      },
       license: { title: "라이선스 관리", description: "엔터프라이즈 라이선스를 확인하고 갱신합니다." },
     },
   },
