@@ -74,7 +74,8 @@ export default withMermaid(
     lang: 'zh-CN',
 
     // Chinese is the primary language and lives at the site root. English exists
-    // only for the installation and quick start pages, under /en/.
+    // only for the installation and quick start pages plus the Enterprise edition
+    // overview, under /en/; everything else is in Chinese.
     locales: {
       root: { label: '简体中文', lang: 'zh-CN' },
       en: {
@@ -82,11 +83,13 @@ export default withMermaid(
         lang: 'en-US',
         link: '/en/',
         titleTemplate: ':title · Yuheng docs',
-        description: 'Yuheng documentation in English: installation and quick start. The rest of the documentation is in Chinese.',
+        description:
+          'Yuheng documentation in English: installation, quick start and the Enterprise edition overview. The rest of the documentation is in Chinese.',
         themeConfig: {
           nav: [
             { text: 'Installation', link: '/en/01-getting-started/02-installation', activeMatch: '/en/01-getting-started/02' },
             { text: 'Quick start', link: '/en/01-getting-started/03-quickstart', activeMatch: '/en/01-getting-started/03' },
+            { text: 'Enterprise', link: '/en/03-features/01-enterprise-edition', activeMatch: '/en/03-features/' },
             { text: '中文文档', link: '/01-getting-started/01-introduction' },
           ],
           sidebar: [
@@ -97,6 +100,10 @@ export default withMermaid(
                 { text: 'Installation', link: '/en/01-getting-started/02-installation' },
                 { text: 'Quick start', link: '/en/01-getting-started/03-quickstart' },
               ],
+            },
+            {
+              text: 'Features',
+              items: [{ text: 'Enterprise edition', link: '/en/03-features/01-enterprise-edition' }],
             },
           ],
           outline: { level: [2, 3], label: 'On this page' },
