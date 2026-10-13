@@ -14,3 +14,12 @@ GO-2025-3689 ollama server; only the api client is linked
 GO-2025-3695 ollama server; only the api client is linked
 GO-2025-3824 ollama server; only the api client is linked
 GO-2025-4251 ollama server; only the api client is linked
+#
+# Go standard library (net/http HTTP/2, net/textproto): no fixed Go release
+# exists yet; remove each entry once a toolchain that fixes it ships and CI's
+# GO_VERSION moves past it.
+GO-2026-6603 no fixed Go release yet; stdlib net/http HTTP/2 Trailer handling
+GO-2026-6610 no fixed Go release yet; stdlib net/http HTTP/2 transport framing
+GO-2026-6611 no fixed Go release yet; stdlib net/http HTTP/2 window updates
+GO-2026-6612 no fixed Go release yet; stdlib net/http HTTP/2 flow control
+GO-2026-6617 no fixed Go release yet; stdlib net/http HPACK encoder race
