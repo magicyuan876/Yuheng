@@ -267,6 +267,16 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(service.NewTemporaryDocumentService))
 	must(container.Invoke(startTemporaryDocumentCleanup))
 
+	// Extensions. The core provides a default for what an extension may add, then
+	// lets registered hooks add providers and decorate those defaults. This has to
+	// come after every provider is registered (a hook may decorate any of them)
+	// and before the first Invoke that resolves them: the chat pipeline plugins
+	// below build the engine catalog, which an extension adds engines to, and the
+	// router reports extension features.
+	logger.Debugf(ctx, "[Container] Applying extensions...")
+	must(container.Provide(extension.NewFeatures))
+	must(extension.ApplyHooks(container))
+
 	// Chat pipeline components for processing chat requests
 	logger.Debugf(ctx, "[Container] Registering chat pipeline plugins...")
 
@@ -342,14 +352,6 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	// Wire the chat package's stored-image resolver so multimodal chat can
 	// inline images held on any storage backend.
 	must(container.Invoke(registerChatStoredImageResolver))
-
-	// Extensions. The core provides a default for what an extension may add, then
-	// lets registered hooks add providers and decorate those defaults. This has to
-	// come after every provider is registered (a hook may decorate any of them)
-	// and before the first Invoke that resolves them, which is the router below.
-	logger.Debugf(ctx, "[Container] Applying extensions...")
-	must(container.Provide(extension.NewFeatures))
-	must(extension.ApplyHooks(container))
 
 	// Router configuration
 	logger.Debugf(ctx, "[Container] Registering router and starting task server...")
