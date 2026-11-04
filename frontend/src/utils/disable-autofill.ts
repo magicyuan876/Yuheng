@@ -5,7 +5,8 @@
 function guardElement(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) {
   const explicit = el.getAttribute("autocomplete");
   if (explicit !== null && explicit !== "") return;
-  if (el.closest("[data-allow-autofill]")) return;
+  if (el.closest("[data-allow-autofill], .ProseMirror")) return;
+  if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) return;
 
   if (el instanceof HTMLInputElement && el.type === "password") {
     el.setAttribute("autocomplete", "new-password");
